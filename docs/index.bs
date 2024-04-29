@@ -1,0 +1,828 @@
+<pre class='metadata'>
+Title: CBOR Credential Database Format
+Shortname: CCDB 
+Level: 1
+Status: LD
+Repository: https://github.com/r4gus/c2df
+URL: https://r4gus.github.io/c2df/index.html
+Editor: David P. Sugar, david@thesugar.de
+Abstract: Specification for the CBOR Credential Database Format (CCDB) providing confidentiality and integrity for credentials and other sensitive data at rest.
+Complain About: accidental-2119 yes, missing-example-ids yes
+Markup Shorthands: markdown yes, css no
+</pre>
+
+Introduction {#intro}
+=====================
+
+This document defines a database format enabling the secure storage of credentials,
+including passwords and passkeys, and related data in a single encrypted file, stored locally
+on a users device. At rest, the dabase is encrypted with a secret derived from a source previously
+selected by the user. In most cases this will be a password. The content of the database is only 
+accessible after decrypting it with the corresponding key.
+
+The format is meant for applications that require secure storage at rest, including password managers,
+FIDO capable authenticators, and other applications storing and managing credentials.
+
+Database Format {#db-format}
+=====================
+
+The CCDB data consists of a public and a confidential part. The database starts with a public header that encodes the properties of
+the database, including its version, followed by a encrypted block that contains the actual, CBOR encoded, data. The integrity of the 
+header as well as the confidential block is verified using message authentication codes.
+
+<pre class='railroad'>
+N: Outer Header
+N: Body Length (u64)
+N: AEAD Tag
+N: Encrypted Body
+</pre>
+
+## Conventions ## {#conventions}
+
+: Byte
+:: A byte is a value in the range `[0, 255]` that can be represented with 8 bits.
+
+: Unsigned numbers
+:: Unsigned numbers are represented as `uN`, a number in the range `[0, 2^n - 1]`, e.g., `u32` is a number between 0 and 4294967295.
+
+: Signed numbers
+:: Signed numbers are represented as `iN`, a number in the range `[-2^(N - 1), 2^(n - 1) - 1]`, e.g., `i32` is a number between 2147483648 and 2147483647.
+
+: Endianness
+:: All numbers are stored in the little-endian format, e.g., the `u32` number 0x12345678 is stored as `78 56 34 12` consecutively in memory.
+
+: Byte sequence
+:: A byte sequence is denoted as `byte[N]` where `N` is the number of consecuitve bytes in memory.
+
+: UUID
+:: Certain elements like ciphers and key derivation functions are encoded as Universally Unique IDentifiers [[RFC4122]] with the version 4 (random data).
+
+: String
+:: A UTF-8 string.
+
+## CBOR Grammar ## {#cbor-grammar}
+
+This document uses the same grammar as used by [[!RFC8152]]. The CBOR structures are described in prose.
+
+: bool
+:: A boolean value (true: major type 7, value 21; false: major type 7, value 20)
+
+: int
+:: An unsigned integer or a negative integer.
+
+: uint
+:: An unsigned integer (majort type 0)
+
+: nint
+:: A negative integer (major type 1)
+
+: bstr
+:: Byte string (major type 2)
+
+: tstr
+:: Text string (major type 3)
+
+: map
+:: A CBOR map (major type 5)
+
+: [+ FOO]
+:: Indicates that the type FOO appears one or more times in an array.
+
+## Outer Header ## {#outer-header}
+
+The outer header encodes information required to decrypt the remaining database. The overall structure of the outer header can be described as follows:
+
+<pre class='railroad'>
+N: Version
+N: Header Field Length (u64)
+OneOrMore:
+    N: Header Field
+    Choice:
+        N: [=Cipher=]
+        N: [=Compression=]
+        N: [=EncryptionIv=]
+        N: [=KdfParameters=]
+T: Header Hash
+</pre>
+
+The header begins with the database version ([[#header-version]]) followed by the length of the header fields in bytes, followed by one or more header fields ([[#header-fields]]). Adjacent to the last header field follows a SHA-256 hash ([[!FIPS-180-4]]).
+
+The hash SHOULD be verified before parsing any header fields. It is used to detect 
+unwanted modifications to the header but doesn't guarantee authenticity, i.e., an
+attacker that modifies the header can also modify the corresponding hash value.
+The hash is calculated from the Version and all Header Fields.
+
+<pre class="example">
+43 43 44 42 01 00 00 00
+|_________| |___| |___|
+  "CCDB"      1  .  0
+
+9b 00 00 00
+|_________|
+Header Field Length
+
+A468436970686572496450D6038A2B8B6F4CB5A524339A31DBB59A6B436F6D70
+72657373696F6E016C456E6372797074696F6E49764C0102030405060708090A
+0B0C6D4B6466506172616D6574657273D840A5652455554944509E298B1956DB
+4773B23DFC3EC6F0A1E661535820123456781234567812345678123456781234
+5678123456781234567812345678615008614D1A00100000614902
+
+e4 f3 18 a3 ad b0 df 00 81 2d 36 24 ea fb fc 55 08 a4 cb 34 79 11 67 8c 16 1c f0 06 1a 44 c9 10
+|_____________________________________________________________________________________________|
+                                          SHA256
+</pre>
+
+### Version ### {#header-version}
+
+The initial 8 bytes encode the CCDB version.
+
+<figure id="version" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Name</th>
+            <th>Data Type</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td><dfn>sig</dfn></td>
+            <td>u32</td>
+            <td>
+                CCDB 
+            </td>
+        </tr>
+        <tr>
+            <td><dfn>major version</dfn></td>
+            <td>u16</td>
+            <td>
+                0x01 for CDF major version 1
+            </td>
+        </tr>
+        <tr>
+            <td><dfn>minor version</dfn></td>
+            <td>u16</td>
+            <td>
+                Minor version number, e.g., 0 if the CDF version is 1.0
+            </td>
+        </tr>
+    </table>
+</figure>
+
+### Header Fields ### {#header-fields}
+
+The [[#header-version]] is followed by a CBOR map (major type 5) of the following header fields. The keys are encoded
+as text strings (major type 3) whereas the value types vary. All listed header fields are mandatory
+and SHOULD be encoded in the order listed below.
+
+<figure id="fieldTypes" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Key</th>
+            <th>Data Type</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td><dfn>Cipher</dfn></td>
+            <td>int</td>
+            <td>
+                The cipher the database is encrypted with, encoded as integer as defined by [[!RFC9053]] and [[!RFC9054]]. 
+
+                The following ciphers MUST be supported:
+                - AES256GCM: 3 
+                
+                The following ciphers MAY be supported:
+            </td>
+        </tr>
+        <tr>
+            <td><dfn>Compression</dfn></td>
+            <td>int</td>
+            <td>
+                The following compression algorithms are supported:
+                
+                - None (0x00)
+                - Gzip (0x01) [[!RFC1952]]
+            </td>
+        </tr>
+        <tr>
+            <td><dfn>EncryptionIv</dfn></td>
+            <td>bstr</td>
+            <td>
+                Initialization vector (nonce) used for encryption. The IVs size depends
+                on the cipher used for encryption, e.g.:
+                
+                - AES-GCM: 12 bytes
+
+                Note: A new and unique IV MUST be used for every encryption. One MUST NOT use the same IV twice! This can be achieved by using a counter or by using a cryptographically secure (pseudo) random number generator (CSRNG) to generate the IV at random.
+            </td>
+        </tr>
+        <tr>
+            <td><dfn>KdfParameters</dfn></td>
+            <td>[[#variant-map]]</td>
+            <td>
+                Values specific for the [[#key-derivation]]
+            </td>
+        </tr>
+    </table>
+</figure>
+
+<pre class="example">
+{"Cipher": h'd6038a2b8b6f4cb5a524339a31dbb59a', "Compression": 1, "EncryptionIv": h'0102030405060708090a0b0c', "KdfParameters": 64({"$UUID": h'85959f95021b407ca5eb9263cd9da063', "S": h'1234567812345678123456781234567812345678123456781234567812345678', "P": 8, "M": 0x100000, "I": 2})}
+
+A4                                      # map(4)
+   68                                   # text(8)
+      4369706865724964                  # "Cipher"
+   50                                   # bytes(16)
+      D6038A2B8B6F4CB5A524339A31DBB59A  # "\xD6\u0003\x8A+\x8BoL\xB5\xA5$3\x9A1۵\x9A"
+   6B                                   # text(11)
+      436F6D7072657373696F6E            # "Compression"
+   01                                   # unsigned(1)
+   6C                                   # text(12)
+      456E6372797074696F6E4976          # "EncryptionIv"
+   4C                                   # bytes(12)
+      0102030405060708090A0B0C          # "\u0001\u0002\u0003\u0004\u0005\u0006\u0007\b\t\n\u000b\f"
+   6D                                   # text(13)
+      4B6466506172616D6574657273        # "KdfParameters"
+   D8 40                                # tag(64)
+      A5                                # map(5)
+         65                             # text(5)
+            2455554944                  # "$UUID"
+         50                             # bytes(16)
+            85959f95021b407ca5eb9263cd9da063
+         61                             # text(1)
+            53                          # "S"
+         58 20                          # bytes(32)
+            1234567812345678123456781234567812345678123456781234567812345678 # "\u00124Vx\u00124Vx\u00124Vx\u00124Vx\u00124Vx\u00124Vx\u00124Vx\u00124Vx"
+         61                             # text(1)
+            50                          # "P"
+         08                             # unsigned(8)
+         61                             # text(1)
+            4D                          # "M"
+         1A 00100000                    # unsigned(1048576)
+         61                             # text(1)
+            49                          # "I"
+         02                             # unsigned(2)
+
+A468436970686572496450D6038A2B8B6F4CB5A524339A31DBB59A6B436F6D70
+72657373696F6E016C456E6372797074696F6E49764C0102030405060708090A
+0B0C6D4B6466506172616D6574657273D840A56524555549445085959F95021B
+407CA5EB9263CD9DA06361535820123456781234567812345678123456781234
+5678123456781234567812345678615008614D1A00100000614902
+</pre>
+
+### Variant Map ### {#variant-map}
+
+A variant map is a [CBOR tag](https://www.rfc-editor.org/rfc/rfc8949.html#name-tagging-of-items) (major type 6) that encodes the type and value
+of a data item:
+
+<figure id="kdfParameterVariantMap" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Tag</th>
+            <th>Data Item</th>
+            <th>Semantics</th>
+        </tr>
+        <tr>
+            <td>64</td>
+            <td>map</td>
+            <td>
+                [[#kdf-variant-map]] containing information for the key derivation function.
+            </td>
+        </tr>
+    </table>
+</figure>
+
+<pre class="example">
+64({"$UUID": h'9e298b1956db4773b23dfc3ec6f0a1e6', "S": h'1234567812345678123456781234567812345678123456781234567812345678', "P": 8, "M": 0x100000, "I": 2})
+
+D8 40                                   # tag(64)
+   A5                                   # map(5)
+      65                                # text(5)
+         2455554944                     # "$UUID"
+      50                                # bytes(16)
+         9E298B1956DB4773B23DFC3EC6F0A1E6 # "\x9E)\x8B\u0019V\xDBGs\xB2=\xFC>\xC6\xF0\xA1\xE6"
+      61                                # text(1)
+         53                             # "S"
+      58 20                             # bytes(32)
+         1234567812345678123456781234567812345678123456781234567812345678 # "\u00124Vx\u00124Vx\u00124Vx\u00124Vx\u00124Vx\u00124Vx\u00124Vx\u00124Vx"
+      61                                # text(1)
+         50                             # "P"
+      08                                # unsigned(8)
+      61                                # text(1)
+         4D                             # "M"
+      1A 00100000                       # unsigned(1048576)
+      61                                # text(1)
+         49                             # "I"
+      02                                # unsigned(2)
+
+D840A5652455554944509E298B1956DB4773B23DFC3EC6F0A1E6615358201234
+5678123456781234567812345678123456781234567812345678123456786150
+08614D1A00100000614902
+</pre>
+
+#### KDF Parameters #### {#kdf-variant-map}
+
+The KDF parameters are used to derive a secret ([[#final-keys]]). The [=$UUID=] is mandatory and
+defines which algorithm should be used as key derivation function. The other parameters are optional
+and depend on the selected algorithm. All parameters associated with the specified algorithm MUST be 
+present for a specific algorithm, otherwise the database is malformed.
+
+<figure id="kdfParameterVariantMap" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Field</th>
+            <th>Data Type</th>
+            <th>Description</th>
+            <th>Association</th>
+        </tr>
+        <tr>
+            <td><dfn>$UUID</dfn></td>
+            <td>bstr</td>
+            <td>
+                A 16 byte UUID indicating the key derivation algorithm. This should be
+                the first entry of the map.
+                
+                - Argon2id: `9e298b19-56db-4773-b23d-fc3ec6f0a1e6`    
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><dfn>S</dfn></td>
+            <td>bstr</td>
+            <td>
+                Random salt, typically 32 bytes. 
+            </td>
+            <td>Argon2</td>
+        </tr>
+        <tr>
+            <td><dfn>P</dfn></td>
+            <td>uint</td>
+            <td>
+                Parallelism encoded within a u32.
+            </td>
+            <td>Argon2</td>
+        </tr>
+        <tr>
+            <td><dfn>M</dfn></td>
+            <td>uint</td>
+            <td>
+                Memory usage in KiB, encoded within a u64.
+            </td>
+            <td>Argon2</td>
+        </tr>
+        <tr>
+            <td><dfn>I</dfn></td>
+            <td>uint</td>
+            <td>
+                Iterations, encoded within a u64.
+            </td>
+            <td>Argon2</td>
+        </tr>
+    </table>
+</figure>
+
+<pre class="example">
+{"$UUID": h'9e298b1956db4773b23dfc3ec6f0a1e6', "S": h'1234567812345678123456781234567812345678123456781234567812345678', "P": 8, "M": 0x100000, "I": 2}
+
+A5                                      # map(5)
+   65                                   # text(5)
+      2455554944                        # "$UUID"
+   50                                   # bytes(16)
+      9E298B1956DB4773B23DFC3EC6F0A1E6  # "\x9E)\x8B\u0019V\xDBGs\xB2=\xFC>\xC6\xF0\xA1\xE6"
+   61                                   # text(1)
+      53                                # "S"
+   58 20                                # bytes(32)
+      1234567812345678123456781234567812345678123456781234567812345678 # "\u00124Vx\u00124Vx\u00124Vx\u00124Vx\u00124Vx\u00124Vx\u00124Vx\u00124Vx"
+   61                                   # text(1)
+      50                                # "P"
+   08                                   # unsigned(8)
+   61                                   # text(1)
+      4D                                # "M"
+   1A 00100000                          # unsigned(1048576)
+   61                                   # text(1)
+      49                                # "I"
+   02                                   # unsigned(2)
+
+A5652455554944509E298B1956DB4773B23DFC3EC6F0A1E66153582012345678
+1234567812345678123456781234567812345678123456781234567861500861
+4D1A00100000614902
+</pre>
+
+### Key Derivation ### {#key-derivation}
+
+The encryption key is derived from one or more sources of key data:
+
+- a [[#password]],
+- a [[#key-file]],
+- or a [[#key-provider]]
+
+#### Password #### {#password}
+
+A password is the most common source of key data. It is set by a user during
+database creation and is also referred to as the master password. It is recommendet
+to use a strong password that fulfills the following criteria:
+
+- At least 12 characters
+- At least one lower case letter
+- At least one upper case letter
+- At least on special character
+- At least on digit
+
+It is further recommendet that applications supporting the creation of CCDB databases
+furhter support the user with the creation of a secure master password, including the
+suggestion of randomized passwords.
+
+#### Key File #### {#key-file}
+
+#### Key Provider #### {#key-provider}
+
+#### Symmetric Key #### {#final-keys}
+
+A composite key is the result of concatenating the key sources in the following order
+
+- `SHA256(password)`
+- `keyFile`
+- `keyProviderData`
+
+and then hashing the resulting sequence using SHA-256, resulting in a 32 byte composite key.
+
+<pre class="example" highlight="js">
+compositeKey = SHA256(SHA256(password) || keyFile || keyProviderData)
+</pre>
+
+Note: If one of the key sources is not available, the empty string is appended, i.e., nothing. There MUST
+be at least one key source selected.
+
+The composite key is used as an input for the key derivation function, defined within [=KdfParameters=], to calculate the symmetric key. All the neccessary parameters MUST be present in the corresponding [=kdfParameterVariantMap=].
+
+<pre class="example" highlight="js">
+symKey = KDF(compositeKey)
+</pre>
+
+## Body ## {#body}
+
+Directly after the [[#outer-header]] follows the body, consisting of the body length (`u64`), a tag, and the encrypted body data.
+
+<figure id="body" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Name</th>
+            <th>Data Type</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td><dfn>Body Length</dfn></td>
+            <td>u64</td>
+            <td>
+                The length of the [=Encrypted Body Data=] in bytes.
+            </td>
+        </tr>
+        <tr>
+            <td><dfn>Body Tag</dfn></td>
+            <td>byte[]</td>
+            <td>
+                The AEAD tag is the result of encrypting the Body Data using the AEAD cipher defined by [=Cipher=].
+                The length N of the tag depends on the AEAD cipher used for encryption:
+                - AES-GCM: `byte[16]`
+            </td>
+        </tr>
+        <tr>
+            <td><dfn>Encrypted Body Data</dfn></td>
+            <td>byte[[=Body Length=]]</td>
+            <td>
+                The body data encrypted using the AEAD cipher defined by [=Cipher=] of length [=Body Length=].
+            </td>
+        </tr>
+    </table>
+</figure>
+
+### Body Data Structure
+
+The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], [[#body-group]], and [[#body-entry]] data items.
+
+<figure id="rootBodyContent" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Field</th>
+            <th>Data Type</th>
+            <th>Description</th>
+            <th>Optional</th>
+        </tr>
+        <tr>
+            <td>Meta</td>
+            <td>map</td>
+            <td>
+                Properties describing the database itself ([[#body-meta]]).
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Root</td>
+            <td>map</td>
+            <td>
+                The actual database content consisting of [[#body-group]]s and [[#body-entry]]s.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Bin</td>
+            <td>[+ [[#body-bin]] ]</td>
+            <td>
+                The bin is a array of elements of type [[#body-bin]] that
+                represent deleted entries. This filed MAY NOT be present
+                if no entries have been delted.
+            </td>
+            <td>Optional</td>
+        </tr>
+    </table>
+</figure>
+
+#### Bin Entry #### {#body-bin}
+
+When a [[#body-entry]] is deleted it SHOULD NOT be removed directly but instead
+moved into the [=Bin=]. Moving a deleted entry in the bin allows the user
+to undo a deletion. Each application MAY define a limit after which a
+deleted entry is permanently removed from the database.
+
+<figure id="binEntry" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Field</th>
+            <th>Data Type</th>
+            <th>Description</th>
+            <th>Optional</th>
+        </tr>
+        <tr>
+            <td>Groups</td>
+            <td>[+ tstr]</td>
+            <td>
+                An array of UUIDs describing a nested data structure, each referencing a group. The first element in the array (index 0) references a group directly under the main group, which is part of the document root. If the entry is part of the outer most group, this field MUST NOT be present. In general, a group at index `n` is nested within the group at index `n - 1`.
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>Time</td>
+            <td>uint</td>
+            <td>
+                Epoch-based date/time the entry was deleted.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Entry</td>
+            <td>map</td>
+            <td>
+                The deleted [[#body-entry]]. The exact location where the entry was deleted from is defined by [=Groups=].
+            </td>
+            <td></td>
+        </tr>
+    </table>
+</figure>
+
+#### Meta #### {#body-meta}
+
+<figure id="metaBodyContent" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Field</th>
+            <th>Data Type</th>
+            <th>Description</th>
+            <th>Optional</th>
+        </tr>
+        <tr>
+            <td>Generator</td>
+            <td>tstr</td>
+            <td>
+                The name of the application that created the database.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Name</td>
+            <td>tstr</td>
+            <td>
+                The name of the database.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>LastChange</td>
+            <td>uint</td>
+            <td>
+                Epoch-based date/time. This field has to be updated each time the database content is changed. 
+            </td>
+            <td></td>
+        </tr>
+    </table>
+</figure>
+
+#### Group #### {#body-group}
+
+<figure id="groupBodyContent" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Field</th>
+            <th>Data Type</th>
+            <th>Description</th>
+            <th>Optional</th>
+        </tr>
+        <tr>
+            <td>UUID</td>
+            <td>bstr</td>
+            <td>
+                A unique identifyer for the given group, e.g., UUIDv4 or UUIDv7.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Name</td>
+            <td>tstr</td>
+            <td>
+                A human readable name for the given group.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Times</td>
+            <td>map</td>
+            <td>
+                Counters and time values (see [[#body-times]]).
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Groups</td>
+            <td>[+ [[#body-group]] ]</td>
+            <td>
+                An array of [[#body-group]]s.
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>Entries</td>
+            <td>[+ [[#body-entry]] ]</td>
+            <td>
+                An array of entries (see [[#body-entry]]).
+            </td>
+            <td>Optional</td>
+        </tr>
+    </table>
+</figure>
+
+#### Times #### {#body-times}
+
+<figure id="timeContent" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Field</th>
+            <th>Data Type</th>
+            <th>Description</th>
+            <th>Optional</th>
+        </tr>
+        <tr>
+            <td>Creation</td>
+            <td>uint</td>
+            <td>
+                Epoch-based date/time the parent was created.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Modified</td>
+            <td>uint</td>
+            <td>
+                Epoch-based date/time the parent was modified the last time.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Expiration</td>
+            <td>uint</td>
+            <td>
+                Epoch-based date/time the parent will expire. The meaning of this field may vary depending on the parent.
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>UsageCount</td>
+            <td>uint</td>
+            <td>
+                Counter how many times the parent was used. The meaning of this field may vary depending on the parent.
+            </td>
+            <td>Optional</td>
+        </tr>
+    </table>
+</figure>
+
+#### Entry #### {#body-entry}
+
+<figure id="entryBodyContent" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Field</th>
+            <th>Data Type</th>
+            <th>Description</th>
+            <th>Optional</th>
+        </tr>
+        <tr>
+            <td>UUID</td>
+            <td>bstr</td>
+            <td>
+                A unique identifyer for the given entry, e.g., UUIDv4 or UUIDv7.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Name</td>
+            <td>tstr</td>
+            <td>
+                A human readable name for the given entry.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Times</td>
+            <td>map</td>
+            <td>
+                Counters and time values (see [[#body-times]]).
+
+                Note: For applications supporting passkeys, the UsageCount field might be of particular relevance
+                but please be aware that counters make the synchronization between devices difficult and may lead
+                to scenarios where the user locks himself out of his accounts.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Notes</td>
+            <td>tstr</td>
+            <td>
+                Notes related to the given entry.
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>Password</td>
+            <td>tstr</td>
+            <td>
+                A password string.
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>Key</td>
+            <td>map</td>
+            <td>
+                A CBOR Object Signing and Encryption (COSE) key [[!RFC8152]]. Also see Double Coordinate Curves, Octet Key Pair, and Symmetric Keys.
+                
+                **Double Coordinate Curve:**
+                <pre class="example">
+                {"kty": 2, "alg": -7, "crv": 1, "x": h'01020304...', "y": h'01020304...', "d": h'01020304...'}
+
+                A6             # map(6)
+                   63          # text(3)
+                      6B7479   # "kty"
+                   02          # unsigned(2) Elliptic Curve keys w/ x- and y-coordinate pair
+                   63          # text(3)
+                      616C67   # "alg"
+                   26          # negative(6) ECDSA w/ SHA-256
+                   63          # text(3)
+                      637276   # "crv"
+                   01          # unsigned(1) NIST P-256 also known as secp256r1
+                   61          # text(1)
+                      78       # "x"
+                   44          # bytes(4)
+                      01020304...  # Public key x-coordinate
+                   61          # text(1)
+                      79       # "y"
+                   44          # bytes(4)
+                      01020304...  # Public key y-coordinate
+                   61          # text(1)
+                      64       # "d"
+                   44          # bytes(4)
+                      01020304...  # Private key
+                </pre>
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>URL</td>
+            <td>tstr</td>
+            <td>
+                A text string representing a URL.
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>UserName</td>
+            <td>tstr</td>
+            <td>
+                The user name corresponding to the given credential.
+            </td>
+            <td>Optional</td>
+        </tr>
+    </table>
+</figure>
+
+### Database Creation
+
+### Encryption
+
+### Decryption
