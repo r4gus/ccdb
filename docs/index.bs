@@ -375,31 +375,26 @@ suggestion of randomized passwords.
 
 #### Symmetric Key #### {#final-keys}
 
-A symmetric key is derived from a password and/or key file. The input into the
-selected key derivation function ([=kdf=]) is as follows and its remaining
-arguments are defined by [[#kdf-map]]:
+To generate a symmetric key, a key derivation function ([=kdf=]) is employed, which derives the key from either a password and/or key file. The input into this selected key derivation function is as follows, with its remaining arguments defined by [[#kdf-map]]:
 
 <pre highlight="js">
 password || keyFileContent
 </pre>
 
-The string passed to KDF MUST NOT be empty, i.e., an application has to
-enforce the usage of at least one of the following source:
+It's essential to ensure that the string passed to the KDF is not empty. Therefore, an application must enforce the usage of at least one of the following sources:
 
 - password
 - key file
 
-Optionally, for KDFs supporting a secret input, a third source can be selected
-providing a secret, e.g., a FIDO authenticator, TPM or smart card.
+Additionally, for KDFs supporting a secret input, a third source can optionally be selected, providing a secret such as a FIDO authenticator, TPM, or smart card.
 
-A symmetric key used for encryption is then derived as seen below:
+The process for deriving a symmetric key for encryption is as follows:
 
 <pre highlight="js">
 symKey = KDF(password || keyFileContent)
 </pre>
 
-Note: The length of the symKey has to be adjusted for the selected cipher ([=cid=]), e.g., for 
-AES256GCM one can use the default hash length of 32 bytes for the symmetric key.
+Note: It's important to note that the length of the symmetric key must be adjusted according to the selected cipher ([=cid=]). For example, for AES256GCM, one can utilize the default hash length of 32 bytes for the symmetric key.
 
 ##### Argon2id + Password
 
@@ -797,3 +792,20 @@ Before persisting it to disk, the database must undergo serialization according 
 10. **Write Tag and Encrypted Body**: Place the resulting tag immediately after the body length, followed by the encrypted body.
 
 ## Deserialization
+
+Before an application can use a database it has to be deserialized and decrypted
+according to the following steps:
+
+1. **Read Serialized Data**: Retrieve the serialized data from storage.
+2. **Validate Version**: Read the [[#header-version]] and validate that [=sig=] equals `CCDB`.
+3. **Extract Header Length**: Extract the length of the header from the serialized data.
+4. **Extract Header**: Extract the header based on the header length.
+5. **Validate Header**: Validate that all required header fields are present and contain sain values.
+6. **Extract Body Length**: Extract the length of the body from the serialized data.
+7. **Extract Tag and Encrypted Body**: Extract the tag followed by the encrypted body from the serialized data.
+8. **Decrypt the Body**: Utilize the specified cipher and associated parameters to decrypt the encrypted body:
+    - key: The symmetric key specified in [[#final-keys]].
+    - Initialization Vector (IV): [=iv=]
+    - Associated Data (AD): `Outer Header || Body Length` 
+9. **Decompression (Optional)**: If compression was applied during serialization, decompress the encoded body using the designated decompression algorithm.
+10. **Decode the Body**: Decode the body according to the specifications outlined in the [[#body]] section.
