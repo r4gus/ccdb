@@ -772,6 +772,10 @@ deleted entry is permanently removed from the database.
 
 ## Database Creation
 
+Every application that supports the given standard should provide the flexibility to configure parameters that influence the behavior of the database. These parameters typically include the cipher, compression algorithm, and key derivation function. It's recommended that applications only propose sensible values for ciphers and key derivation functions sourced from reputable authorities, such as <a href="https://owasp.org/">OWASP</a> and <a href="https://www.nist.gov/">NIST</a>.
+
+By allowing configuration of these parameters, applications empower users to tailor their security settings to best suit their specific needs and environments. This adaptability ensures compatibility with various security protocols and standards, fostering a robust and customizable security posture for the application.
+
 ## Serialization
 
 During usage, the database typically exists in an intermediate form, largely contingent upon the programming language employed. 

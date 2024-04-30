@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="39db4a3f32a92f387949efc3a477be1a589df388" name="revision">
+  <meta content="e082b92b5d8cd9114eb52151f4fb873cabce3691" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -3005,6 +3005,8 @@ A6             # map(6)
     </table>
    </figure>
    <h3 class="heading settled" data-level="2.3" id="database-creation"><span class="secno">2.3. </span><span class="content">Database Creation</span><a class="self-link" href="#database-creation"></a></h3>
+   <p>Every application that supports the given standard should provide the flexibility to configure parameters that influence the behavior of the database. These parameters typically include the cipher, compression algorithm, and key derivation function. It’s recommended that applications only propose sensible values for ciphers and key derivation functions sourced from reputable authorities, such as <a href="https://owasp.org/">OWASP</a> and <a href="https://www.nist.gov/">NIST</a>.</p>
+   <p>By allowing configuration of these parameters, applications empower users to tailor their security settings to best suit their specific needs and environments. This adaptability ensures compatibility with various security protocols and standards, fostering a robust and customizable security posture for the application.</p>
    <h3 class="heading settled" data-level="2.4" id="serialization"><span class="secno">2.4. </span><span class="content">Serialization</span><a class="self-link" href="#serialization"></a></h3>
    <p>During usage, the database typically exists in an intermediate form, largely contingent upon the programming language employed.
 Before persisting it to disk, the database must undergo serialization according to the following steps:</p>
