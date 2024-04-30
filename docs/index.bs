@@ -357,13 +357,8 @@ The encryption key is derived from one or more sources of key data:
 
 A password is the most common source of key data. It is set by a user during
 database creation and is also referred to as the master password. It is recommendet
-to use a strong password that fulfills the following criteria:
-
-- At least 12 characters
-- At least one lower case letter
-- At least one upper case letter
-- At least on special character
-- At least on digit
+to use a strong password that fulfill the criteria published by reputable authorities, such as 
+<a href="https://owasp.org/">OWASP</a> and <a href="https://www.nist.gov/">NIST</a>.
 
 It is further recommendet that applications supporting the creation of CCDB databases
 furhter support the user with the creation of a secure master password, including the
@@ -371,27 +366,36 @@ suggestion of randomized passwords.
 
 #### Key File #### {#key-file}
 
+A key file can serve as an input either alongside a password or as an alternative to the key derivation function used for deriving a symmetric encryption key. It's recommended that applications support a range of key file formats to enhance compatibility and flexibility.
+
+Applications SHOULD support the following key file formats:
+
+- **Raw**: A file containing exactly 32 bytes that make up the key.
+- **Hex**: A file containing exactly 64 bytes that are interpreted as a hex encoded 32 byte key.
+- **Misc**: A file of arbitrary length. The content of the file is hashed with SHA3-256 before being fed to the key derivation function.
+
 #### Key Provider #### {#key-provider}
+
+Key material MAY also be obtained from other sources, e.g., using the HMAC Secret Extension of CTAP2 [[fido-v2.1]]. 
 
 #### Symmetric Key #### {#final-keys}
 
-To generate a symmetric key, a key derivation function ([=kdf=]) is employed, which derives the key from either a password and/or key file. The input into this selected key derivation function is as follows, with its remaining arguments defined by [[#kdf-map]]:
+To generate a symmetric key, a key derivation function ([=kdf=]) is employed, which derives the key from either a password, key file or key provider. The input into this selected key derivation function is as follows, with its remaining arguments defined by [[#kdf-map]]:
 
 <pre highlight="js">
-password || keyFileContent
+password || keyFileContent || keyProviderContent
 </pre>
 
 It's essential to ensure that the string passed to the KDF is not empty. Therefore, an application must enforce the usage of at least one of the following sources:
 
 - password
 - key file
-
-Additionally, for KDFs supporting a secret input, a third source can optionally be selected, providing a secret such as a FIDO authenticator, TPM, or smart card.
+- key provider
 
 The process for deriving a symmetric key for encryption is as follows:
 
 <pre highlight="js">
-symKey = KDF(password || keyFileContent)
+symKey = KDF(password || keyFileContent || keyProviderContent)
 </pre>
 
 Note: It's important to note that the length of the symmetric key must be adjusted according to the selected cipher ([=cid=]). For example, for AES256GCM, one can utilize the default hash length of 32 bytes for the symmetric key.
@@ -813,3 +817,6 @@ according to the following steps:
     - Associated Data (AD): `Outer Header || Body Length` 
 9. **Decompression (Optional)**: If compression was applied during serialization, decompress the encoded body using the designated decompression algorithm.
 10. **Decode the Body**: Decode the body according to the specifications outlined in the [[#body]] section.
+
+Security Considerations {#security}
+=====================

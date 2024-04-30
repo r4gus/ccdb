@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="e082b92b5d8cd9114eb52151f4fb873cabce3691" name="revision">
+  <meta content="458c809951bc090bba42a21b918f8f4f7cd76eef" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2287,6 +2287,7 @@ Parts of this work may be from another specification document.  If so, those par
       <li><a href="#serialization"><span class="secno">2.4</span> <span class="content">Serialization</span></a>
       <li><a href="#deserialization"><span class="secno">2.5</span> <span class="content">Deserialization</span></a>
      </ol>
+    <li><a href="#security"><span class="secno">3</span> <span class="content">Security Considerations</span></a>
     <li><a href="#conformance"><span class="secno"></span> <span class="content"> Conformance</span></a>
     <li>
      <a href="#index"><span class="secno"></span> <span class="content">Index</span></a>
@@ -2700,27 +2701,26 @@ A5652455554944509E298B1956DB4773B23DFC3EC6F0A1E6614902614D19100061500
    <h5 class="heading settled" data-level="2.1.3.1" id="password"><span class="secno">2.1.3.1. </span><span class="content">Password</span><a class="self-link" href="#password"></a></h5>
    <p>A password is the most common source of key data. It is set by a user during
 database creation and is also referred to as the master password. It is recommendet
-to use a strong password that fulfills the following criteria:</p>
-   <ul>
-    <li data-md>
-     <p>At least 12 characters</p>
-    <li data-md>
-     <p>At least one lower case letter</p>
-    <li data-md>
-     <p>At least one upper case letter</p>
-    <li data-md>
-     <p>At least on special character</p>
-    <li data-md>
-     <p>At least on digit</p>
-   </ul>
+to use a strong password that fulfill the criteria published by reputable authorities, such as <a href="https://owasp.org/">OWASP</a> and <a href="https://www.nist.gov/">NIST</a>.</p>
    <p>It is further recommendet that applications supporting the creation of CCDB databases
 furhter support the user with the creation of a secure master password, including the
 suggestion of randomized passwords.</p>
    <h5 class="heading settled" data-level="2.1.3.2" id="key-file"><span class="secno">2.1.3.2. </span><span class="content">Key File</span><a class="self-link" href="#key-file"></a></h5>
+   <p>A key file can serve as an input either alongside a password or as an alternative to the key derivation function used for deriving a symmetric encryption key. It’s recommended that applications support a range of key file formats to enhance compatibility and flexibility.</p>
+   <p>Applications SHOULD support the following key file formats:</p>
+   <ul>
+    <li data-md>
+     <p><strong>Raw</strong>: A file containing exactly 32 bytes that make up the key.</p>
+    <li data-md>
+     <p><strong>Hex</strong>: A file containing exactly 64 bytes that are interpreted as a hex encoded 32 byte key.</p>
+    <li data-md>
+     <p><strong>Misc</strong>: A file of arbitrary length. The content of the file is hashed with SHA3-256 before being fed to the key derivation function.</p>
+   </ul>
    <h5 class="heading settled" data-level="2.1.3.3" id="key-provider"><span class="secno">2.1.3.3. </span><span class="content">Key Provider</span><a class="self-link" href="#key-provider"></a></h5>
+   <p>Key material MAY also be obtained from other sources, e.g., using the HMAC Secret Extension of CTAP2 <a data-link-type="biblio" href="#biblio-fido-v21" title="Client to Authenticator Protocol (CTAP)">[fido-v2.1]</a>.</p>
    <h5 class="heading settled" data-level="2.1.3.4" id="final-keys"><span class="secno">2.1.3.4. </span><span class="content">Symmetric Key</span><a class="self-link" href="#final-keys"></a></h5>
-   <p>To generate a symmetric key, a key derivation function (<a data-link-type="dfn" href="#kdf" id="ref-for-kdf①">kdf</a>) is employed, which derives the key from either a password and/or key file. The input into this selected key derivation function is as follows, with its remaining arguments defined by <a href="#kdf-map">§ 2.1.2.1 KDF Parameters</a>:</p>
-<pre class="highlight">password <c- o>||</c-> keyFileContent
+   <p>To generate a symmetric key, a key derivation function (<a data-link-type="dfn" href="#kdf" id="ref-for-kdf①">kdf</a>) is employed, which derives the key from either a password, key file or key provider. The input into this selected key derivation function is as follows, with its remaining arguments defined by <a href="#kdf-map">§ 2.1.2.1 KDF Parameters</a>:</p>
+<pre class="highlight">password <c- o>||</c-> keyFileContent <c- o>||</c-> keyProviderContent
 </pre>
    <p>It’s essential to ensure that the string passed to the KDF is not empty. Therefore, an application must enforce the usage of at least one of the following sources:</p>
    <ul>
@@ -2728,10 +2728,11 @@ suggestion of randomized passwords.</p>
      <p>password</p>
     <li data-md>
      <p>key file</p>
+    <li data-md>
+     <p>key provider</p>
    </ul>
-   <p>Additionally, for KDFs supporting a secret input, a third source can optionally be selected, providing a secret such as a FIDO authenticator, TPM, or smart card.</p>
    <p>The process for deriving a symmetric key for encryption is as follows:</p>
-<pre class="highlight">symKey <c- o>=</c-> KDF<c- p>(</c->password <c- o>||</c-> keyFileContent<c- p>)</c->
+<pre class="highlight">symKey <c- o>=</c-> KDF<c- p>(</c->password <c- o>||</c-> keyFileContent <c- o>||</c-> keyProviderContent<c- p>)</c->
 </pre>
    <p class="note" role="note"><span class="marker">Note:</span> It’s important to note that the length of the symmetric key must be adjusted according to the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid①">cid</a>). For example, for AES256GCM, one can utilize the default hash length of 32 bytes for the symmetric key.</p>
    <h6 class="heading settled" data-level="2.1.3.4.1" id="argon2id--password"><span class="secno">2.1.3.4.1. </span><span class="content">Argon2id + Password</span><a class="self-link" href="#argon2id--password"></a></h6>
@@ -3073,6 +3074,7 @@ according to the following steps:</p>
     <li data-md>
      <p><strong>Decode the Body</strong>: Decode the body according to the specifications outlined in the <a href="#body">§ 2.2 Body</a> section.</p>
    </ol>
+   <h2 class="heading settled" data-level="3" id="security"><span class="secno">3. </span><span class="content">Security Considerations</span><a class="self-link" href="#security"></a></h2>
   </main>
   <div data-fill-with="conformance">
    <h2 class="no-ref no-num heading settled" id="conformance"><span class="content"> Conformance</span><a class="self-link" href="#conformance"></a></h2>
@@ -3255,6 +3257,8 @@ according to the following steps:</p>
   </dl>
   <h3 class="no-num no-ref heading settled" id="informative"><span class="content">Informative References</span><a class="self-link" href="#informative"></a></h3>
   <dl>
+   <dt id="biblio-fido-v21">[FIDO-V2.1]
+   <dd><a href="https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html"><cite>Client to Authenticator Protocol (CTAP)</cite></a>. Editor's Draft. URL: <a href="https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html">https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html</a>
    <dt id="biblio-rfc4122">[RFC4122]
    <dd>P. Leach; M. Mealling; R. Salz. <a href="https://www.rfc-editor.org/rfc/rfc4122"><cite>A Universally Unique IDentifier (UUID) URN Namespace</cite></a>. July 2005. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc4122">https://www.rfc-editor.org/rfc/rfc4122</a>
   </dl>
