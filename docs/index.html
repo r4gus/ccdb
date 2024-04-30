@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="621e1679b7524e7cd07f3a4c976236a03854a1a7" name="revision">
+  <meta content="d5b232f70ef09d523ca6dd2a2a52792c0078aa2d" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2263,7 +2263,11 @@ Parts of this work may be from another specification document.  If so, those par
           <li><a href="#password"><span class="secno">2.1.3.1</span> <span class="content">Password</span></a>
           <li><a href="#key-file"><span class="secno">2.1.3.2</span> <span class="content">Key File</span></a>
           <li><a href="#key-provider"><span class="secno">2.1.3.3</span> <span class="content">Key Provider</span></a>
-          <li><a href="#final-keys"><span class="secno">2.1.3.4</span> <span class="content">Symmetric Key</span></a>
+          <li>
+           <a href="#final-keys"><span class="secno">2.1.3.4</span> <span class="content">Symmetric Key</span></a>
+           <ol class="toc">
+            <li><a href="#argon2id--password"><span class="secno">2.1.3.4.1</span> <span class="content">Argon2id + Password</span></a>
+           </ol>
          </ol>
        </ol>
       <li>
@@ -2486,19 +2490,18 @@ header as well as the confidential block is verified using message authenticatio
    </div>
    <p>The header begins with the database version (<a href="#header-version">§ 2.1.1 Version</a>) followed by the length of the header fields in bytes, followed by one or more header fields (<a href="#header-fields">§ 2.1.2 Header Fields</a>).</p>
    <p class="note" role="note"><span class="marker">Note:</span> The integrity of the header is validated by the selected AEAD cipher.</p>
-<pre class="example" id="example-58cbc756"><a class="self-link" href="#example-58cbc756"></a>43 43 44 42 01 00 00 00
+<pre class="example" id="example-7753f9fb"><a class="self-link" href="#example-7753f9fb"></a>43 43 44 42 01 00 00 00
 |_________| |___| |___|
   "CCDB"      1  .  0
 
-68 00 00 00
+66 00 00 00
 |_________|
 Header Field Length
 
-A46269764C010203040102030401020304636369640363636D7001636B6466A5
-652455554944509E298B1956DB4773B23DFC3EC6F0A1E6614902614D1A001000
-0061500861535820010203040102030401020304010203040102030401020304
-0102030401020304
-|______________________________________________________________|
+A46269764C010203040102030401020304636369640363636D7001636B6466A565245555494
+4509E298B1956DB4773B23DFC3EC6F0A1E6614902614D191000615008615358200102030401
+020304010203040102030401020304010203040102030401020304
+|_________________________________________________________________________|
                          Header Fields
 </pre>
    <h4 class="heading settled" data-level="2.1.1" id="header-version"><span class="secno">2.1.1. </span><span class="content">Version</span><a class="self-link" href="#header-version"></a></h4>
@@ -2570,11 +2573,11 @@ and SHOULD be encoded in the order listed below.</p>
         </ul>
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="kdf">kdf</dfn>
-       <td>[[##kdf-map]]
+       <td><a href="#kdf-map">§ 2.1.2.1 KDF Parameters</a>
        <td> Values specific for the <a href="#key-derivation">§ 2.1.3 Key Derivation</a> 
     </table>
    </figure>
-<pre class="example" id="example-043189dd"><a class="self-link" href="#example-043189dd"></a>{"iv": h’010203040102030401020304', "cid": 3, "cmp": 1, "kdf": {"$UUID": h’9e298b1956db4773b23dfc3ec6f0a1e6', "I": 2, "M": 1048576, "P": 8, "S": h’0102030401020304010203040102030401020304010203040102030401020304'}}
+<pre class="example" id="example-5131d8d1"><a class="self-link" href="#example-5131d8d1"></a>{"iv": h’010203040102030401020304', "cid": 3, "cmp": 1, "kdf": {"$UUID": h’9e298b1956db4773b23dfc3ec6f0a1e6', "I": 2, "M": 1048576, "P": 8, "S": h’0102030401020304010203040102030401020304010203040102030401020304'}}
 
 A4                                      # map(4)
    62                                   # text(2)
@@ -2599,7 +2602,7 @@ A4                                      # map(4)
       02                                # unsigned(2)
       61                                # text(1)
          4D                             # "M"
-      1A 00100000                       # unsigned(1048576)
+      19 1000                           # unsigned(4096)
       61                                # text(1)
          50                             # "P"
       08                                # unsigned(8)
@@ -2609,8 +2612,8 @@ A4                                      # map(4)
          0102030401020304010203040102030401020304010203040102030401020304 # "\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004"
 
 A46269764C010203040102030401020304636369640363636D7001636B6466A565245555494
-4509E298B1956DB4773B23DFC3EC6F0A1E6614902614D1A0010000061500861535820010203
-0401020304010203040102030401020304010203040102030401020304
+4509E298B1956DB4773B23DFC3EC6F0A1E6614902614D191000615008615358200102030401
+020304010203040102030401020304010203040102030401020304
 </pre>
    <h5 class="heading settled" data-level="2.1.2.1" id="kdf-map"><span class="secno">2.1.2.1. </span><span class="content">KDF Parameters</span><a class="self-link" href="#kdf-map"></a></h5>
    <p>The KDF parameters are used to derive a secret (<a href="#final-keys">§ 2.1.3.4 Symmetric Key</a>). The <a data-link-type="dfn" href="#uuid" id="ref-for-uuid">$UUID</a> is mandatory and
@@ -2659,7 +2662,7 @@ in the order listed below.</p>
        <td>Argon2
     </table>
    </figure>
-<pre class="example" id="example-a58edfbc"><a class="self-link" href="#example-a58edfbc"></a>{"$UUID": h’9e298b1956db4773b23dfc3ec6f0a1e6', "I": 2, "M": 1048576, "P": 8, "S": h’0102030401020304010203040102030401020304010203040102030401020304'}
+<pre class="example" id="example-5738d9a1"><a class="self-link" href="#example-5738d9a1"></a>{"$UUID": h’9e298b1956db4773b23dfc3ec6f0a1e6', "I": 2, "M": 4096, "P": 8, "S": h’0102030401020304010203040102030401020304010203040102030401020304'}
 
 A5                                      # map(5)
    65                                   # text(5)
@@ -2671,7 +2674,7 @@ A5                                      # map(5)
    02                                   # unsigned(2)
    61                                   # text(1)
       4D                                # "M"
-   1A 00100000                          # unsigned(1048576)
+   19 1000                              # unsigned(4096)
    61                                   # text(1)
       50                                # "P"
    08                                   # unsigned(8)
@@ -2680,9 +2683,9 @@ A5                                      # map(5)
    58 20                                # bytes(32)
       0102030401020304010203040102030401020304010203040102030401020304 # "\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004"
 
-A5652455554944509E298B1956DB4773B23DFC3EC6F0A1E6614902614D1A00100000
-61500861535820010203040102030401020304010203040102030401020304010203
-0401020304
+A5652455554944509E298B1956DB4773B23DFC3EC6F0A1E6614902614D19100061500
+861535820010203040102030401020304010203040102030401020304010203040102
+0304
 </pre>
    <h4 class="heading settled" data-level="2.1.3" id="key-derivation"><span class="secno">2.1.3. </span><span class="content">Key Derivation</span><a class="self-link" href="#key-derivation"></a></h4>
    <p>The encryption key is derived from one or more sources of key data:</p>
@@ -2716,22 +2719,32 @@ suggestion of randomized passwords.</p>
    <h5 class="heading settled" data-level="2.1.3.2" id="key-file"><span class="secno">2.1.3.2. </span><span class="content">Key File</span><a class="self-link" href="#key-file"></a></h5>
    <h5 class="heading settled" data-level="2.1.3.3" id="key-provider"><span class="secno">2.1.3.3. </span><span class="content">Key Provider</span><a class="self-link" href="#key-provider"></a></h5>
    <h5 class="heading settled" data-level="2.1.3.4" id="final-keys"><span class="secno">2.1.3.4. </span><span class="content">Symmetric Key</span><a class="self-link" href="#final-keys"></a></h5>
-   <p>A composite key is the result of concatenating the key sources in the following order</p>
+   <p>A symmetric key is derived from a password and/or key file. The input into the
+selected key derivation function (<a data-link-type="dfn" href="#kdf" id="ref-for-kdf①">kdf</a>) is as follows and its remaining
+arguments are defined by <a href="#kdf-map">§ 2.1.2.1 KDF Parameters</a>:</p>
+<pre class="highlight">password <c- o>||</c-> keyFileContent
+</pre>
+   <p>The string passed to KDF MUST NOT be empty, i.e., an application has to
+enforce the usage of at least one of the following source:</p>
    <ul>
     <li data-md>
-     <p><code>SHA256(password)</code></p>
+     <p>password</p>
     <li data-md>
-     <p><code>keyFile</code></p>
-    <li data-md>
-     <p><code>keyProviderData</code></p>
+     <p>key file</p>
    </ul>
-   <p>and then hashing the resulting sequence using SHA-256, resulting in a 32 byte composite key.</p>
-<pre class="example highlight" id="example-e1e79f3b"><a class="self-link" href="#example-e1e79f3b"></a>compositeKey <c- o>=</c-> SHA256<c- p>(</c->SHA256<c- p>(</c->password<c- p>)</c-> <c- o>||</c-> keyFile <c- o>||</c-> keyProviderData<c- p>)</c->
+   <p>Optionally, for KDFs supporting a secret input, a third source can be selected
+providing a secret, e.g., a FIDO authenticator, TPM or smart card.</p>
+   <p>A symmetric key used for encryption is then derived as seen below:</p>
+<pre class="highlight">symKey <c- o>=</c-> KDF<c- p>(</c->password <c- o>||</c-> keyFileContent<c- p>)</c->
 </pre>
-   <p class="note" role="note"><span class="marker">Note:</span> If one of the key sources is not available, the empty string is appended, i.e., nothing. There MUST
-be at least one key source selected.</p>
-   <p>The composite key is used as an input for the key derivation function, defined within <a data-link-type="dfn" href="#kdf" id="ref-for-kdf①">kdf</a>, to calculate the symmetric key. All the neccessary parameters MUST be present in the corresponding <a data-link-type="dfn">kdfParameterVariantMap</a>.</p>
-<pre class="example highlight" id="example-679e157a"><a class="self-link" href="#example-679e157a"></a>symKey <c- o>=</c-> KDF<c- p>(</c->compositeKey<c- p>)</c->
+   <p class="note" role="note"><span class="marker">Note:</span> The length of the symKey has to be adjusted for the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid①">cid</a>), e.g., for
+AES256GCM one can use the default hash length of 32 bytes for the symmetric key.</p>
+   <h6 class="heading settled" data-level="2.1.3.4.1" id="argon2id--password"><span class="secno">2.1.3.4.1. </span><span class="content">Argon2id + Password</span><a class="self-link" href="#argon2id--password"></a></h6>
+<pre class="example highlight" id="example-7bf50e0f"><a class="self-link" href="#example-7bf50e0f"></a>I<c- o>:</c-> <c- mf>2</c-><c- p>,</c-> M<c- o>:</c-> <c- mf>4096</c-><c- p>,</c-> P<c- o>:</c-> <c- mf>8</c-><c- p>,</c-> S<c- o>:</c-> <c- mo>0102030401020304010203040102030401020304010203040102030401020304</c->
+password<c- o>:</c-> supersecret
+
+compositeKey <c- o>=</c-> f75778f7425be4db0369d09af37a6c2b9a83dea0e53e7bd57412e4b060e607f7 <c- o>=</c-> SHA256<c- p>(</c-><c- u>"supersecret"</c-><c- p>)</c->
+symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed68ede40c225ce4e98 <c- o>=</c-> Argon2id<c- p>(</c->compositeKey<c- p>)</c->
 </pre>
    <h3 class="heading settled" data-level="2.2" id="body"><span class="secno">2.2. </span><span class="content">Body</span><a class="self-link" href="#body"></a></h3>
    <p>Directly after the <a href="#outer-header">§ 2.1 Outer Header</a> follows the body, consisting of the body length (<code>u64</code>), a tag, and the encrypted body data.</p>
@@ -2750,7 +2763,7 @@ be at least one key source selected.</p>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="body-tag">Body Tag</dfn>
        <td>byte[]
        <td>
-         The AEAD tag is the result of encrypting the Body Data using the AEAD cipher defined by <a data-link-type="dfn" href="#cid" id="ref-for-cid①">cid</a>.
+         The AEAD tag is the result of encrypting the Body Data using the AEAD cipher defined by <a data-link-type="dfn" href="#cid" id="ref-for-cid②">cid</a>.
                 The length N of the tag depends on the AEAD cipher used for encryption: 
         <ul>
          <li data-md>
@@ -2759,7 +2772,7 @@ be at least one key source selected.</p>
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="encrypted-body-data">Encrypted Body Data</dfn>
        <td>byte[<a data-link-type="dfn" href="#body-length" id="ref-for-body-length">Body Length</a>]
-       <td> The body data encrypted using the AEAD cipher defined by <a data-link-type="dfn" href="#cid" id="ref-for-cid②">cid</a> of length <a data-link-type="dfn" href="#body-length" id="ref-for-body-length①">Body Length</a>. 
+       <td> The body data encrypted using the AEAD cipher defined by <a data-link-type="dfn" href="#cid" id="ref-for-cid③">cid</a> of length <a data-link-type="dfn" href="#body-length" id="ref-for-body-length①">Body Length</a>. 
     </table>
    </figure>
    <h4 class="heading settled" data-level="2.2.1" id="body-data-structure"><span class="secno">2.2.1. </span><span class="content">Body Data Structure</span><a class="self-link" href="#body-data-structure"></a></h4>
@@ -3018,7 +3031,7 @@ Before persisting it to disk, the database must undergo serialization according 
     <li data-md>
      <p><strong>Serialize Body Length</strong>: Serialize the length of the body as a u64 data type.</p>
     <li data-md>
-     <p><strong>Encrypt the Body</strong>: Utilize the cipher specified by <a data-link-type="dfn" href="#cid" id="ref-for-cid③">cid</a> to encrypt the body with the following parameters:</p>
+     <p><strong>Encrypt the Body</strong>: Utilize the cipher specified by <a data-link-type="dfn" href="#cid" id="ref-for-cid④">cid</a> to encrypt the body with the following parameters:</p>
      <ul>
       <li data-md>
        <p>key: The symmetric key specified in <a href="#final-keys">§ 2.1.3.4 Symmetric Key</a>.</p>
@@ -3418,7 +3431,7 @@ function parseHTML(markup) {
 let dfnPanelData = {
 "body-length": {"dfnID":"body-length","dfnText":"Body Length","external":false,"refSections":[{"refs":[{"id":"ref-for-body-length"},{"id":"ref-for-body-length\u2460"}],"title":"2.2. Body"}],"url":"#body-length"},
 "body-tag": {"dfnID":"body-tag","dfnText":"Body Tag","external":false,"refSections":[],"url":"#body-tag"},
-"cid": {"dfnID":"cid","dfnText":"cid","external":false,"refSections":[{"refs":[{"id":"ref-for-cid"}],"title":"2.1. Outer Header"},{"refs":[{"id":"ref-for-cid\u2460"},{"id":"ref-for-cid\u2461"}],"title":"2.2. Body"},{"refs":[{"id":"ref-for-cid\u2462"}],"title":"2.4. Serialization"}],"url":"#cid"},
+"cid": {"dfnID":"cid","dfnText":"cid","external":false,"refSections":[{"refs":[{"id":"ref-for-cid"}],"title":"2.1. Outer Header"},{"refs":[{"id":"ref-for-cid\u2460"}],"title":"2.1.3.4. Symmetric Key"},{"refs":[{"id":"ref-for-cid\u2461"},{"id":"ref-for-cid\u2462"}],"title":"2.2. Body"},{"refs":[{"id":"ref-for-cid\u2463"}],"title":"2.4. Serialization"}],"url":"#cid"},
 "cmp": {"dfnID":"cmp","dfnText":"cmp","external":false,"refSections":[{"refs":[{"id":"ref-for-cmp"}],"title":"2.1. Outer Header"},{"refs":[{"id":"ref-for-cmp\u2460"}],"title":"2.4. Serialization"}],"url":"#cmp"},
 "encrypted-body-data": {"dfnID":"encrypted-body-data","dfnText":"Encrypted Body Data","external":false,"refSections":[{"refs":[{"id":"ref-for-encrypted-body-data"}],"title":"2.2. Body"}],"url":"#encrypted-body-data"},
 "i": {"dfnID":"i","dfnText":"I","external":false,"refSections":[],"url":"#i"},
