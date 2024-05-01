@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="458c809951bc090bba42a21b918f8f4f7cd76eef" name="revision">
+  <meta content="330abc4646bc711ab71ad4681fba0b9d4e2f7065" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2211,7 +2211,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">CBOR Credential Database Format</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-04-30">30 April 2024</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-05-01">1 May 2024</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2225,7 +2225,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
    <div data-fill-with="warning"></div>
    <p class="copyright" data-fill-with="copyright"><a href="http://creativecommons.org/publicdomain/zero/1.0/" rel="license"><img alt="CC0" height="15" src="https://licensebuttons.net/p/zero/1.0/80x15.png" width="80"></a> To the extent possible under law, the editors have waived all copyright
 and related or neighboring rights to this work.
-In addition, as of 30 April 2024,
+In addition, as of 1 May 2024,
 the editors have made this specification available under the <a href="http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0" rel="license">Open Web Foundation Agreement Version 1.0</a>,
 which is available at http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0.
 Parts of this work may be from another specification document.  If so, those parts are instead covered by the license of that specification document. </p>
@@ -2540,17 +2540,6 @@ and SHOULD be encoded in the order listed below.</p>
        <th>Data Type
        <th>Description
       <tr>
-       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="iv">iv</dfn>
-       <td>bstr
-       <td>
-         Initialization vector (nonce) used for encryption. The IVs size depends
-                on the cipher used for encryption, e.g.: 
-        <ul>
-         <li data-md>
-          <p>AES-GCM: 12 bytes</p>
-        </ul>
-        <p class="note" role="note"><span class="marker">Note:</span> A new and unique IV MUST be used for every encryption. One MUST NOT use the same IV twice! This can be achieved by using a counter or by using a cryptographically secure (pseudo) random number generator (CSRNG) to generate the IV at random.</p>
-      <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="cid">cid</dfn>
        <td>int
        <td>
@@ -2561,6 +2550,17 @@ and SHOULD be encoded in the order listed below.</p>
           <p>AES256GCM: 3</p>
         </ul>
         <p>The following ciphers MAY be supported:</p>
+      <tr>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="iv">iv</dfn>
+       <td>bstr
+       <td>
+         Initialization vector (nonce) used for encryption. The IVs size depends
+                on the cipher used for encryption, e.g.: 
+        <ul>
+         <li data-md>
+          <p>AES256GCM: 12 bytes</p>
+        </ul>
+        <p class="note" role="note"><span class="marker">Note:</span> A new and unique IV MUST be used for every encryption. One MUST NOT use the same IV twice! This can be achieved by using a counter or by using a cryptographically secure (pseudo) random number generator (CSRNG) to generate the IV at random.</p>
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="cmp">cmp</dfn>
        <td>int
@@ -2763,7 +2763,7 @@ symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed6
                 The length N of the tag depends on the AEAD cipher used for encryption: 
         <ul>
          <li data-md>
-          <p>AES-GCM: <code>byte[16]</code></p>
+          <p>AES256GCM: <code>byte[16]</code></p>
         </ul>
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="encrypted-body-data">Encrypted Body Data</dfn>
@@ -2787,9 +2787,15 @@ symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed6
        <td> Properties describing the database itself (<a href="#body-meta">§ 2.2.1.2 Meta</a>). 
        <td>
       <tr>
-       <td>root
-       <td>map
-       <td> The actual database content consisting of <a href="#body-group">§ 2.2.1.3 Group</a>s and <a href="#body-entry">§ 2.2.1.5 Entry</a>s. 
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="entries">entries</dfn>
+       <td>[+ <a href="#body-entry">§ 2.2.1.5 Entry</a>]
+       <td> All entries of this database. 
+       <td>
+      <tr>
+       <td>groups
+       <td><a href="#body-group">§ 2.2.1.3 Group</a>
+       <td> The root of an arbitrary number of (nested) groups. Groups only hold references
+                to entries within <a data-link-type="dfn" href="#entries" id="ref-for-entries">entries</a>. 
        <td>
       <tr>
        <td>bin
@@ -2813,11 +2819,6 @@ deleted entry is permanently removed from the database.</p>
        <th>Data Type
        <th>Description
        <th>Optional
-      <tr>
-       <td>groups
-       <td>[+ tstr]
-       <td> An array of UUIDs describing a nested data structure, each referencing a group. The first element in the array (index 0) references a group directly under the main group, which is part of the document root. If the entry is part of the outer most group, this field MUST NOT be present. In general, a group at index <code>n</code> is nested within the group at index <code>n - 1</code>. 
-       <td>Optional
       <tr>
        <td>time
        <td>uint
@@ -2887,8 +2888,8 @@ deleted entry is permanently removed from the database.</p>
        <td>Optional
       <tr>
        <td>entries
-       <td>[+ <a href="#body-entry">§ 2.2.1.5 Entry</a> ]
-       <td> An array of entries (see <a href="#body-entry">§ 2.2.1.5 Entry</a>). 
+       <td>[+ bstr]
+       <td> An array of UUID references to entries. 
        <td>Optional
     </table>
    </figure>
@@ -3002,6 +3003,12 @@ A6             # map(6)
        <td>uname
        <td>tstr
        <td> The user name corresponding to the given credential. 
+       <td>Optional
+      <tr>
+       <td>group
+       <td>bstr
+       <td> A UUID referencing a <a href="#body-group">§ 2.2.1.3 Group</a>. If not present, the given entry is implicitely
+                associated to the group directly under the document root. 
        <td>Optional
     </table>
    </figure>
@@ -3230,6 +3237,7 @@ according to the following steps:</p>
    <li><a href="#cid">cid</a><span>, in § 2.1.2</span>
    <li><a href="#cmp">cmp</a><span>, in § 2.1.2</span>
    <li><a href="#encrypted-body-data">Encrypted Body Data</a><span>, in § 2.2</span>
+   <li><a href="#entries">entries</a><span>, in § 2.2.1</span>
    <li><a href="#i">I</a><span>, in § 2.1.2.1</span>
    <li><a href="#iv">iv</a><span>, in § 2.1.2</span>
    <li><a href="#kdf">kdf</a><span>, in § 2.1.2</span>
@@ -3467,6 +3475,7 @@ let dfnPanelData = {
 "cid": {"dfnID":"cid","dfnText":"cid","external":false,"refSections":[{"refs":[{"id":"ref-for-cid"}],"title":"2.1. Outer Header"},{"refs":[{"id":"ref-for-cid\u2460"}],"title":"2.1.3.4. Symmetric Key"},{"refs":[{"id":"ref-for-cid\u2461"},{"id":"ref-for-cid\u2462"}],"title":"2.2. Body"},{"refs":[{"id":"ref-for-cid\u2463"}],"title":"2.4. Serialization"}],"url":"#cid"},
 "cmp": {"dfnID":"cmp","dfnText":"cmp","external":false,"refSections":[{"refs":[{"id":"ref-for-cmp"}],"title":"2.1. Outer Header"},{"refs":[{"id":"ref-for-cmp\u2460"}],"title":"2.4. Serialization"}],"url":"#cmp"},
 "encrypted-body-data": {"dfnID":"encrypted-body-data","dfnText":"Encrypted Body Data","external":false,"refSections":[{"refs":[{"id":"ref-for-encrypted-body-data"}],"title":"2.2. Body"}],"url":"#encrypted-body-data"},
+"entries": {"dfnID":"entries","dfnText":"entries","external":false,"refSections":[{"refs":[{"id":"ref-for-entries"}],"title":"2.2.1. Body Data Structure"}],"url":"#entries"},
 "i": {"dfnID":"i","dfnText":"I","external":false,"refSections":[],"url":"#i"},
 "iv": {"dfnID":"iv","dfnText":"iv","external":false,"refSections":[{"refs":[{"id":"ref-for-iv"}],"title":"2.1. Outer Header"},{"refs":[{"id":"ref-for-iv\u2460"},{"id":"ref-for-iv\u2461"},{"id":"ref-for-iv\u2462"}],"title":"2.4. Serialization"},{"refs":[{"id":"ref-for-iv\u2463"}],"title":"2.5. Deserialization"}],"url":"#iv"},
 "kdf": {"dfnID":"kdf","dfnText":"kdf","external":false,"refSections":[{"refs":[{"id":"ref-for-kdf"}],"title":"2.1. Outer Header"},{"refs":[{"id":"ref-for-kdf\u2460"}],"title":"2.1.3.4. Symmetric Key"}],"url":"#kdf"},
@@ -3869,6 +3878,7 @@ let refsData = {
 "#cid": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"cid","type":"dfn","url":"#cid"},
 "#cmp": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"cmp","type":"dfn","url":"#cmp"},
 "#encrypted-body-data": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"encrypted body data","type":"dfn","url":"#encrypted-body-data"},
+"#entries": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"entries","type":"dfn","url":"#entries"},
 "#iv": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"iv","type":"dfn","url":"#iv"},
 "#kdf": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"kdf","type":"dfn","url":"#kdf"},
 "#sig": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"sig","type":"dfn","url":"#sig"},

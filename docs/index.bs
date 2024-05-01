@@ -173,18 +173,6 @@ and SHOULD be encoded in the order listed below.
             <th>Description</th>
         </tr>
         <tr>
-            <td><dfn>iv</dfn></td>
-            <td>bstr</td>
-            <td>
-                Initialization vector (nonce) used for encryption. The IVs size depends
-                on the cipher used for encryption, e.g.:
-                
-                - AES-GCM: 12 bytes
-
-                Note: A new and unique IV MUST be used for every encryption. One MUST NOT use the same IV twice! This can be achieved by using a counter or by using a cryptographically secure (pseudo) random number generator (CSRNG) to generate the IV at random.
-            </td>
-        </tr>
-        <tr>
             <td><dfn>cid</dfn></td>
             <td>int</td>
             <td>
@@ -194,6 +182,18 @@ and SHOULD be encoded in the order listed below.
                 - AES256GCM: 3 
                 
                 The following ciphers MAY be supported:
+            </td>
+        </tr>
+        <tr>
+            <td><dfn>iv</dfn></td>
+            <td>bstr</td>
+            <td>
+                Initialization vector (nonce) used for encryption. The IVs size depends
+                on the cipher used for encryption, e.g.:
+                
+                - AES256GCM: 12 bytes
+
+                Note: A new and unique IV MUST be used for every encryption. One MUST NOT use the same IV twice! This can be achieved by using a counter or by using a cryptographically secure (pseudo) random number generator (CSRNG) to generate the IV at random.
             </td>
         </tr>
         <tr>
@@ -434,7 +434,7 @@ Directly after the [[#outer-header]] follows the body, consisting of the body le
             <td>
                 The AEAD tag is the result of encrypting the Body Data using the AEAD cipher defined by [=cid=].
                 The length N of the tag depends on the AEAD cipher used for encryption:
-                - AES-GCM: `byte[16]`
+                - AES256GCM: `byte[16]`
             </td>
         </tr>
         <tr>
@@ -468,10 +468,19 @@ The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], 
             <td></td>
         </tr>
         <tr>
-            <td>root</td>
-            <td>map</td>
+            <td><dfn>entries</dfn></td>
+            <td>[+ [[#body-entry]]]</td>
             <td>
-                The actual database content consisting of [[#body-group]]s and [[#body-entry]]s.
+                All entries of this database.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>groups</td>
+            <td>[[#body-group]]</td>
+            <td>
+                The root of an arbitrary number of (nested) groups. Groups only hold references
+                to entries within [=entries=].
             </td>
             <td></td>
         </tr>
@@ -502,14 +511,6 @@ deleted entry is permanently removed from the database.
             <th>Data Type</th>
             <th>Description</th>
             <th>Optional</th>
-        </tr>
-        <tr>
-            <td>groups</td>
-            <td>[+ tstr]</td>
-            <td>
-                An array of UUIDs describing a nested data structure, each referencing a group. The first element in the array (index 0) references a group directly under the main group, which is part of the document root. If the entry is part of the outer most group, this field MUST NOT be present. In general, a group at index `n` is nested within the group at index `n - 1`.
-            </td>
-            <td>Optional</td>
         </tr>
         <tr>
             <td>time</td>
@@ -611,9 +612,9 @@ deleted entry is permanently removed from the database.
         </tr>
         <tr>
             <td>entries</td>
-            <td>[+ [[#body-entry]] ]</td>
+            <td>[+ bstr]</td>
             <td>
-                An array of entries (see [[#body-entry]]).
+                An array of UUID references to entries.
             </td>
             <td>Optional</td>
         </tr>
@@ -768,6 +769,15 @@ deleted entry is permanently removed from the database.
             <td>tstr</td>
             <td>
                 The user name corresponding to the given credential.
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>group</td>
+            <td>bstr</td>
+            <td>
+                A UUID referencing a [[#body-group]]. If not present, the given entry is implicitely
+                associated to the group directly under the document root.
             </td>
             <td>Optional</td>
         </tr>
