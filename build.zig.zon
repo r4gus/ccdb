@@ -48,6 +48,10 @@
             .hash = "122051750f4d7ecc9b705f1bbea1d431956306c74dafa4e9b625b11a34fab4c06933",
             //.path = "../../zbor"
         },
+        .uuid = .{
+            .url = "https://github.com/r4gus/uuid-zig/archive/refs/tags/0.2.0.tar.gz",
+            .hash = "12205faefc87ea2d9182f7e28f2e8effeae3b070727e68cfb7330ce5d78bbcd90dfc",
+        },
     },
 
     // Specifies the set of files and directories that are included in this package.

@@ -21,6 +21,12 @@ pub fn build(b: *std.Build) void {
     });
     const zbor_module = zbor_dep.module("zbor");
 
+    const uuid_dep = b.dependency("uuid", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const uuid_module = uuid_dep.module("uuid");
+
     const lib = b.addStaticLibrary(.{
         .name = "ccdb",
         // In this case the main source file is merely a path, however, in more
@@ -30,6 +36,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     lib.root_module.addImport("zbor", zbor_module);
+    lib.root_module.addImport("uuid", uuid_module);
 
     // This declares intent for the library to be installed into the standard
     // location when the user invokes the "install" step (the default step when
@@ -79,6 +86,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     lib_unit_tests.root_module.addImport("zbor", zbor_module);
+    lib_unit_tests.root_module.addImport("uuid", uuid_module);
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
 

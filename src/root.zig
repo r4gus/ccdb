@@ -1,5 +1,14 @@
+const root = @import("root");
 const std = @import("std");
 const zbor = @import("zbor");
+const uuid = @import("uuid");
+
+pub const options: Options = if (@hasDecl(root, "ccdb_options")) root.ccdb_options else .{};
+
+pub const Options = struct {
+    timestamp: fn () i64 = std.time.timestamp,
+    rand: std.Random = std.crypto.random,
+};
 
 pub const Err = error{
     /// The application expected more bytes than provided
@@ -102,9 +111,7 @@ pub const HeaderFields = struct {
     /// Values specific for the key derivation.
     kdf: KdfParams,
 
-    pub fn cborStringify(self: *const @This(), options: zbor.Options, out: anytype) !void {
-        _ = options;
-
+    pub fn cborStringify(self: *const @This(), _: zbor.Options, out: anytype) !void {
         try zbor.build.writeMap(out, 4);
 
         try zbor.build.writeTextString(out, "cid");
@@ -134,8 +141,7 @@ pub const KdfParams = struct {
     /// Random salt
     salt: ?[32]u8,
 
-    pub fn cborStringify(self: *const @This(), options: zbor.Options, out: anytype) !void {
-        _ = options;
+    pub fn cborStringify(self: *const @This(), _: zbor.Options, out: anytype) !void {
         try zbor.stringify(self.*, .{
             .field_settings = &.{
                 .{ .name = "id", .field_options = .{ .alias = "$UUID" } },
@@ -148,8 +154,7 @@ pub const KdfParams = struct {
         }, out);
     }
 
-    pub fn cborParse(item: zbor.DataItem, options: zbor.Options) !@This() {
-        _ = options;
+    pub fn cborParse(item: zbor.DataItem, _: zbor.Options) !@This() {
         return try zbor.parse(@This(), item, .{
             .from_callback = true, // prevent infinite loops
             .field_settings = &.{
@@ -160,6 +165,116 @@ pub const KdfParams = struct {
                 .{ .name = "salt", .field_options = .{ .alias = "S" } },
             },
         });
+    }
+};
+
+// ++++++++++++++++++++++++++++++++++++++++++
+//                  Body
+// ++++++++++++++++++++++++++++++++++++++++++
+
+pub const Entry = struct {
+    /// A unique identifyer for the given entry, e.g., UUIDv4 or UUIDv7.
+    uuid: [36]u8,
+    /// A human readable name for the given entry.
+    name: []const u8,
+    /// Counters and time values.
+    times: Times,
+    /// Notes related to the given entry.
+    notes: ?[]const u8 = null,
+    /// A password string.
+    pw: ?[]const u8 = null,
+    /// A CBOR Object Signing and Encryption (COSE) key [RFC8152].
+    key: ?zbor.cose.Key = null,
+    /// A text string representing a URL.
+    url: ?[]const u8 = null,
+    /// The user name corresponding to the given credential.
+    uname: ?[]const u8 = null,
+    /// A UUID referencing a Group.
+    group: ?[36]u8 = null,
+    allocator: std.mem.Allocator,
+
+    pub fn cborStringify(self: *const @This(), _: zbor.Options, out: anytype) !void {
+        try zbor.stringify(self, .{
+            .from_callback = true,
+            .field_settings = &.{
+                .{ .name = "uuid", .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "name", .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "notes", .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "pw", .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "url", .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "uname", .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "group", .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+            },
+        }, out);
+    }
+
+    pub fn new(
+        name: []const u8,
+        /// Offset in seconds the entry should expire.
+        exp: ?i64,
+        allocator: std.mem.Allocator,
+    ) Err!@This() {
+        return .{
+            .uuid = uuid.urn.serialize(uuid.v4.new2(options.rand)),
+            .name = try allocator.dupe(u8, name),
+            .times = Times.new(exp, null),
+            .allocator = allocator,
+        };
+    }
+
+    pub fn updateNotes(self: *@This(), notes: []const u8) !void {
+        const new_notes = try self.allocator.dupe(u8, notes);
+        if (self.notes) |old_notes| self.allocator.free(old_notes);
+        self.notes = new_notes;
+        self.times.update();
+    }
+
+    pub fn updatePw(self: *@This(), pw: []const u8) !void {
+        const new_pw = try self.allocator.dupe(u8, pw);
+        if (self.pw) |old_pw| self.allocator.free(old_pw);
+        self.pw = new_pw;
+        self.times.update();
+    }
+
+    pub fn deinit(self: *const @This()) void {
+        self.allocator.free(self.name);
+
+        if (self.notes) |notes| self.allocator.free(notes);
+        if (self.pw) |pw| self.allocator.free(pw);
+        if (self.url) |url| self.allocator.free(url);
+        if (self.uname) |uname| self.allocator.free(uname);
+    }
+};
+
+pub const Times = struct {
+    /// Epoch-based date/time the parent was created.
+    creat: i64,
+    /// Epoch-based date/time the parent was modified the last time.
+    mod: i64,
+    /// Epoch-based date/time the parent will expire.
+    /// The meaning of this field may vary depending on the parent.
+    exp: ?i64 = null,
+    /// Counter how many times the parent was used.
+    /// The meaning of this field may vary depending on the parent.
+    cnt: ?u64 = null,
+
+    pub fn new(
+        /// Offset in seconds the parent should expire.
+        exp: ?i64,
+        /// Initial counter (usually 0).
+        cnt: ?u64,
+    ) @This() {
+        return .{
+            .creat = options.timestamp(),
+            .mod = options.timestamp(),
+            .exp = if (exp) |e| options.timestamp() + e else null,
+            .cnt = cnt,
+        };
+    }
+
+    pub fn update(self: *@This()) void {
+        self.mod = options.timestamp();
     }
 };
 
@@ -209,4 +324,37 @@ test "encode header #1" {
     try h.encodeHeader(arr.writer());
 
     try std.testing.expectEqualSlices(u8, raw_header, arr.items);
+}
+
+test "create entry #1" {
+    var e = try Entry.new("Github", null, std.testing.allocator);
+    defer e.deinit();
+
+    try e.updatePw("supersecret");
+    try e.updateNotes("I should probably change my password.");
+}
+
+test "encode entry #1" {
+    const a = std.testing.allocator;
+
+    const expected = "\xa5\x64\x75\x75\x69\x64\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x64\x6e\x61\x6d\x65\x66\x47\x69\x74\x68\x75\x62\x65\x74\x69\x6d\x65\x73\xa2\x65\x63\x72\x65\x61\x74\x1a\x66\x32\x7d\xb0\x63\x6d\x6f\x64\x1a\x66\x32\x7d\xb0\x65\x6e\x6f\x74\x65\x73\x78\x25\x49\x20\x73\x68\x6f\x75\x6c\x64\x20\x70\x72\x6f\x62\x61\x62\x6c\x79\x20\x63\x68\x61\x6e\x67\x65\x20\x6d\x79\x20\x70\x61\x73\x73\x77\x6f\x72\x64\x2e\x62\x70\x77\x6b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74";
+
+    const e = Entry{
+        .uuid = "0e695c28-42f9-43e4-9aca-3f71cd701dc0".*,
+        .name = try a.dupe(u8, "Github"),
+        .times = Times{
+            .creat = 1714585008,
+            .mod = 1714585008,
+        },
+        .notes = try a.dupe(u8, "I should probably change my password."),
+        .pw = try a.dupe(u8, "supersecret"),
+        .allocator = a,
+    };
+    defer e.deinit();
+
+    var arr = std.ArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+    try zbor.stringify(e, .{}, arr.writer());
+
+    try std.testing.expectEqualSlices(u8, expected, arr.items);
 }

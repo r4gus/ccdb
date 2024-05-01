@@ -582,7 +582,9 @@ deleted entry is permanently removed from the database.
             <td>uuid</td>
             <td>bstr</td>
             <td>
-                A unique identifyer for the given group, e.g., UUIDv4 or UUIDv7.
+                A unique identifyer for the given group, e.g., UUIDv4 or UUIDv7 encoded as URN, e.g.:
+                
+                - `0e695c28-42f9-43e4-9aca-3f71cd701dc0`
             </td>
             <td></td>
         </tr>
@@ -680,7 +682,9 @@ deleted entry is permanently removed from the database.
             <td>uuid</td>
             <td>bstr</td>
             <td>
-                A unique identifyer for the given entry, e.g., UUIDv4 or UUIDv7.
+                A unique identifyer for the given entry, e.g., UUIDv4 or UUIDv7, encoded as URN, e.g.:
+
+                - `0e695c28-42f9-43e4-9aca-3f71cd701dc0`
             </td>
             <td></td>
         </tr>
