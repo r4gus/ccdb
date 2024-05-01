@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="a54ef8273e203ef949bf6a8fb104cfd4c4d05523" name="revision">
+  <meta content="d9abae4bd10afa10d7f1a109ad46803189f13767" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2280,7 +2280,11 @@ Parts of this work may be from another specification document.  If so, those par
           <li><a href="#body-meta"><span class="secno">2.2.1.2</span> <span class="content">Meta</span></a>
           <li><a href="#body-group"><span class="secno">2.2.1.3</span> <span class="content">Group</span></a>
           <li><a href="#body-times"><span class="secno">2.2.1.4</span> <span class="content">Times</span></a>
-          <li><a href="#body-entry"><span class="secno">2.2.1.5</span> <span class="content">Entry</span></a>
+          <li>
+           <a href="#body-entry"><span class="secno">2.2.1.5</span> <span class="content">Entry</span></a>
+           <ol class="toc">
+            <li><a href="#example-password-entry"><span class="secno">2.2.1.5.1</span> <span class="content">Example: Password Entry</span></a>
+           </ol>
          </ol>
        </ol>
       <li><a href="#database-creation"><span class="secno">2.3</span> <span class="content">Database Creation</span></a>
@@ -2868,7 +2872,7 @@ deleted entry is permanently removed from the database.</p>
        <th>Optional
       <tr>
        <td>uuid
-       <td>bstr
+       <td>tstr
        <td>
          A unique identifyer for the given group, e.g., UUIDv4 or UUIDv7 encoded as URN, e.g.: 
         <ul>
@@ -2893,7 +2897,7 @@ deleted entry is permanently removed from the database.</p>
        <td>Optional
       <tr>
        <td>entries
-       <td>[+ bstr]
+       <td>[+ tstr]
        <td> An array of UUID references to entries. 
        <td>Optional
     </table>
@@ -2940,7 +2944,7 @@ deleted entry is permanently removed from the database.</p>
        <th>Optional
       <tr>
        <td>uuid
-       <td>bstr
+       <td>tstr
        <td>
          A unique identifyer for the given entry, e.g., UUIDv4 or UUIDv7, encoded as URN, e.g.: 
         <ul>
@@ -3016,12 +3020,27 @@ A6             # map(6)
        <td>Optional
       <tr>
        <td>group
-       <td>bstr
-       <td> A UUID referencing a <a href="#body-group">§ 2.2.1.3 Group</a>. If not present, the given entry is implicitely
+       <td>tstr
+       <td> A UUID (URN) referencing a <a href="#body-group">§ 2.2.1.3 Group</a>. If not present, the given entry is implicitely
                 associated to the group directly under the document root. 
        <td>Optional
     </table>
    </figure>
+   <h6 class="heading settled" data-level="2.2.1.5.1" id="example-password-entry"><span class="secno">2.2.1.5.1. </span><span class="content">Example: Password Entry</span><a class="self-link" href="#example-password-entry"></a></h6>
+<pre class="example" id="example-db8495bc"><a class="self-link" href="#example-db8495bc"></a>{
+  "uuid": "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
+  "name": "Github", 
+  "times": {"creat": 1714585008, "mod": 1714585008}, 
+  "notes": "I should probably change my password.", 
+  "pw": "supersecret"
+}
+
+A56475756964782430653639356332382D343266392D343365342D396163612D
+336637316364373031646330646E616D65664769746875626574696D6573A265
+63726561741A66327DB0636D6F641A66327DB0656E6F7465737825492073686F
+756C642070726F6261626C79206368616E6765206D792070617373776F72642E
+6270776B7375706572736563726574
+</pre>
    <h3 class="heading settled" data-level="2.3" id="database-creation"><span class="secno">2.3. </span><span class="content">Database Creation</span><a class="self-link" href="#database-creation"></a></h3>
    <p>Every application that supports the given standard should provide the flexibility to configure parameters that influence the behavior of the database. These parameters typically include the cipher, compression algorithm, and key derivation function. It’s recommended that applications only propose sensible values for ciphers and key derivation functions sourced from reputable authorities, such as <a href="https://owasp.org/">OWASP</a> and <a href="https://www.nist.gov/">NIST</a>.</p>
    <p>By allowing configuration of these parameters, applications empower users to tailor their security settings to best suit their specific needs and environments. This adaptability ensures compatibility with various security protocols and standards, fostering a robust and customizable security posture for the application.</p>

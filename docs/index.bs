@@ -580,7 +580,7 @@ deleted entry is permanently removed from the database.
         </tr>
         <tr>
             <td>uuid</td>
-            <td>bstr</td>
+            <td>tstr</td>
             <td>
                 A unique identifyer for the given group, e.g., UUIDv4 or UUIDv7 encoded as URN, e.g.:
                 
@@ -614,7 +614,7 @@ deleted entry is permanently removed from the database.
         </tr>
         <tr>
             <td>entries</td>
-            <td>[+ bstr]</td>
+            <td>[+ tstr]</td>
             <td>
                 An array of UUID references to entries.
             </td>
@@ -680,7 +680,7 @@ deleted entry is permanently removed from the database.
         </tr>
         <tr>
             <td>uuid</td>
-            <td>bstr</td>
+            <td>tstr</td>
             <td>
                 A unique identifyer for the given entry, e.g., UUIDv4 or UUIDv7, encoded as URN, e.g.:
 
@@ -778,15 +778,33 @@ deleted entry is permanently removed from the database.
         </tr>
         <tr>
             <td>group</td>
-            <td>bstr</td>
+            <td>tstr</td>
             <td>
-                A UUID referencing a [[#body-group]]. If not present, the given entry is implicitely
+                A UUID (URN) referencing a [[#body-group]]. If not present, the given entry is implicitely
                 associated to the group directly under the document root.
             </td>
             <td>Optional</td>
         </tr>
     </table>
 </figure>
+
+##### Example: Password Entry
+
+<pre class="example">
+{
+  "uuid": "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
+  "name": "Github", 
+  "times": {"creat": 1714585008, "mod": 1714585008}, 
+  "notes": "I should probably change my password.", 
+  "pw": "supersecret"
+}
+
+A56475756964782430653639356332382D343266392D343365342D396163612D
+336637316364373031646330646E616D65664769746875626574696D6573A265
+63726561741A66327DB0636D6F641A66327DB0656E6F7465737825492073686F
+756C642070726F6261626C79206368616E6765206D792070617373776F72642E
+6270776B7375706572736563726574
+</pre>
 
 ## Database Creation
 
