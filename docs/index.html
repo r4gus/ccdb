@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="330abc4646bc711ab71ad4681fba0b9d4e2f7065" name="revision">
+  <meta content="e77ff59c23a9ae13c58c468de3049e78b120ac84" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2578,16 +2578,16 @@ and SHOULD be encoded in the order listed below.</p>
        <td> Values specific for the <a href="#key-derivation">§ 2.1.3 Key Derivation</a> 
     </table>
    </figure>
-<pre class="example" id="example-5131d8d1"><a class="self-link" href="#example-5131d8d1"></a>{"iv": h’010203040102030401020304', "cid": 3, "cmp": 1, "kdf": {"$UUID": h’9e298b1956db4773b23dfc3ec6f0a1e6', "I": 2, "M": 1048576, "P": 8, "S": h’0102030401020304010203040102030401020304010203040102030401020304'}}
+<pre class="example" id="example-18af38ec"><a class="self-link" href="#example-18af38ec"></a>{"cid": 3, "iv": h’010203040102030401020304', "cmp": 1, "kdf": {"$UUID": h’9E298B1956DB4773B23DFC3EC6F0A1E6', "I": 2, "M": 4096, "P": 8, "S": h’0102030401020304010203040102030401020304010203040102030401020304'}}
 
 A4                                      # map(4)
+   63                                   # text(3)
+      636964                            # "cid"
+   03                                   # unsigned(3)
    62                                   # text(2)
       6976                              # "iv"
    4C                                   # bytes(12)
       010203040102030401020304          # "\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004"
-   63                                   # text(3)
-      636964                            # "cid"
-   03                                   # unsigned(3)
    63                                   # text(3)
       636D70                            # "cmp"
    01                                   # unsigned(1)
@@ -2612,7 +2612,7 @@ A4                                      # map(4)
       58 20                             # bytes(32)
          0102030401020304010203040102030401020304010203040102030401020304 # "\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004"
 
-A46269764C010203040102030401020304636369640363636D7001636B6466A565245555494
+A463636964036269764C01020304010203040102030463636D7001636B6466A565245555494
 4509E298B1956DB4773B23DFC3EC6F0A1E6614902614D191000615008615358200102030401
 020304010203040102030401020304010203040102030401020304
 </pre>
