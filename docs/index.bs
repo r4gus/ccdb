@@ -460,7 +460,7 @@ The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], 
             <th>Optional</th>
         </tr>
         <tr>
-            <td>meta</td>
+            <td>meta (0x00)</td>
             <td>map</td>
             <td>
                 Properties describing the database itself ([[#body-meta]]).
@@ -468,7 +468,7 @@ The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], 
             <td></td>
         </tr>
         <tr>
-            <td><dfn>entries</dfn></td>
+            <td><dfn>entries</dfn> (0x01)</td>
             <td>[+ [[#body-entry]]]</td>
             <td>
                 All entries of this database.
@@ -476,7 +476,7 @@ The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], 
             <td></td>
         </tr>
         <tr>
-            <td>groups</td>
+            <td>groups (0x02)</td>
             <td>[[#body-group]]</td>
             <td>
                 The root of an arbitrary number of (nested) groups. Groups only hold references
@@ -485,7 +485,7 @@ The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], 
             <td></td>
         </tr>
         <tr>
-            <td>bin</td>
+            <td>bin (0x03)</td>
             <td>[+ [[#body-bin]] ]</td>
             <td>
                 The bin is a array of elements of type [[#body-bin]] that
@@ -513,7 +513,7 @@ deleted entry is permanently removed from the database.
             <th>Optional</th>
         </tr>
         <tr>
-            <td>time</td>
+            <td>time (0x00)</td>
             <td>uint</td>
             <td>
                 Epoch-based date/time the entry was deleted.
@@ -521,7 +521,7 @@ deleted entry is permanently removed from the database.
             <td></td>
         </tr>
         <tr>
-            <td>entry</td>
+            <td>entry (0x01)</td>
             <td>map</td>
             <td>
                 The deleted [[#body-entry]]. The exact location where the entry was deleted from is defined by [=Groups=].
@@ -542,7 +542,7 @@ deleted entry is permanently removed from the database.
             <th>Optional</th>
         </tr>
         <tr>
-            <td>gen</td>
+            <td>gen (0x00)</td>
             <td>tstr</td>
             <td>
                 The name of the application that created the database.
@@ -550,7 +550,7 @@ deleted entry is permanently removed from the database.
             <td></td>
         </tr>
         <tr>
-            <td>name</td>
+            <td>name (0x01)</td>
             <td>tstr</td>
             <td>
                 The name of the database.
@@ -558,7 +558,7 @@ deleted entry is permanently removed from the database.
             <td></td>
         </tr>
         <tr>
-            <td>change</td>
+            <td>change (0x02)</td>
             <td>uint</td>
             <td>
                 Epoch-based date/time. This field has to be updated each time the database content is changed. 
@@ -579,7 +579,7 @@ deleted entry is permanently removed from the database.
             <th>Optional</th>
         </tr>
         <tr>
-            <td>uuid</td>
+            <td>uuid (0x00)</td>
             <td>tstr</td>
             <td>
                 A unique identifyer for the given group, e.g., UUIDv4 or UUIDv7 encoded as URN, e.g.:
@@ -589,7 +589,7 @@ deleted entry is permanently removed from the database.
             <td></td>
         </tr>
         <tr>
-            <td>name</td>
+            <td>name (0x01)</td>
             <td>tstr</td>
             <td>
                 A human readable name for the given group.
@@ -597,7 +597,7 @@ deleted entry is permanently removed from the database.
             <td></td>
         </tr>
         <tr>
-            <td>times</td>
+            <td>times (0x02)</td>
             <td>map</td>
             <td>
                 Counters and time values (see [[#body-times]]).
@@ -605,7 +605,7 @@ deleted entry is permanently removed from the database.
             <td></td>
         </tr>
         <tr>
-            <td>groups</td>
+            <td>groups (0x03)</td>
             <td>[+ [[#body-group]] ]</td>
             <td>
                 An array of [[#body-group]]s.
@@ -613,7 +613,7 @@ deleted entry is permanently removed from the database.
             <td>Optional</td>
         </tr>
         <tr>
-            <td>entries</td>
+            <td>entries (0x04)</td>
             <td>[+ tstr]</td>
             <td>
                 An array of UUID references to entries.
@@ -634,7 +634,7 @@ deleted entry is permanently removed from the database.
             <th>Optional</th>
         </tr>
         <tr>
-            <td>creat</td>
+            <td>creat (0x00)</td>
             <td>uint</td>
             <td>
                 Epoch-based date/time the parent was created.
@@ -642,7 +642,7 @@ deleted entry is permanently removed from the database.
             <td></td>
         </tr>
         <tr>
-            <td>mod</td>
+            <td>mod (0x01)</td>
             <td>uint</td>
             <td>
                 Epoch-based date/time the parent was modified the last time.
@@ -650,7 +650,7 @@ deleted entry is permanently removed from the database.
             <td></td>
         </tr>
         <tr>
-            <td>exp</td>
+            <td>exp (0x02)</td>
             <td>uint</td>
             <td>
                 Epoch-based date/time the parent will expire. The meaning of this field may vary depending on the parent.
@@ -658,7 +658,7 @@ deleted entry is permanently removed from the database.
             <td>Optional</td>
         </tr>
         <tr>
-            <td>cnt</td>
+            <td>cnt (0x03)</td>
             <td>uint</td>
             <td>
                 Counter how many times the parent was used. The meaning of this field may vary depending on the parent.
@@ -679,7 +679,7 @@ deleted entry is permanently removed from the database.
             <th>Optional</th>
         </tr>
         <tr>
-            <td>uuid</td>
+            <td>uuid (0x00)</td>
             <td>tstr</td>
             <td>
                 A unique identifyer for the given entry, e.g., UUIDv4 or UUIDv7, encoded as URN, e.g.:
@@ -689,7 +689,7 @@ deleted entry is permanently removed from the database.
             <td></td>
         </tr>
         <tr>
-            <td>name</td>
+            <td>name (0x01)</td>
             <td>tstr</td>
             <td>
                 A human readable name for the given entry.
@@ -697,7 +697,7 @@ deleted entry is permanently removed from the database.
             <td></td>
         </tr>
         <tr>
-            <td>times</td>
+            <td>times (0x02)</td>
             <td>map</td>
             <td>
                 Counters and time values (see [[#body-times]]).
@@ -709,7 +709,7 @@ deleted entry is permanently removed from the database.
             <td></td>
         </tr>
         <tr>
-            <td>notes</td>
+            <td>notes (0x03)</td>
             <td>tstr</td>
             <td>
                 Notes related to the given entry.
@@ -717,7 +717,7 @@ deleted entry is permanently removed from the database.
             <td>Optional</td>
         </tr>
         <tr>
-            <td>pw</td>
+            <td>pw (0x04)</td>
             <td>tstr</td>
             <td>
                 A password string.
@@ -725,7 +725,7 @@ deleted entry is permanently removed from the database.
             <td>Optional</td>
         </tr>
         <tr>
-            <td>key</td>
+            <td>key (0x05)</td>
             <td>map</td>
             <td>
                 A CBOR Object Signing and Encryption (COSE) key [[!RFC8152]]. Also see Double Coordinate Curves, Octet Key Pair, and Symmetric Keys.
@@ -761,7 +761,7 @@ deleted entry is permanently removed from the database.
             <td>Optional</td>
         </tr>
         <tr>
-            <td>url</td>
+            <td>url (0x06)</td>
             <td>tstr</td>
             <td>
                 A text string representing a URL.
@@ -769,7 +769,7 @@ deleted entry is permanently removed from the database.
             <td>Optional</td>
         </tr>
         <tr>
-            <td>uname</td>
+            <td>uname (0x07)</td>
             <td>tstr</td>
             <td>
                 The user name corresponding to the given credential.
@@ -777,7 +777,7 @@ deleted entry is permanently removed from the database.
             <td>Optional</td>
         </tr>
         <tr>
-            <td>group</td>
+            <td>group (0x08)</td>
             <td>tstr</td>
             <td>
                 A UUID (URN) referencing a [[#body-group]]. If not present, the given entry is implicitely
@@ -792,18 +792,17 @@ deleted entry is permanently removed from the database.
 
 <pre class="example">
 {
-  "uuid": "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
-  "name": "Github", 
-  "times": {"creat": 1714585008, "mod": 1714585008}, 
-  "notes": "I should probably change my password.", 
-  "pw": "supersecret"
+  0x00: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
+  0x01: "Github", 
+  0x02: {0x00: 1714585008, 0x01: 1714585008}, 
+  0x03: "I should probably change my password.", 
+  0x04: "supersecret"
 }
 
-A56475756964782430653639356332382D343266392D343365342D396163612D
-336637316364373031646330646E616D65664769746875626574696D6573A265
-63726561741A66327DB0636D6F641A66327DB0656E6F7465737825492073686F
-756C642070726F6261626C79206368616E6765206D792070617373776F72642E
-6270776B7375706572736563726574
+A500782430653639356332382D343266392D343365342D396163612D33663731
+6364373031646330016647697468756202A2001A66327DB0011A66327DB00378
+25492073686F756C642070726F6261626C79206368616E6765206D7920706173
+73776F72642E046B7375706572736563726574
 </pre>
 
 ## Database Creation

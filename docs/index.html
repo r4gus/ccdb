@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="d9abae4bd10afa10d7f1a109ad46803189f13767" name="revision">
+  <meta content="b726a427524bfa0aeb56675af65a1fab4cf48bbe" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2211,7 +2211,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">CBOR Credential Database Format</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-05-01">1 May 2024</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-05-02">2 May 2024</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2225,7 +2225,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
    <div data-fill-with="warning"></div>
    <p class="copyright" data-fill-with="copyright"><a href="http://creativecommons.org/publicdomain/zero/1.0/" rel="license"><img alt="CC0" height="15" src="https://licensebuttons.net/p/zero/1.0/80x15.png" width="80"></a> To the extent possible under law, the editors have waived all copyright
 and related or neighboring rights to this work.
-In addition, as of 1 May 2024,
+In addition, as of 2 May 2024,
 the editors have made this specification available under the <a href="http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0" rel="license">Open Web Foundation Agreement Version 1.0</a>,
 which is available at http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0.
 Parts of this work may be from another specification document.  If so, those parts are instead covered by the license of that specification document. </p>
@@ -2786,23 +2786,23 @@ symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed6
        <th>Description
        <th>Optional
       <tr>
-       <td>meta
+       <td>meta (0x00)
        <td>map
        <td> Properties describing the database itself (<a href="#body-meta">§ 2.2.1.2 Meta</a>). 
        <td>
       <tr>
-       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="entries">entries</dfn>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="entries">entries</dfn> (0x01)
        <td>[+ <a href="#body-entry">§ 2.2.1.5 Entry</a>]
        <td> All entries of this database. 
        <td>
       <tr>
-       <td>groups
+       <td>groups (0x02)
        <td><a href="#body-group">§ 2.2.1.3 Group</a>
        <td> The root of an arbitrary number of (nested) groups. Groups only hold references
                 to entries within <a data-link-type="dfn" href="#entries" id="ref-for-entries">entries</a>. 
        <td>
       <tr>
-       <td>bin
+       <td>bin (0x03)
        <td>[+ <a href="#body-bin">§ 2.2.1.1 Bin Entry</a> ]
        <td> The bin is a array of elements of type <a href="#body-bin">§ 2.2.1.1 Bin Entry</a> that
                 represent deleted entries. This filed MAY NOT be present
@@ -2824,12 +2824,12 @@ deleted entry is permanently removed from the database.</p>
        <th>Description
        <th>Optional
       <tr>
-       <td>time
+       <td>time (0x00)
        <td>uint
        <td> Epoch-based date/time the entry was deleted. 
        <td>
       <tr>
-       <td>entry
+       <td>entry (0x01)
        <td>map
        <td> The deleted <a href="#body-entry">§ 2.2.1.5 Entry</a>. The exact location where the entry was deleted from is defined by <a data-link-type="dfn">Groups</a>. 
        <td>
@@ -2845,17 +2845,17 @@ deleted entry is permanently removed from the database.</p>
        <th>Description
        <th>Optional
       <tr>
-       <td>gen
+       <td>gen (0x00)
        <td>tstr
        <td> The name of the application that created the database. 
        <td>
       <tr>
-       <td>name
+       <td>name (0x01)
        <td>tstr
        <td> The name of the database. 
        <td>
       <tr>
-       <td>change
+       <td>change (0x02)
        <td>uint
        <td> Epoch-based date/time. This field has to be updated each time the database content is changed. 
        <td>
@@ -2871,7 +2871,7 @@ deleted entry is permanently removed from the database.</p>
        <th>Description
        <th>Optional
       <tr>
-       <td>uuid
+       <td>uuid (0x00)
        <td>tstr
        <td>
          A unique identifyer for the given group, e.g., UUIDv4 or UUIDv7 encoded as URN, e.g.: 
@@ -2881,22 +2881,22 @@ deleted entry is permanently removed from the database.</p>
         </ul>
        <td>
       <tr>
-       <td>name
+       <td>name (0x01)
        <td>tstr
        <td> A human readable name for the given group. 
        <td>
       <tr>
-       <td>times
+       <td>times (0x02)
        <td>map
        <td> Counters and time values (see <a href="#body-times">§ 2.2.1.4 Times</a>). 
        <td>
       <tr>
-       <td>groups
+       <td>groups (0x03)
        <td>[+ <a href="#body-group">§ 2.2.1.3 Group</a> ]
        <td> An array of <a href="#body-group">§ 2.2.1.3 Group</a>s. 
        <td>Optional
       <tr>
-       <td>entries
+       <td>entries (0x04)
        <td>[+ tstr]
        <td> An array of UUID references to entries. 
        <td>Optional
@@ -2912,22 +2912,22 @@ deleted entry is permanently removed from the database.</p>
        <th>Description
        <th>Optional
       <tr>
-       <td>creat
+       <td>creat (0x00)
        <td>uint
        <td> Epoch-based date/time the parent was created. 
        <td>
       <tr>
-       <td>mod
+       <td>mod (0x01)
        <td>uint
        <td> Epoch-based date/time the parent was modified the last time. 
        <td>
       <tr>
-       <td>exp
+       <td>exp (0x02)
        <td>uint
        <td> Epoch-based date/time the parent will expire. The meaning of this field may vary depending on the parent. 
        <td>Optional
       <tr>
-       <td>cnt
+       <td>cnt (0x03)
        <td>uint
        <td> Counter how many times the parent was used. The meaning of this field may vary depending on the parent. 
        <td>Optional
@@ -2943,7 +2943,7 @@ deleted entry is permanently removed from the database.</p>
        <th>Description
        <th>Optional
       <tr>
-       <td>uuid
+       <td>uuid (0x00)
        <td>tstr
        <td>
          A unique identifyer for the given entry, e.g., UUIDv4 or UUIDv7, encoded as URN, e.g.: 
@@ -2953,12 +2953,12 @@ deleted entry is permanently removed from the database.</p>
         </ul>
        <td>
       <tr>
-       <td>name
+       <td>name (0x01)
        <td>tstr
        <td> A human readable name for the given entry. 
        <td>
       <tr>
-       <td>times
+       <td>times (0x02)
        <td>map
        <td>
          Counters and time values (see <a href="#body-times">§ 2.2.1.4 Times</a>). 
@@ -2967,17 +2967,17 @@ deleted entry is permanently removed from the database.</p>
                 to scenarios where the user locks himself out of his accounts.</p>
        <td>
       <tr>
-       <td>notes
+       <td>notes (0x03)
        <td>tstr
        <td> Notes related to the given entry. 
        <td>Optional
       <tr>
-       <td>pw
+       <td>pw (0x04)
        <td>tstr
        <td> A password string. 
        <td>Optional
       <tr>
-       <td>key
+       <td>key (0x05)
        <td>map
        <td>
          A CBOR Object Signing and Encryption (COSE) key <a data-link-type="biblio" href="#biblio-rfc8152" title="CBOR Object Signing and Encryption (COSE): Initial Algorithms">[RFC8152]</a>. Also see Double Coordinate Curves, Octet Key Pair, and Symmetric Keys. 
@@ -3009,17 +3009,17 @@ A6             # map(6)
 </pre>
        <td>Optional
       <tr>
-       <td>url
+       <td>url (0x06)
        <td>tstr
        <td> A text string representing a URL. 
        <td>Optional
       <tr>
-       <td>uname
+       <td>uname (0x07)
        <td>tstr
        <td> The user name corresponding to the given credential. 
        <td>Optional
       <tr>
-       <td>group
+       <td>group (0x08)
        <td>tstr
        <td> A UUID (URN) referencing a <a href="#body-group">§ 2.2.1.3 Group</a>. If not present, the given entry is implicitely
                 associated to the group directly under the document root. 
@@ -3027,19 +3027,18 @@ A6             # map(6)
     </table>
    </figure>
    <h6 class="heading settled" data-level="2.2.1.5.1" id="example-password-entry"><span class="secno">2.2.1.5.1. </span><span class="content">Example: Password Entry</span><a class="self-link" href="#example-password-entry"></a></h6>
-<pre class="example" id="example-db8495bc"><a class="self-link" href="#example-db8495bc"></a>{
-  "uuid": "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
-  "name": "Github", 
-  "times": {"creat": 1714585008, "mod": 1714585008}, 
-  "notes": "I should probably change my password.", 
-  "pw": "supersecret"
+<pre class="example" id="example-24fe29e3"><a class="self-link" href="#example-24fe29e3"></a>{
+  0x00: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
+  0x01: "Github", 
+  0x02: {0x00: 1714585008, 0x01: 1714585008}, 
+  0x03: "I should probably change my password.", 
+  0x04: "supersecret"
 }
 
-A56475756964782430653639356332382D343266392D343365342D396163612D
-336637316364373031646330646E616D65664769746875626574696D6573A265
-63726561741A66327DB0636D6F641A66327DB0656E6F7465737825492073686F
-756C642070726F6261626C79206368616E6765206D792070617373776F72642E
-6270776B7375706572736563726574
+A500782430653639356332382D343266392D343365342D396163612D33663731
+6364373031646330016647697468756202A2001A66327DB0011A66327DB00378
+25492073686F756C642070726F6261626C79206368616E6765206D7920706173
+73776F72642E046B7375706572736563726574
 </pre>
    <h3 class="heading settled" data-level="2.3" id="database-creation"><span class="secno">2.3. </span><span class="content">Database Creation</span><a class="self-link" href="#database-creation"></a></h3>
    <p>Every application that supports the given standard should provide the flexibility to configure parameters that influence the behavior of the database. These parameters typically include the cipher, compression algorithm, and key derivation function. It’s recommended that applications only propose sensible values for ciphers and key derivation functions sourced from reputable authorities, such as <a href="https://owasp.org/">OWASP</a> and <a href="https://www.nist.gov/">NIST</a>.</p>

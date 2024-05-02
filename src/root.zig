@@ -197,13 +197,15 @@ pub const Entry = struct {
         try zbor.stringify(self, .{
             .from_callback = true,
             .field_settings = &.{
-                .{ .name = "uuid", .value_options = .{ .slice_serialization_type = .TextString } },
-                .{ .name = "name", .value_options = .{ .slice_serialization_type = .TextString } },
-                .{ .name = "notes", .value_options = .{ .slice_serialization_type = .TextString } },
-                .{ .name = "pw", .value_options = .{ .slice_serialization_type = .TextString } },
-                .{ .name = "url", .value_options = .{ .slice_serialization_type = .TextString } },
-                .{ .name = "uname", .value_options = .{ .slice_serialization_type = .TextString } },
-                .{ .name = "group", .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "uuid", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "times", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
+                .{ .name = "notes", .field_options = .{ .alias = "3", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "pw", .field_options = .{ .alias = "4", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "key", .field_options = .{ .alias = "5", .serialization_type = .Integer } },
+                .{ .name = "url", .field_options = .{ .alias = "6", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "uname", .field_options = .{ .alias = "7", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "group", .field_options = .{ .alias = "8", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
             },
         }, out);
@@ -276,6 +278,30 @@ pub const Times = struct {
     pub fn update(self: *@This()) void {
         self.mod = options.timestamp();
     }
+
+    pub fn cborStringify(self: *const @This(), _: zbor.Options, out: anytype) !void {
+        try zbor.stringify(self.*, .{
+            .field_settings = &.{
+                .{ .name = "creat", .field_options = .{ .alias = "0", .serialization_type = .Integer } },
+                .{ .name = "mod", .field_options = .{ .alias = "1", .serialization_type = .Integer } },
+                .{ .name = "exp", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
+                .{ .name = "cnt", .field_options = .{ .alias = "3", .serialization_type = .Integer } },
+            },
+            .from_callback = true,
+        }, out);
+    }
+
+    pub fn cborParse(item: zbor.DataItem, _: zbor.Options) !@This() {
+        return try zbor.parse(@This(), item, .{
+            .from_callback = true, // prevent infinite loops
+            .field_settings = &.{
+                .{ .name = "creat", .field_options = .{ .alias = "0", .serialization_type = .Integer } },
+                .{ .name = "mod", .field_options = .{ .alias = "1", .serialization_type = .Integer } },
+                .{ .name = "exp", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
+                .{ .name = "cnt", .field_options = .{ .alias = "3", .serialization_type = .Integer } },
+            },
+        });
+    }
 };
 
 // ++++++++++++++++++++++++++++++++++++++++++
@@ -337,7 +363,7 @@ test "create entry #1" {
 test "encode entry #1" {
     const a = std.testing.allocator;
 
-    const expected = "\xa5\x64\x75\x75\x69\x64\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x64\x6e\x61\x6d\x65\x66\x47\x69\x74\x68\x75\x62\x65\x74\x69\x6d\x65\x73\xa2\x65\x63\x72\x65\x61\x74\x1a\x66\x32\x7d\xb0\x63\x6d\x6f\x64\x1a\x66\x32\x7d\xb0\x65\x6e\x6f\x74\x65\x73\x78\x25\x49\x20\x73\x68\x6f\x75\x6c\x64\x20\x70\x72\x6f\x62\x61\x62\x6c\x79\x20\x63\x68\x61\x6e\x67\x65\x20\x6d\x79\x20\x70\x61\x73\x73\x77\x6f\x72\x64\x2e\x62\x70\x77\x6b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74";
+    const expected = "\xa5\x00\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x01\x66\x47\x69\x74\x68\x75\x62\x02\xa2\x00\x1a\x66\x32\x7d\xb0\x01\x1a\x66\x32\x7d\xb0\x03\x78\x25\x49\x20\x73\x68\x6f\x75\x6c\x64\x20\x70\x72\x6f\x62\x61\x62\x6c\x79\x20\x63\x68\x61\x6e\x67\x65\x20\x6d\x79\x20\x70\x61\x73\x73\x77\x6f\x72\x64\x2e\x04\x6b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74";
 
     const e = Entry{
         .uuid = "0e695c28-42f9-43e4-9aca-3f71cd701dc0".*,
