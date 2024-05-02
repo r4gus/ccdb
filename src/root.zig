@@ -211,6 +211,25 @@ pub const Entry = struct {
         }, out);
     }
 
+    pub fn cborParse(item: zbor.DataItem, opt: zbor.Options) !@This() {
+        return try zbor.parse(@This(), item, .{
+            .from_callback = true, // prevent infinite loops
+            .field_settings = &.{
+                .{ .name = "uuid", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "times", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
+                .{ .name = "notes", .field_options = .{ .alias = "3", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "pw", .field_options = .{ .alias = "4", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "key", .field_options = .{ .alias = "5", .serialization_type = .Integer } },
+                .{ .name = "url", .field_options = .{ .alias = "6", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "uname", .field_options = .{ .alias = "7", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "group", .field_options = .{ .alias = "8", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+            },
+            .allocator = opt.allocator,
+        });
+    }
+
     pub fn new(
         name: []const u8,
         /// Offset in seconds the entry should expire.
@@ -383,4 +402,19 @@ test "encode entry #1" {
     try zbor.stringify(e, .{}, arr.writer());
 
     try std.testing.expectEqualSlices(u8, expected, arr.items);
+}
+
+test "decode entry #1" {
+    const raw_entry = "\xa5\x00\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x01\x66\x47\x69\x74\x68\x75\x62\x02\xa2\x00\x1a\x66\x32\x7d\xb0\x01\x1a\x66\x32\x7d\xb0\x03\x78\x25\x49\x20\x73\x68\x6f\x75\x6c\x64\x20\x70\x72\x6f\x62\x61\x62\x6c\x79\x20\x63\x68\x61\x6e\x67\x65\x20\x6d\x79\x20\x70\x61\x73\x73\x77\x6f\x72\x64\x2e\x04\x6b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74";
+
+    const di = try zbor.DataItem.new(raw_entry);
+    const e = try zbor.parse(Entry, di, .{ .allocator = std.testing.allocator });
+    defer e.deinit();
+
+    try std.testing.expectEqualSlices(u8, "0e695c28-42f9-43e4-9aca-3f71cd701dc0", &e.uuid);
+    try std.testing.expectEqualSlices(u8, "Github", e.name);
+    try std.testing.expectEqual(@as(i64, 1714585008), e.times.creat);
+    try std.testing.expectEqual(@as(i64, 1714585008), e.times.mod);
+    try std.testing.expectEqualSlices(u8, "I should probably change my password.", e.notes.?);
+    try std.testing.expectEqualSlices(u8, "supersecret", e.pw.?);
 }
