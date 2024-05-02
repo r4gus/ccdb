@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="b726a427524bfa0aeb56675af65a1fab4cf48bbe" name="revision">
+  <meta content="619008c6fcc5108d23ddc349c6f5887db6e327ec" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2308,13 +2308,23 @@ Parts of this work may be from another specification document.  If so, those par
   </nav>
   <main>
    <h2 class="heading settled" data-level="1" id="intro"><span class="secno">1. </span><span class="content">Introduction</span><a class="self-link" href="#intro"></a></h2>
-   <p>This document defines a database format enabling the secure storage of credentials,
-including passwords and passkeys, and related data in a single encrypted file, stored locally
-on a users device. At rest, the dabase is encrypted with a secret derived from a source previously
-selected by the user. In most cases this will be a password. The content of the database is only 
-accessible after decrypting it with the corresponding key.</p>
-   <p>The format is meant for applications that require secure storage at rest, including password managers,
-FIDO capable authenticators, and other applications storing and managing credentials.</p>
+   <p>This document defines a database format enabling the secure storage of credentials.
+At its core, this format encapsulates a robust encryption mechanism, housing all data within a single encrypted file securely stored on users' devices. Encryption is fortified by a secret derived from a source previously designated by the user, typically a password, ensuring that the database remains inaccessible to unauthorized entities. Access to the database content is only granted upon decryption with the corresponding key, guaranteeing the confidentiality and integrity of stored information.</p>
+   <p>Crafted with security and usability in mind, this format can be of use for applications that require secure storage at rest. Whether it’s password managers, FIDO-capable authenticators, or other credential management systems.</p>
+   <p>The format was designed to fullfill following requirements (see also <a href="#security">§ 3 Security Considerations</a>):</p>
+   <ul>
+    <li data-md>
+     <p><strong>Small Memory Footprint at Rest</strong>: The format minimizes storage requirements while maintaining robust encryption standards.</p>
+    <li data-md>
+     <p><strong>Resilience Against Diverse Threats</strong>: This format uses state-of-the-art AEAD ciphers to ensure confidentiality and integrity.</p>
+    <li data-md>
+     <p><strong>Ease of Implementation</strong>: With a focus on simplicity and accessibility, developers can seamlessly integrate this format into their applications.</p>
+    <li data-md>
+     <p><strong>Scalability and Extensibility</strong>: This format is designed with extensibility in mind, accommodating future enhancements and adaptations.</p>
+   </ul>
+   <p>The format builds upon the proven foundation of the Concise Binary Object Representation (CBOR) <a data-link-type="biblio" href="#biblio-rfc8949" title="Concise Binary Object Representation (CBOR)">[RFC8949]</a>. By leveraging CBOR’s compact structure and extensibility, the database size is optimized, surpassing conventional formats like <a data-link-type="biblio" href="#biblio-xml" title="Extensible Markup Language (XML) 1.0 (Fifth Edition)">[XML]</a> in both size and flexibility.</p>
+   <p>Moreover, the architecture of this format is characterized by its reliance on universally available data types and algorithms. From CBOR de-/serializer libraries boasting minimal code footprint to Authenticated Encryption with Associated Data (AEAD) ciphers widely supported across cryptographic libraries and hardware.</p>
+   <p>The culmination of these design choices manifests in a format tailor-made for a spectrum of systems, including those with limited resources such as embedded systems. The synergy of compact data size, minimal program overhead, and potential hardware acceleration for supported ciphers positions this format as a versatile solution capable of meeting the stringent security demands of modern applications.</p>
    <h3 class="heading settled" data-level="1.1" id="conventions"><span class="secno">1.1. </span><span class="content">Conventions</span><a class="self-link" href="#conventions"></a></h3>
    <dl>
     <dt data-md>Byte
@@ -2933,6 +2943,10 @@ deleted entry is permanently removed from the database.</p>
        <td>Optional
     </table>
    </figure>
+<pre class="example" id="example-1cbb5614"><a class="self-link" href="#example-1cbb5614"></a>{0x00: 1714585008, 0x01: 1714585008}
+
+A2001A66327DB0011A66327DB0
+</pre>
    <h5 class="heading settled" data-level="2.2.1.5" id="body-entry"><span class="secno">2.2.1.5. </span><span class="content">Entry</span><a class="self-link" href="#body-entry"></a></h5>
    <figure class="table" id="entryBodyContent">
     <table class="complex data longlastcol">
@@ -3288,6 +3302,8 @@ according to the following steps:</p>
    <dd>J. Schaad. <a href="https://www.rfc-editor.org/rfc/rfc9053"><cite>CBOR Object Signing and Encryption (COSE): Initial Algorithms</cite></a>. August 2022. Informational. URL: <a href="https://www.rfc-editor.org/rfc/rfc9053">https://www.rfc-editor.org/rfc/rfc9053</a>
    <dt id="biblio-rfc8152①">[RFC8152]
    <dd>J. Schaad. <a href="https://www.rfc-editor.org/rfc/rfc9053"><cite>CBOR Object Signing and Encryption (COSE): Initial Algorithms</cite></a>. August 2022. Informational. URL: <a href="https://www.rfc-editor.org/rfc/rfc9053">https://www.rfc-editor.org/rfc/rfc9053</a>
+   <dt id="biblio-rfc8949">[RFC8949]
+   <dd>C. Bormann; P. Hoffman. <a href="https://www.rfc-editor.org/rfc/rfc8949"><cite>Concise Binary Object Representation (CBOR)</cite></a>. December 2020. Internet Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc8949">https://www.rfc-editor.org/rfc/rfc8949</a>
    <dt id="biblio-rfc9054">[RFC9054]
    <dd>J. Schaad. <a href="https://www.rfc-editor.org/rfc/rfc9054"><cite>CBOR Object Signing and Encryption (COSE): Hash Algorithms</cite></a>. August 2022. Informational. URL: <a href="https://www.rfc-editor.org/rfc/rfc9054">https://www.rfc-editor.org/rfc/rfc9054</a>
   </dl>
@@ -3297,6 +3313,8 @@ according to the following steps:</p>
    <dd><a href="https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html"><cite>Client to Authenticator Protocol (CTAP)</cite></a>. Editor's Draft. URL: <a href="https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html">https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html</a>
    <dt id="biblio-rfc4122">[RFC4122]
    <dd>P. Leach; M. Mealling; R. Salz. <a href="https://www.rfc-editor.org/rfc/rfc4122"><cite>A Universally Unique IDentifier (UUID) URN Namespace</cite></a>. July 2005. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc4122">https://www.rfc-editor.org/rfc/rfc4122</a>
+   <dt id="biblio-xml">[XML]
+   <dd>Tim Bray; et al. <a href="https://www.w3.org/TR/xml/"><cite>Extensible Markup Language (XML) 1.0 (Fifth Edition)</cite></a>. 26 November 2008. REC. URL: <a href="https://www.w3.org/TR/xml/">https://www.w3.org/TR/xml/</a>
   </dl>
 <script>/* Boilerplate: script-dom-helper */
 "use strict";

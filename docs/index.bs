@@ -14,14 +14,23 @@ Markup Shorthands: markdown yes, css no
 Introduction {#intro}
 =====================
 
-This document defines a database format enabling the secure storage of credentials,
-including passwords and passkeys, and related data in a single encrypted file, stored locally
-on a users device. At rest, the dabase is encrypted with a secret derived from a source previously
-selected by the user. In most cases this will be a password. The content of the database is only 
-accessible after decrypting it with the corresponding key.
+This document defines a database format enabling the secure storage of credentials.
+At its core, this format encapsulates a robust encryption mechanism, housing all data within a single encrypted file securely stored on users' devices. Encryption is fortified by a secret derived from a source previously designated by the user, typically a password, ensuring that the database remains inaccessible to unauthorized entities. Access to the database content is only granted upon decryption with the corresponding key, guaranteeing the confidentiality and integrity of stored information.
 
-The format is meant for applications that require secure storage at rest, including password managers,
-FIDO capable authenticators, and other applications storing and managing credentials.
+Crafted with security and usability in mind, this format can be of use for applications that require secure storage at rest. Whether it's password managers, FIDO-capable authenticators, or other credential management systems.
+
+The format was designed to fullfill following requirements (see also [[#security]]):
+
+- **Small Memory Footprint at Rest**: The format minimizes storage requirements while maintaining robust encryption standards.
+- **Resilience Against Diverse Threats**: This format uses state-of-the-art AEAD ciphers to ensure confidentiality and integrity.
+- **Ease of Implementation**: With a focus on simplicity and accessibility, developers can seamlessly integrate this format into their applications.
+- **Scalability and Extensibility**: This format is designed with extensibility in mind, accommodating future enhancements and adaptations.
+
+The format builds upon the proven foundation of the Concise Binary Object Representation (CBOR) [[!RFC8949]]. By leveraging CBOR's compact structure and extensibility, the database size is optimized, surpassing conventional formats like [[XML]] in both size and flexibility.
+
+Moreover, the architecture of this format is characterized by its reliance on universally available data types and algorithms. From CBOR de-/serializer libraries boasting minimal code footprint to Authenticated Encryption with Associated Data (AEAD) ciphers widely supported across cryptographic libraries and hardware.
+
+The culmination of these design choices manifests in a format tailor-made for a spectrum of systems, including those with limited resources such as embedded systems. The synergy of compact data size, minimal program overhead, and potential hardware acceleration for supported ciphers positions this format as a versatile solution capable of meeting the stringent security demands of modern applications.
 
 ## Conventions ## {#conventions}
 
@@ -667,6 +676,12 @@ deleted entry is permanently removed from the database.
         </tr>
     </table>
 </figure>
+
+<pre class="example">
+{0x00: 1714585008, 0x01: 1714585008}
+
+A2001A66327DB0011A66327DB0
+</pre>
 
 #### Entry #### {#body-entry}
 
