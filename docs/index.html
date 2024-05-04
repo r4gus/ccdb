@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="382a1829cd9e45f99c8949eaecc0dfd757ef6609" name="revision">
+  <meta content="d2da6639a0ac40faf9e23194b8af903c286db8d8" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2211,7 +2211,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">CBOR Credential Database Format</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-05-03">3 May 2024</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-05-04">4 May 2024</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2225,7 +2225,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
    <div data-fill-with="warning"></div>
    <p class="copyright" data-fill-with="copyright"><a href="http://creativecommons.org/publicdomain/zero/1.0/" rel="license"><img alt="CC0" height="15" src="https://licensebuttons.net/p/zero/1.0/80x15.png" width="80"></a> To the extent possible under law, the editors have waived all copyright
 and related or neighboring rights to this work.
-In addition, as of 3 May 2024,
+In addition, as of 4 May 2024,
 the editors have made this specification available under the <a href="http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0" rel="license">Open Web Foundation Agreement Version 1.0</a>,
 which is available at http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0.
 Parts of this work may be from another specification document.  If so, those parts are instead covered by the license of that specification document. </p>
@@ -2284,7 +2284,9 @@ Parts of this work may be from another specification document.  If so, those par
            <a href="#body-entry"><span class="secno">2.2.1.5</span> <span class="content">Entry</span></a>
            <ol class="toc">
             <li><a href="#example-password-entry"><span class="secno">2.2.1.5.1</span> <span class="content">Example: Password Entry</span></a>
+            <li><a href="#example-passkey-entry"><span class="secno">2.2.1.5.2</span> <span class="content">Example: Passkey Entry</span></a>
            </ol>
+          <li><a href="#attachment"><span class="secno">2.2.1.6</span> <span class="content">Attachment</span></a>
          </ol>
        </ol>
       <li><a href="#database-creation"><span class="secno">2.3</span> <span class="content">Database Creation</span></a>
@@ -2750,11 +2752,10 @@ suggestion of randomized passwords.</p>
 </pre>
    <p class="note" role="note"><span class="marker">Note:</span> It’s important to note that the length of the symmetric key must be adjusted according to the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid①">cid</a>). For example, for AES256GCM, one can utilize the default hash length of 32 bytes for the symmetric key.</p>
    <h6 class="heading settled" data-level="2.1.3.4.1" id="argon2id--password"><span class="secno">2.1.3.4.1. </span><span class="content">Argon2id + Password</span><a class="self-link" href="#argon2id--password"></a></h6>
-<pre class="example highlight" id="example-7bf50e0f"><a class="self-link" href="#example-7bf50e0f"></a>I<c- o>:</c-> <c- mf>2</c-><c- p>,</c-> M<c- o>:</c-> <c- mf>4096</c-><c- p>,</c-> P<c- o>:</c-> <c- mf>8</c-><c- p>,</c-> S<c- o>:</c-> <c- mo>0102030401020304010203040102030401020304010203040102030401020304</c->
+<pre class="example highlight" id="example-36914e57"><a class="self-link" href="#example-36914e57"></a>I<c- o>:</c-> <c- mf>2</c-><c- p>,</c-> M<c- o>:</c-> <c- mf>4096</c-><c- p>,</c-> P<c- o>:</c-> <c- mf>8</c-><c- p>,</c-> S<c- o>:</c-> <c- mo>0102030401020304010203040102030401020304010203040102030401020304</c->
 password<c- o>:</c-> supersecret
 
-compositeKey <c- o>=</c-> f75778f7425be4db0369d09af37a6c2b9a83dea0e53e7bd57412e4b060e607f7 <c- o>=</c-> SHA256<c- p>(</c-><c- u>"supersecret"</c-><c- p>)</c->
-symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed68ede40c225ce4e98 <c- o>=</c-> Argon2id<c- p>(</c->compositeKey<c- p>)</c->
+symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed68ede40c225ce4e98 <c- o>=</c-> Argon2id<c- p>(</c-><c- u>"supersecret"</c-><c- p>)</c->
 </pre>
    <h3 class="heading settled" data-level="2.2" id="body"><span class="secno">2.2. </span><span class="content">Body</span><a class="self-link" href="#body"></a></h3>
    <p>Directly after the <a href="#outer-header">§ 2.1 Outer Header</a> follows the body, consisting of the body length (<code>u64</code>), a tag, and the encrypted body data.</p>
@@ -2979,7 +2980,7 @@ A2001A66327DB0011A66327DB0
        <td>name (0x01)
        <td>tstr
        <td> A human readable name for the given entry. 
-       <td>
+       <td>Optional
       <tr>
        <td>times (0x02)
        <td>map
@@ -3005,30 +3006,23 @@ A2001A66327DB0011A66327DB0
        <td>
          A CBOR Object Signing and Encryption (COSE) key <a data-link-type="biblio" href="#biblio-rfc8152" title="CBOR Object Signing and Encryption (COSE): Initial Algorithms">[RFC8152]</a>. Also see Double Coordinate Curves, Octet Key Pair, and Symmetric Keys. 
         <p><strong>Double Coordinate Curve:</strong></p>
-<pre class="example" id="example-f36e915a">{"kty": 2, "alg": -7, "crv": 1, "x": h’01020304...', "y": h’01020304...', "d": h’01020304...'}
+<pre class="example" id="example-c301555e">{
+  1: 2, 
+  3: -7, 
+  -1: 1, 
+  -4: h’299ba40f6547f9a591636ba3aabcf52adedeca324d3d6e81c8302d5199de9d0d'
+}
 
-A6             # map(6)
-   63          # text(3)
-      6B7479   # "kty"
-   02          # unsigned(2) Elliptic Curve keys w/ x- and y-coordinate pair
-   63          # text(3)
-      616C67   # "alg"
-   26          # negative(6) ECDSA w/ SHA-256
-   63          # text(3)
-      637276   # "crv"
-   01          # unsigned(1) NIST P-256 also known as secp256r1
-   61          # text(1)
-      78       # "x"
-   44          # bytes(4)
-      01020304...  # Public key x-coordinate
-   61          # text(1)
-      79       # "y"
-   44          # bytes(4)
-      01020304...  # Public key y-coordinate
-   61          # text(1)
-      64       # "d"
-   44          # bytes(4)
-      01020304...  # Private key
+A4            # map(4)
+   01         # unsigned(1) # kty
+   02         # unsigned(2)   # Elliptic Curve keys w/ x- and y-coordinate pair
+   03         # unsigned(3) # alg
+   26         # negative(6)   # ECDSA w/ SHA-256
+   20         # negative(0) # crv 
+   01         # unsigned(1)   # NIST P-256 also known as secp256r1
+   23         # negative(3) # d (private key)
+   58 20      # bytes(32)
+      299BA40F6547F9A591636BA3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D
 </pre>
        <td>Optional
       <tr>
@@ -3042,10 +3036,21 @@ A6             # map(6)
        <td> The user name corresponding to the given credential. 
        <td>Optional
       <tr>
-       <td>group (0x08)
+       <td>uid (0x08)
+       <td>bstr
+       <td> A ID assigned to the user by the relying party. 
+       <td>Optional
+      <tr>
+       <td>group (0x09)
        <td>tstr
        <td> A UUID (URN) referencing a <a href="#body-group">§ 2.2.1.3 Group</a>. If not present, the given entry is implicitely
                 associated to the group directly under the document root. 
+       <td>Optional
+      <tr>
+       <td>attach (0x0a)
+       <td>[+ <a href="#attachment">§ 2.2.1.6 Attachment</a> ]
+       <td> One or more attachments associated with the given entry. This can for example be a file
+                containing recovery keys. 
        <td>Optional
     </table>
    </figure>
@@ -3063,6 +3068,58 @@ A500782430653639356332382D343266392D343365342D396163612D33663731
 25492073686F756C642070726F6261626C79206368616E6765206D7920706173
 73776F72642E046B7375706572736563726574
 </pre>
+   <h6 class="heading settled" data-level="2.2.1.5.2" id="example-passkey-entry"><span class="secno">2.2.1.5.2. </span><span class="content">Example: Passkey Entry</span><a class="self-link" href="#example-passkey-entry"></a></h6>
+   <p>The given example shows a passkey entry. The passkey properties map to the <code>Entry</code> fields as follows:</p>
+   <ul>
+    <li data-md>
+     <p><strong>credId</strong> = uuid = <code>\x0e\x69\x5c\x28\x42\xf9\x43\xe4\x9a\xca\x3f\x71\xcd\x70\x1d\xc0</code></p>
+    <li data-md>
+     <p><strong>rpId</strong> = url = <code>github.com</code></p>
+    <li data-md>
+     <p><strong>userId</strong> = uid = <code>\xb5\xe3\x68\x34\xa0\xda\x97\xb7\x50\x35\x58\x54\x90\x93\xe0\x48\x59\x4b\xc5\x11\xe2\x5c\xc8\x51\xcc\xf7\xa6\x8c\xb0\xfa\xd3\xf8</code></p>
+   </ul>
+<pre class="example" id="example-76f977af"><a class="self-link" href="#example-76f977af"></a>{
+  0x00: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
+  0x01: "Github", 
+  0x02: {0x00: 1714585008, 0x01: 1714585008}, 
+  0x05: {
+    1: 2, 
+    3: -7, 
+    -1: 1, 
+    -4: h’299ba40f6547f9a591636ba3aabcf52adedeca324d3d6e81c8302d5199de9d0d'
+  },
+  0x06: "github.com",
+  0x07: "r4gus",
+  0x08: h’b5e36834a0da97b7503558549093e048594bc511e25cc851ccf7a68cb0fad3f8'
+}
+
+A700782430653639356332382D343266392D343365342D396163612D33663731
+6364373031646330016647697468756202A2001A66327DB0011A66327DB005A4
+010203262001235820299BA40F6547F9A591636BA3AABCF52ADEDECA324D3D6E
+81C8302D5199DE9D0D066A6769746875622E636F6D07657234677573085820B5
+E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
+</pre>
+   <h5 class="heading settled" data-level="2.2.1.6" id="attachment"><span class="secno">2.2.1.6. </span><span class="content">Attachment</span><a class="self-link" href="#attachment"></a></h5>
+   <figure class="table" id="attachmentEntry">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Field
+       <th>Data Type
+       <th>Description
+       <th>Optional
+      <tr>
+       <td>desc (0x00)
+       <td>tstr
+       <td> A descriptor, e.g., a file name. 
+       <td>
+      <tr>
+       <td>att (0x01)
+       <td>bstr
+       <td> A binary attachment. 
+       <td>
+    </table>
+   </figure>
    <h3 class="heading settled" data-level="2.3" id="database-creation"><span class="secno">2.3. </span><span class="content">Database Creation</span><a class="self-link" href="#database-creation"></a></h3>
    <p>Every application that supports the given standard should provide the flexibility to configure parameters that influence the behavior of the database. These parameters typically include the cipher, compression algorithm, and key derivation function. It’s recommended that applications only propose sensible values for ciphers and key derivation functions sourced from reputable authorities, such as <a href="https://owasp.org/">OWASP</a> and <a href="https://www.nist.gov/">NIST</a>.</p>
    <p>By allowing configuration of these parameters, applications empower users to tailor their security settings to best suit their specific needs and environments. This adaptability ensures compatibility with various security protocols and standards, fostering a robust and customizable security posture for the application.</p>

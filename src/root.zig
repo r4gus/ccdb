@@ -172,6 +172,40 @@ pub const KdfParams = struct {
 //                  Body
 // ++++++++++++++++++++++++++++++++++++++++++
 
+pub const Attachment = struct {
+    desc: []const u8,
+    att: []const u8,
+    allocator: std.mem.Allocator,
+
+    pub fn cborStringify(self: *const @This(), _: zbor.Options, out: anytype) !void {
+        try zbor.stringify(self, .{
+            .from_callback = true,
+            .field_settings = &.{
+                .{ .name = "desc", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "att", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .ByteString } },
+                .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+            },
+        }, out);
+    }
+
+    pub fn cborParse(item: zbor.DataItem, opt: zbor.Options) !@This() {
+        return try zbor.parse(@This(), item, .{
+            .from_callback = true, // prevent infinite loops
+            .field_settings = &.{
+                .{ .name = "desc", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "att", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .ByteString } },
+                .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+            },
+            .allocator = opt.allocator,
+        });
+    }
+
+    pub fn deinit(self: *const @This()) void {
+        self.allocator.free(self.desc);
+        self.allocator.free(self.desc);
+    }
+};
+
 pub const Entry = struct {
     /// A unique identifyer for the given entry, e.g., UUIDv4 or UUIDv7.
     uuid: [36]u8,
@@ -189,8 +223,12 @@ pub const Entry = struct {
     url: ?[]const u8 = null,
     /// The user name corresponding to the given credential.
     uname: ?[]const u8 = null,
+    /// A ID assigned to the user by a relying party.
+    uid: ?[]const u8 = null,
     /// A UUID referencing a Group.
     group: ?[36]u8 = null,
+    /// One or more attachments associated with the given entry.
+    attach: ?[]Attachment = null,
     allocator: std.mem.Allocator,
 
     pub fn cborStringify(self: *const @This(), _: zbor.Options, out: anytype) !void {
@@ -205,7 +243,9 @@ pub const Entry = struct {
                 .{ .name = "key", .field_options = .{ .alias = "5", .serialization_type = .Integer } },
                 .{ .name = "url", .field_options = .{ .alias = "6", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "uname", .field_options = .{ .alias = "7", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
-                .{ .name = "group", .field_options = .{ .alias = "8", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "uid", .field_options = .{ .alias = "8", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .ByteString } },
+                .{ .name = "group", .field_options = .{ .alias = "9", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "attach", .field_options = .{ .alias = "10", .serialization_type = .Integer } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
             },
         }, out);
@@ -223,7 +263,9 @@ pub const Entry = struct {
                 .{ .name = "key", .field_options = .{ .alias = "5", .serialization_type = .Integer } },
                 .{ .name = "url", .field_options = .{ .alias = "6", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "uname", .field_options = .{ .alias = "7", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
-                .{ .name = "group", .field_options = .{ .alias = "8", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "uid", .field_options = .{ .alias = "8", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .ByteString } },
+                .{ .name = "group", .field_options = .{ .alias = "9", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "attach", .field_options = .{ .alias = "10", .serialization_type = .Integer } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
             },
             .allocator = opt.allocator,
@@ -265,6 +307,13 @@ pub const Entry = struct {
         if (self.pw) |pw| self.allocator.free(pw);
         if (self.url) |url| self.allocator.free(url);
         if (self.uname) |uname| self.allocator.free(uname);
+        if (self.uid) |uid| self.allocator.free(uid);
+        if (self.attach) |att| {
+            for (att) |a| {
+                a.deinit();
+            }
+            self.allocator.free(att);
+        }
     }
 };
 
