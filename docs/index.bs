@@ -491,7 +491,7 @@ The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], 
                 The root of an arbitrary number of (nested) groups. Groups only hold references
                 to entries within [=entries=].
             </td>
-            <td></td>
+            <td>Optional</td>
         </tr>
         <tr>
             <td>bin (0x03)</td>
@@ -567,15 +567,26 @@ deleted entry is permanently removed from the database.
             <td></td>
         </tr>
         <tr>
-            <td>change (0x02)</td>
-            <td>uint</td>
+            <td>times (0x02)</td>
+            <td>[[#body-times]]</td>
             <td>
-                Epoch-based date/time. This field has to be updated each time the database content is changed. 
+                Time stamps. This field has to be updated each time the database content is changed. 
             </td>
             <td></td>
         </tr>
     </table>
 </figure>
+
+<pre class="example">
+{
+  0x00: "PassKeeZ",
+  0x01: "My Secrets",
+  0x02: {0x00: 1714585008, 0x01: 1714585008}
+}
+
+A30068506173734B65655A016A4D79205365637265747302A2001A66327DB001
+1A66327DB0
+</pre>
 
 #### Group #### {#body-group}
 
@@ -866,3 +877,18 @@ according to the following steps:
 
 Security Considerations {#security}
 =====================
+
+Files that store sensitive information are of particular interest to adversaries. The threads posed to
+a encrypted database change depending on its current state, including data-at-rest, data-in-transit, and
+data-in-use.
+
+An attacker with access to the database at rest or in transit might try to decrypt or manipulate the
+database. To prevent decryption without a valid key and to ensure the integrity of the whole database,
+including all public parts, only state-of-the-art AEAD ciphers are allowed. The public parts build
+the associated data. This ensures that any bit flipped by an attacker will lead to an decryption error,
+indicating a manipulated file.
+
+The downside is that any manipulation of the file will inevitably lead to a malformed database, which can
+be used for an denial-of-serivce (DOS) attack. 
+
+TODO

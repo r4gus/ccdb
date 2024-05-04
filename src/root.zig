@@ -323,6 +323,59 @@ pub const Times = struct {
     }
 };
 
+pub const Meta = struct {
+    /// The name of the application that created the database.
+    gen: []const u8,
+    /// The name of the database.
+    name: []const u8,
+    /// Epoch-based date/time. This field has to be updated each time the database content is changed.
+    times: Times,
+    allocator: std.mem.Allocator,
+
+    pub fn new(
+        gen: []const u8,
+        name: []const u8,
+        allocator: std.mem.Allocator,
+    ) Err!@This() {
+        return .{
+            .gen = try allocator.dupe(u8, gen),
+            .name = try allocator.dupe(u8, name),
+            .times = Times.new(null, null),
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *const @This()) void {
+        self.allocator.free(self.gen);
+        self.allocator.free(self.name);
+    }
+
+    pub fn cborStringify(self: *const @This(), _: zbor.Options, out: anytype) !void {
+        try zbor.stringify(self.*, .{
+            .field_settings = &.{
+                .{ .name = "gen", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "times", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
+                .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+            },
+            .from_callback = true,
+        }, out);
+    }
+
+    pub fn cborParse(item: zbor.DataItem, opt: zbor.Options) !@This() {
+        return try zbor.parse(@This(), item, .{
+            .from_callback = true, // prevent infinite loops
+            .field_settings = &.{
+                .{ .name = "gen", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "times", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
+                .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+            },
+            .allocator = opt.allocator,
+        });
+    }
+};
+
 // ++++++++++++++++++++++++++++++++++++++++++
 //                  Tests
 // ++++++++++++++++++++++++++++++++++++++++++
@@ -417,4 +470,40 @@ test "decode entry #1" {
     try std.testing.expectEqual(@as(i64, 1714585008), e.times.mod);
     try std.testing.expectEqualSlices(u8, "I should probably change my password.", e.notes.?);
     try std.testing.expectEqualSlices(u8, "supersecret", e.pw.?);
+}
+
+test "encode meta #1" {
+    const a = std.testing.allocator;
+
+    const expected = "\xa3\x00\x68\x50\x61\x73\x73\x4b\x65\x65\x5a\x01\x6a\x4d\x79\x20\x53\x65\x63\x72\x65\x74\x73\x02\xa2\x00\x1a\x66\x32\x7d\xb0\x01\x1a\x66\x32\x7d\xb0";
+
+    const e = Meta{
+        .gen = try a.dupe(u8, "PassKeeZ"),
+        .name = try a.dupe(u8, "My Secrets"),
+        .times = Times{
+            .creat = 1714585008,
+            .mod = 1714585008,
+        },
+        .allocator = a,
+    };
+    defer e.deinit();
+
+    var arr = std.ArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+    try zbor.stringify(e, .{}, arr.writer());
+
+    try std.testing.expectEqualSlices(u8, expected, arr.items);
+}
+
+test "decode meta #1" {
+    const raw_entry = "\xa3\x00\x68\x50\x61\x73\x73\x4b\x65\x65\x5a\x01\x6a\x4d\x79\x20\x53\x65\x63\x72\x65\x74\x73\x02\xa2\x00\x1a\x66\x32\x7d\xb0\x01\x1a\x66\x32\x7d\xb0";
+
+    const di = try zbor.DataItem.new(raw_entry);
+    const m = try zbor.parse(Meta, di, .{ .allocator = std.testing.allocator });
+    defer m.deinit();
+
+    try std.testing.expectEqualSlices(u8, "PassKeeZ", m.gen);
+    try std.testing.expectEqualSlices(u8, "My Secrets", m.name);
+    try std.testing.expectEqual(@as(i64, 1714585008), m.times.creat);
+    try std.testing.expectEqual(@as(i64, 1714585008), m.times.mod);
 }

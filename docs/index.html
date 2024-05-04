@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="619008c6fcc5108d23ddc349c6f5887db6e327ec" name="revision">
+  <meta content="382a1829cd9e45f99c8949eaecc0dfd757ef6609" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2211,7 +2211,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">CBOR Credential Database Format</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-05-02">2 May 2024</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-05-03">3 May 2024</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2225,7 +2225,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
    <div data-fill-with="warning"></div>
    <p class="copyright" data-fill-with="copyright"><a href="http://creativecommons.org/publicdomain/zero/1.0/" rel="license"><img alt="CC0" height="15" src="https://licensebuttons.net/p/zero/1.0/80x15.png" width="80"></a> To the extent possible under law, the editors have waived all copyright
 and related or neighboring rights to this work.
-In addition, as of 2 May 2024,
+In addition, as of 3 May 2024,
 the editors have made this specification available under the <a href="http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0" rel="license">Open Web Foundation Agreement Version 1.0</a>,
 which is available at http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0.
 Parts of this work may be from another specification document.  If so, those parts are instead covered by the license of that specification document. </p>
@@ -2810,7 +2810,7 @@ symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed6
        <td><a href="#body-group">§ 2.2.1.3 Group</a>
        <td> The root of an arbitrary number of (nested) groups. Groups only hold references
                 to entries within <a data-link-type="dfn" href="#entries" id="ref-for-entries">entries</a>. 
-       <td>
+       <td>Optional
       <tr>
        <td>bin (0x03)
        <td>[+ <a href="#body-bin">§ 2.2.1.1 Bin Entry</a> ]
@@ -2865,12 +2865,21 @@ deleted entry is permanently removed from the database.</p>
        <td> The name of the database. 
        <td>
       <tr>
-       <td>change (0x02)
-       <td>uint
-       <td> Epoch-based date/time. This field has to be updated each time the database content is changed. 
+       <td>times (0x02)
+       <td><a href="#body-times">§ 2.2.1.4 Times</a>
+       <td> Time stamps. This field has to be updated each time the database content is changed. 
        <td>
     </table>
    </figure>
+<pre class="example" id="example-5a774a46"><a class="self-link" href="#example-5a774a46"></a>{
+  0x00: "PassKeeZ",
+  0x01: "My Secrets",
+  0x02: {0x00: 1714585008, 0x01: 1714585008}
+}
+
+A30068506173734B65655A016A4D79205365637265747302A2001A66327DB001
+1A66327DB0
+</pre>
    <h5 class="heading settled" data-level="2.2.1.3" id="body-group"><span class="secno">2.2.1.3. </span><span class="content">Group</span><a class="self-link" href="#body-group"></a></h5>
    <figure class="table" id="groupBodyContent">
     <table class="complex data longlastcol">
@@ -3124,6 +3133,17 @@ according to the following steps:</p>
      <p><strong>Decode the Body</strong>: Decode the body according to the specifications outlined in the <a href="#body">§ 2.2 Body</a> section.</p>
    </ol>
    <h2 class="heading settled" data-level="3" id="security"><span class="secno">3. </span><span class="content">Security Considerations</span><a class="self-link" href="#security"></a></h2>
+   <p>Files that store sensitive information are of particular interest to adversaries. The threads posed to
+a encrypted database change depending on its current state, including data-at-rest, data-in-transit, and
+data-in-use.</p>
+   <p>An attacker with access to the database at rest or in transit might try to decrypt or manipulate the
+database. To prevent decryption without a valid key and to ensure the integrity of the whole database,
+including all public parts, only state-of-the-art AEAD ciphers are allowed. The public parts build
+the associated data. This ensures that any bit flipped by an attacker will lead to an decryption error,
+indicating a manipulated file.</p>
+   <p>The downside is that any manipulation of the file will inevitably lead to a malformed database, which can
+be used for an denial-of-serivce (DOS) attack.</p>
+   <p>TODO</p>
   </main>
   <div data-fill-with="conformance">
    <h2 class="no-ref no-num heading settled" id="conformance"><span class="content"> Conformance</span><a class="self-link" href="#conformance"></a></h2>
