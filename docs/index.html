@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="d2da6639a0ac40faf9e23194b8af903c286db8d8" name="revision">
+  <meta content="e6c2bcc7e4fe21c06858b360dd0a96068fbadfb6" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2327,6 +2327,9 @@ At its core, this format encapsulates a robust encryption mechanism, housing all
    <p>The format builds upon the proven foundation of the Concise Binary Object Representation (CBOR) <a data-link-type="biblio" href="#biblio-rfc8949" title="Concise Binary Object Representation (CBOR)">[RFC8949]</a>. By leveraging CBOR’s compact structure and extensibility, the database size is optimized, surpassing conventional formats like <a data-link-type="biblio" href="#biblio-xml" title="Extensible Markup Language (XML) 1.0 (Fifth Edition)">[XML]</a> in both size and flexibility.</p>
    <p>Moreover, the architecture of this format is characterized by its reliance on universally available data types and algorithms. From CBOR de-/serializer libraries boasting minimal code footprint to Authenticated Encryption with Associated Data (AEAD) ciphers widely supported across cryptographic libraries and hardware.</p>
    <p>The culmination of these design choices manifests in a format tailor-made for a spectrum of systems, including those with limited resources such as embedded systems. The synergy of compact data size, minimal program overhead, and potential hardware acceleration for supported ciphers positions this format as a versatile solution capable of meeting the stringent security demands of modern applications.</p>
+   <p class="note" role="note"><span class="marker">Note:</span> This format focuses on storing secrets and other data directly related to those secrets like the service the secret is associated with, a user name, or recovery keys (e.g., as attachment).
+It is a non-goal to store data that may be used to customize the representation of the data like colors, icons, and other things. One exception are groups as they may be usefull to group and
+later query related sets of data.</p>
    <h3 class="heading settled" data-level="1.1" id="conventions"><span class="secno">1.1. </span><span class="content">Conventions</span><a class="self-link" href="#conventions"></a></h3>
    <dl>
     <dt data-md>Byte

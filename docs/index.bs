@@ -32,6 +32,10 @@ Moreover, the architecture of this format is characterized by its reliance on un
 
 The culmination of these design choices manifests in a format tailor-made for a spectrum of systems, including those with limited resources such as embedded systems. The synergy of compact data size, minimal program overhead, and potential hardware acceleration for supported ciphers positions this format as a versatile solution capable of meeting the stringent security demands of modern applications.
 
+Note: This format focuses on storing secrets and other data directly related to those secrets like the service the secret is associated with, a user name, or recovery keys (e.g., as attachment).
+It is a non-goal to store data that may be used to customize the representation of the data like colors, icons, and other things. One exception are groups as they may be usefull to group and
+later query related sets of data.
+
 ## Conventions ## {#conventions}
 
 : Byte
