@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="e6c2bcc7e4fe21c06858b360dd0a96068fbadfb6" name="revision">
+  <meta content="cd568173ae53f351908b0b68d9691444eb24a473" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2211,7 +2211,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">CBOR Credential Database Format</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-05-04">4 May 2024</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-05-06">6 May 2024</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2225,7 +2225,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
    <div data-fill-with="warning"></div>
    <p class="copyright" data-fill-with="copyright"><a href="http://creativecommons.org/publicdomain/zero/1.0/" rel="license"><img alt="CC0" height="15" src="https://licensebuttons.net/p/zero/1.0/80x15.png" width="80"></a> To the extent possible under law, the editors have waived all copyright
 and related or neighboring rights to this work.
-In addition, as of 4 May 2024,
+In addition, as of 6 May 2024,
 the editors have made this specification available under the <a href="http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0" rel="license">Open Web Foundation Agreement Version 1.0</a>,
 which is available at http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0.
 Parts of this work may be from another specification document.  If so, those parts are instead covered by the license of that specification document. </p>
@@ -2824,6 +2824,40 @@ symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed6
        <td>Optional
     </table>
    </figure>
+<pre class="example" id="example-4e788530"><a class="self-link" href="#example-4e788530"></a>{
+  0x00: {
+    0x00: "PassKeeZ",
+    0x01: "My Secrets",
+    0x02: {0x00: 1714585008, 0x01: 1714585008}
+  },
+  0x01: [
+    {
+      0x00: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
+      0x01: "Github", 
+      0x02: {0x00: 1714585008, 0x01: 1714585008}, 
+      0x03: "I should probably change my password.", 
+      0x04: "supersecret"
+    },
+    {
+      0: "bac9df65-75e4-485f-847c-23a243d93ef2", 
+      1: "Github", 
+      2: {0: 1714585008, 1: 1714585008}, 
+      5: {1: 2, 3: -7, -1: 1, -4: h’299BA40F6547F9A591636BA3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D'}, 
+      6: "github.com", 
+      7: "r4gus", 
+      8: h’B5E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8'
+    }
+  ]
+}
+
+A200A30068506173734B65655A016A4D79205365637265747302A2001A66327DB0011A66327DB00182A5007824306536
+39356332382D343266392D343365342D396163612D336637316364373031646330016647697468756202A2001A66327D
+B0011A66327DB0037825492073686F756C642070726F6261626C79206368616E6765206D792070617373776F72642E04
+6B7375706572736563726574A700782462616339646636352D373565342D343835662D383437632D3233613234336439
+33656632016647697468756202A2001A66327DB0011A66327DB005A4010203262001235820299BA40F6547F9A591636B
+A3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D066A6769746875622E636F6D07657234677573085820B5E36834A0
+DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
+</pre>
    <h5 class="heading settled" data-level="2.2.1.1" id="body-bin"><span class="secno">2.2.1.1. </span><span class="content">Bin Entry</span><a class="self-link" href="#body-bin"></a></h5>
    <p>When a <a href="#body-entry">§ 2.2.1.5 Entry</a> is deleted it SHOULD NOT be removed directly but instead
 moved into the <a data-link-type="dfn">Bin</a>. Moving a deleted entry in the bin allows the user
@@ -3081,19 +3115,19 @@ A500782430653639356332382D343266392D343365342D396163612D33663731
     <li data-md>
      <p><strong>userId</strong> = uid = <code>\xb5\xe3\x68\x34\xa0\xda\x97\xb7\x50\x35\x58\x54\x90\x93\xe0\x48\x59\x4b\xc5\x11\xe2\x5c\xc8\x51\xcc\xf7\xa6\x8c\xb0\xfa\xd3\xf8</code></p>
    </ul>
-<pre class="example" id="example-76f977af"><a class="self-link" href="#example-76f977af"></a>{
-  0x00: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
-  0x01: "Github", 
-  0x02: {0x00: 1714585008, 0x01: 1714585008}, 
-  0x05: {
+<pre class="example" id="example-e7a05075"><a class="self-link" href="#example-e7a05075"></a>{
+  0: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
+  1: "Github", 
+  2: {0: 1714585008, 1: 1714585008}, 
+  5: {
     1: 2, 
     3: -7, 
     -1: 1, 
-    -4: h’299ba40f6547f9a591636ba3aabcf52adedeca324d3d6e81c8302d5199de9d0d'
-  },
-  0x06: "github.com",
-  0x07: "r4gus",
-  0x08: h’b5e36834a0da97b7503558549093e048594bc511e25cc851ccf7a68cb0fad3f8'
+    -4: h’299BA40F6547F9A591636BA3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D'
+  }, 
+  6: "github.com", 
+  7: "r4gus", 
+  8: h’B5E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8'
 }
 
 A700782430653639356332382D343266392D343365342D396163612D33663731

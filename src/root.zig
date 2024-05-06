@@ -28,6 +28,7 @@ pub const Err = error{
 
 pub const Ccdb = struct {
     header: Header,
+    body: Body,
 };
 
 // ++++++++++++++++++++++++++++++++++++++++++
@@ -172,6 +173,78 @@ pub const KdfParams = struct {
 //                  Body
 // ++++++++++++++++++++++++++++++++++++++++++
 
+pub const Body = struct {
+    meta: Meta,
+    entries: []Entry,
+    bin: ?[]Entry = null,
+    allocator: std.mem.Allocator,
+
+    pub fn updateEntry(self: *@This(), e: Entry) !void {
+        for (self.entries) |*e_| {
+            if (std.mem.eql(u8, &e.uuid, &e_.uuid)) {
+                e_.deinit();
+                e_.* = e;
+            }
+        } else {
+            const entries_ = try self.allocator.realloc(self.entries, self.entries.len + 1);
+            self.entries = entries_;
+            self.entries[self.entries.len - 1] = e;
+        }
+        self.meta.times.update();
+    }
+
+    pub fn cborStringify(self: *const @This(), _: zbor.Options, out: anytype) !void {
+        try zbor.stringify(self, .{
+            .from_callback = true,
+            .field_settings = &.{
+                .{ .name = "meta", .field_options = .{ .alias = "0", .serialization_type = .Integer } },
+                .{ .name = "entries", .field_options = .{ .alias = "1", .serialization_type = .Integer } },
+                .{ .name = "bin", .field_options = .{ .alias = "3", .serialization_type = .Integer } },
+                .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+            },
+        }, out);
+    }
+
+    pub fn cborParse(item: zbor.DataItem, opt: zbor.Options) !@This() {
+        return try zbor.parse(@This(), item, .{
+            .from_callback = true, // prevent infinite loops
+            .field_settings = &.{
+                .{ .name = "meta", .field_options = .{ .alias = "0", .serialization_type = .Integer } },
+                .{ .name = "entries", .field_options = .{ .alias = "1", .serialization_type = .Integer } },
+                .{ .name = "bin", .field_options = .{ .alias = "3", .serialization_type = .Integer } },
+                .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+            },
+            .allocator = opt.allocator,
+        });
+    }
+
+    pub fn new(
+        gen: []const u8,
+        name: []const u8,
+        allocator: std.mem.Allocator,
+    ) !@This() {
+        return .{
+            .meta = try Meta.new(gen, name, allocator),
+            .entries = try allocator.alloc(Entry, 0),
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *const @This()) void {
+        self.meta.deinit();
+        for (self.entries) |e| {
+            e.deinit();
+        }
+        self.allocator.free(self.entries);
+        if (self.bin) |bin| {
+            for (bin) |e| {
+                e.deinit();
+            }
+            self.allocator.free(bin);
+        }
+    }
+};
+
 pub const Attachment = struct {
     desc: []const u8,
     att: []const u8,
@@ -218,7 +291,7 @@ pub const Entry = struct {
     /// A password string.
     pw: ?[]const u8 = null,
     /// A CBOR Object Signing and Encryption (COSE) key [RFC8152].
-    key: ?zbor.cose.Key = null,
+    key: ?Key = null,
     /// A text string representing a URL.
     url: ?[]const u8 = null,
     /// The user name corresponding to the given credential.
@@ -425,6 +498,107 @@ pub const Meta = struct {
     }
 };
 
+pub const Key = struct {
+    /// kty: Identification of the key type
+    kty: zbor.cose.KeyType = .Ec2,
+    /// alg: Key usage restriction to this algorithm
+    alg: zbor.cose.Algorithm,
+    /// crv: EC identifier -- Taken from the "COSE Elliptic Curves" registry
+    crv: zbor.cose.Curve = .P256,
+    /// x: x-coordinate
+    x: ?[32]u8 = null,
+    /// y: y-coordinate
+    y: ?[32]u8 = null,
+    /// Private key
+    d: ?[32]u8 = null,
+
+    pub fn cborStringify(self: *const @This(), _: zbor.Options, out: anytype) !void {
+        return zbor.stringify(self, .{
+            .from_callback = true,
+            .field_settings = &.{
+                .{
+                    .name = "kty",
+                    .field_options = .{
+                        .alias = "1",
+                        .serialization_type = .Integer,
+                    },
+                    .value_options = .{ .enum_serialization_type = .Integer },
+                },
+                .{
+                    .name = "alg",
+                    .field_options = .{
+                        .alias = "3",
+                        .serialization_type = .Integer,
+                    },
+                    .value_options = .{ .enum_serialization_type = .Integer },
+                },
+                .{
+                    .name = "crv",
+                    .field_options = .{
+                        .alias = "-1",
+                        .serialization_type = .Integer,
+                    },
+                    .value_options = .{ .enum_serialization_type = .Integer },
+                },
+                .{ .name = "x", .field_options = .{
+                    .alias = "-2",
+                    .serialization_type = .Integer,
+                } },
+                .{ .name = "y", .field_options = .{
+                    .alias = "-3",
+                    .serialization_type = .Integer,
+                } },
+                .{ .name = "d", .field_options = .{
+                    .alias = "-4",
+                    .serialization_type = .Integer,
+                } },
+            },
+        }, out);
+    }
+
+    pub fn cborParse(item: zbor.DataItem, opt: zbor.Options) !@This() {
+        return try zbor.parse(@This(), item, .{
+            .allocator = opt.allocator,
+            .from_callback = true, // prevent infinite loops
+            .field_settings = &.{
+                .{
+                    .name = "kty",
+                    .field_options = .{
+                        .alias = "1",
+                        .serialization_type = .Integer,
+                    },
+                },
+                .{
+                    .name = "alg",
+                    .field_options = .{
+                        .alias = "3",
+                        .serialization_type = .Integer,
+                    },
+                },
+                .{
+                    .name = "crv",
+                    .field_options = .{
+                        .alias = "-1",
+                        .serialization_type = .Integer,
+                    },
+                },
+                .{ .name = "x", .field_options = .{
+                    .alias = "-2",
+                    .serialization_type = .Integer,
+                } },
+                .{ .name = "y", .field_options = .{
+                    .alias = "-3",
+                    .serialization_type = .Integer,
+                } },
+                .{ .name = "d", .field_options = .{
+                    .alias = "-4",
+                    .serialization_type = .Integer,
+                } },
+            },
+        });
+    }
+};
+
 // ++++++++++++++++++++++++++++++++++++++++++
 //                  Tests
 // ++++++++++++++++++++++++++++++++++++++++++
@@ -555,4 +729,51 @@ test "decode meta #1" {
     try std.testing.expectEqualSlices(u8, "My Secrets", m.name);
     try std.testing.expectEqual(@as(i64, 1714585008), m.times.creat);
     try std.testing.expectEqual(@as(i64, 1714585008), m.times.mod);
+}
+
+test "encode body #1" {
+    const a = std.testing.allocator;
+
+    const expected = "\xa2\x00\xa3\x00\x68\x50\x61\x73\x73\x4b\x65\x65\x5a\x01\x6a\x4d\x79\x20\x53\x65\x63\x72\x65\x74\x73\x02\xa2\x00\x1a\x66\x32\x7d\xb0\x01\x1a\x66\x32\x7d\xb0\x01\x82\xa5\x00\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x01\x66\x47\x69\x74\x68\x75\x62\x02\xa2\x00\x1a\x66\x32\x7d\xb0\x01\x1a\x66\x32\x7d\xb0\x03\x78\x25\x49\x20\x73\x68\x6f\x75\x6c\x64\x20\x70\x72\x6f\x62\x61\x62\x6c\x79\x20\x63\x68\x61\x6e\x67\x65\x20\x6d\x79\x20\x70\x61\x73\x73\x77\x6f\x72\x64\x2e\x04\x6b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74\xa7\x00\x78\x24\x62\x61\x63\x39\x64\x66\x36\x35\x2d\x37\x35\x65\x34\x2d\x34\x38\x35\x66\x2d\x38\x34\x37\x63\x2d\x32\x33\x61\x32\x34\x33\x64\x39\x33\x65\x66\x32\x01\x66\x47\x69\x74\x68\x75\x62\x02\xa2\x00\x1a\x66\x32\x7d\xb0\x01\x1a\x66\x32\x7d\xb0\x05\xa4\x01\x02\x03\x26\x20\x01\x23\x58\x20\x29\x9b\xa4\x0f\x65\x47\xf9\xa5\x91\x63\x6b\xa3\xaa\xbc\xf5\x2a\xde\xde\xca\x32\x4d\x3d\x6e\x81\xc8\x30\x2d\x51\x99\xde\x9d\x0d\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\x65\x72\x34\x67\x75\x73\x08\x58\x20\xb5\xe3\x68\x34\xa0\xda\x97\xb7\x50\x35\x58\x54\x90\x93\xe0\x48\x59\x4b\xc5\x11\xe2\x5c\xc8\x51\xcc\xf7\xa6\x8c\xb0\xfa\xd3\xf8";
+
+    var body = try Body.new("PassKeeZ", "My Secrets", a);
+    defer body.deinit();
+    body.meta.times.creat = 1714585008;
+
+    try body.updateEntry(Entry{
+        .uuid = "0e695c28-42f9-43e4-9aca-3f71cd701dc0".*,
+        .name = try a.dupe(u8, "Github"),
+        .times = Times{
+            .creat = 1714585008,
+            .mod = 1714585008,
+        },
+        .notes = try a.dupe(u8, "I should probably change my password."),
+        .pw = try a.dupe(u8, "supersecret"),
+        .allocator = a,
+    });
+
+    try body.updateEntry(Entry{
+        .uuid = "bac9df65-75e4-485f-847c-23a243d93ef2".*,
+        .name = try a.dupe(u8, "Github"),
+        .times = Times{
+            .creat = 1714585008,
+            .mod = 1714585008,
+        },
+        .key = .{
+            .alg = .Es256,
+            .d = "\x29\x9b\xa4\x0f\x65\x47\xf9\xa5\x91\x63\x6b\xa3\xaa\xbc\xf5\x2a\xde\xde\xca\x32\x4d\x3d\x6e\x81\xc8\x30\x2d\x51\x99\xde\x9d\x0d".*,
+        },
+        .url = try a.dupe(u8, "github.com"),
+        .uname = try a.dupe(u8, "r4gus"),
+        .uid = try a.dupe(u8, "\xb5\xe3\x68\x34\xa0\xda\x97\xb7\x50\x35\x58\x54\x90\x93\xe0\x48\x59\x4b\xc5\x11\xe2\x5c\xc8\x51\xcc\xf7\xa6\x8c\xb0\xfa\xd3\xf8"),
+        .allocator = a,
+    });
+    // We have to fake this...
+    body.meta.times.mod = 1714585008;
+
+    var raw = std.ArrayList(u8).init(std.testing.allocator);
+    defer raw.deinit();
+    try zbor.stringify(body, .{}, raw.writer());
+
+    try std.testing.expectEqualSlices(u8, expected, raw.items);
 }
