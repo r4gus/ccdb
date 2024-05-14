@@ -29,6 +29,127 @@ pub const Err = error{
 pub const Ccdb = struct {
     header: Header,
     body: Body,
+
+    pub fn deinit(self: *const @This()) void {
+        self.body.deinit();
+    }
+
+    pub fn default(
+        gen: []const u8,
+        name: []const u8,
+        a: std.mem.Allocator,
+    ) !Ccdb {
+        var argon_salt: [32]u8 = undefined;
+        options.rand.bytes(argon_salt[0..]);
+
+        return .{
+            .header = .{
+                .fields = .{
+                    .kdf = .{
+                        .salt = argon_salt,
+                    },
+                },
+            },
+            .body = .{
+                .meta = try Meta.new(gen, name, a),
+                .entries = try a.alloc(Entry, 0),
+                .allocator = a,
+            },
+        };
+    }
+
+    pub fn serialize(
+        self: *@This(),
+        out: anytype,
+        key: []const u8,
+        opt: struct {
+            /// Specify a iv for encryption. This should be null
+            /// for most cases but can be useful for testing.
+            iv: ?[]const u8 = null,
+        },
+    ) !void {
+        // We MUST generate a new IV!
+        switch (self.header.fields.cid) {
+            .AES256GCM => {
+                if (opt.iv != null and opt.iv.?.len >= 12) {
+                    @memcpy(self.header.fields.iv[0..12], opt.iv.?[0..12]);
+                } else {
+                    options.rand.bytes(self.header.fields.iv[0..12]);
+                }
+            },
+        }
+
+        // Now serialize the header...
+        var header = std.ArrayList(u8).init(self.body.allocator);
+        defer header.deinit();
+        try self.header.encodeHeader(header.writer());
+
+        // After the header comes the body...
+
+        // First we have to encode the body to CBOR...
+        var cbor_body = std.ArrayList(u8).init(self.body.allocator);
+        errdefer cbor_body.deinit();
+        try zbor.stringify(self.body, .{}, cbor_body.writer());
+
+        //std.log.err("{s}", .{std.fmt.fmtSliceHexLower(cbor_body.items)});
+
+        // If compression is enabled, we have to compress the body...
+        var encoded_body: []const u8 = try cbor_body.toOwnedSlice();
+        defer self.body.allocator.free(encoded_body);
+        switch (self.header.fields.cmp) {
+            .None => {},
+            .Gzip => {
+                var in_stream = std.io.fixedBufferStream(encoded_body);
+                var compressed_body = std.ArrayList(u8).init(self.body.allocator);
+                defer compressed_body.deinit();
+                try std.compress.gzip.compress(
+                    in_stream.reader(),
+                    compressed_body.writer(),
+                    .{},
+                );
+                const x = try compressed_body.toOwnedSlice();
+                self.body.allocator.free(encoded_body);
+                encoded_body = x;
+            },
+        }
+
+        //std.log.err("{s}", .{std.fmt.fmtSliceHexLower(encoded_body)});
+
+        const l: u64 = @as(u64, @intCast(encoded_body.len));
+        try header.append(@as(u8, @intCast(l & 0xff)));
+        try header.append(@as(u8, @intCast((l >> 8) & 0xff)));
+        try header.append(@as(u8, @intCast((l >> 16) & 0xff)));
+        try header.append(@as(u8, @intCast((l >> 24) & 0xff)));
+        try header.append(@as(u8, @intCast((l >> 32) & 0xff)));
+        try header.append(@as(u8, @intCast((l >> 40) & 0xff)));
+        try header.append(@as(u8, @intCast((l >> 48) & 0xff)));
+        try header.append(@as(u8, @intCast((l >> 56) & 0xff)));
+
+        switch (self.header.fields.cid) {
+            .AES256GCM => {
+                const Aes256Gcm = std.crypto.aead.aes_gcm.Aes256Gcm;
+
+                // Check that the key length is not too short.
+                if (key.len < Aes256Gcm.key_length) return error.KeyLength;
+                const c = try self.body.allocator.alloc(u8, encoded_body.len);
+                defer self.body.allocator.free(c);
+                var tag: [Aes256Gcm.tag_length]u8 = undefined;
+
+                Aes256Gcm.encrypt(
+                    c,
+                    &tag,
+                    encoded_body,
+                    header.items,
+                    self.header.fields.iv[0..12].*,
+                    key[0..Aes256Gcm.key_length].*,
+                );
+
+                try out.writeAll(header.items);
+                try out.writeAll(tag[0..]);
+                try out.writeAll(c);
+            },
+        }
+    }
 };
 
 // ++++++++++++++++++++++++++++++++++++++++++
@@ -108,7 +229,7 @@ pub const HeaderFields = struct {
     /// The IVs size depends on the cipher used for encryption.
     iv: [32]u8 = .{0} ** 32,
     /// Compression algorithm.
-    cmp: Compression = Compression.Gzip,
+    cmp: Compression = Compression.None,
     /// Values specific for the key derivation.
     kdf: KdfParams,
 
@@ -132,13 +253,16 @@ pub const HeaderFields = struct {
 };
 
 pub const KdfParams = struct {
-    id: [16]u8,
+    /// The kdf to use.
+    ///
+    /// The default is Argon2id.
+    id: [16]u8 = "\x9e\x29\x8b\x19\x56\xdb\x47\x73\xb2\x3d\xfc\x3e\xc6\xf0\xa1\xe6".*,
     /// Iterations
-    iterations: ?u64,
+    iterations: ?u64 = 2, // (OWASP)
     /// Memory usage in KiB
-    memory: ?u64,
+    memory: ?u64 = 19456, // 19 MiB (OWASP)
     /// Parallelism
-    parallelism: ?u32,
+    parallelism: ?u32 = 1, // (OWASP)
     /// Random salt
     salt: ?[32]u8,
 
@@ -801,4 +925,29 @@ test "decode body #1" {
     try std.testing.expectEqualSlices(u8, "github.com", body.entries[1].url.?);
     try std.testing.expectEqualSlices(u8, "r4gus", body.entries[1].uname.?);
     try std.testing.expectEqualSlices(u8, "\xb5\xe3\x68\x34\xa0\xda\x97\xb7\x50\x35\x58\x54\x90\x93\xe0\x48\x59\x4b\xc5\x11\xe2\x5c\xc8\x51\xcc\xf7\xa6\x8c\xb0\xfa\xd3\xf8", body.entries[1].uid.?);
+}
+
+test "encode database #1" {
+    const key = "\x5f\x49\xee\xd7\x7c\x3c\xa9\x9e\xea\xfe\xe5\x48\x26\xa2\x9e\x83\xdb\xe9\x44\xbf\x7a\xc8\xa2\x60\xa1\x11\x88\xed\xcf\xa7\x8c\xc2";
+
+    const raw_header = "\x43\x43\x44\x42\x01\x00\x00\x00\x66\x00\x00\x00\xa4\x63\x63\x69\x64\x03\x62\x69\x76\x4c\x01\x02\x03\x04\x01\x02\x03\x04\x01\x02\x03\x04\x63\x63\x6d\x70\x00\x63\x6b\x64\x66\xa5\x65\x24\x55\x55\x49\x44\x50\x9e\x29\x8b\x19\x56\xdb\x47\x73\xb2\x3d\xfc\x3e\xc6\xf0\xa1\xe6\x61\x49\x02\x61\x4d\x19\x4c\x00\x61\x50\x01\x61\x53\x58\x20\xe5\x0b\xe8\x5f\x50\x9b\xb4\xeb\x39\x2a\xf5\x06\x86\x85\x76\x4f\x94\xbb\x53\xb2\x7c\x36\x08\x06\xc7\x28\xce\x1c\x23\x80\xc3\xea";
+    const tag = "\x9f\x51\xfe\x05\x3b\x11\x9b\xb6\x5b\x02\xc4\x60\x17\x8a\xf6\xad";
+    const raw_body = "\xe0\x58\x7a\x41\x92\xfb\x9d\xb2\x0a\xac\xfb\x69\x2c\x60\x3f\xdf\x9e\x5f\x58\x0a\xae\x68\x76\xea\xb2\x67\x2a\xfc\x1e\x06\x81\x05\xa6\x55\x36\x31\x41\xef\x68\x16\x35\xa4";
+
+    const expected = raw_header ++ "\x2a\x00\x00\x00\x00\x00\x00\x00" ++ tag ++ raw_body;
+
+    var db = try Ccdb.default("PassKeeZ", "Credentials", std.testing.allocator);
+    defer db.deinit();
+    db.header.fields.kdf.salt = "\xe5\x0b\xe8\x5f\x50\x9b\xb4\xeb\x39\x2a\xf5\x06\x86\x85\x76\x4f\x94\xbb\x53\xb2\x7c\x36\x08\x06\xc7\x28\xce\x1c\x23\x80\xc3\xea".*;
+    db.body.meta.times.creat = 1714585008;
+    db.body.meta.times.mod = 1714585008;
+
+    var raw = std.ArrayList(u8).init(std.testing.allocator);
+    defer raw.deinit();
+
+    try db.serialize(raw.writer(), key, .{ .iv = "\x01\x02\x03\x04\x01\x02\x03\x04\x01\x02\x03\x04" });
+
+    //std.log.err("{s}", .{std.fmt.fmtSliceHexLower(raw.items)});
+
+    try std.testing.expectEqualSlices(u8, expected, raw.items);
 }
