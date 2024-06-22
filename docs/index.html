@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="7e0fb04e20ad6b0da48348f75c6ebb1ffbfc0f53" name="revision">
+  <meta content="b0e8bbc896393c53c5036d3a14a7ff542161fe9a" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2248,54 +2248,54 @@ Parts of this work may be from another specification document.  If so, those par
     <li>
      <a href="#db-format"><span class="secno">2</span> <span class="content">Database Format</span></a>
      <ol class="toc">
+      <li><a href="#version"><span class="secno">2.1</span> <span class="content">Version</span></a>
       <li>
-       <a href="#trailer"><span class="secno">2.1</span> <span class="content">Trailer</span></a>
+       <a href="#trailer"><span class="secno">2.2</span> <span class="content">Trailer</span></a>
        <ol class="toc">
-        <li><a href="#version"><span class="secno">2.1.1</span> <span class="content">Version</span></a>
         <li>
-         <a href="#trailer-fields"><span class="secno">2.1.2</span> <span class="content">Trailer Fields</span></a>
+         <a href="#trailer-fields"><span class="secno">2.2.1</span> <span class="content">Trailer Fields</span></a>
          <ol class="toc">
-          <li><a href="#kdf-map"><span class="secno">2.1.2.1</span> <span class="content">KDF Parameters</span></a>
+          <li><a href="#kdf-map"><span class="secno">2.2.1.1</span> <span class="content">KDF Parameters</span></a>
          </ol>
         <li>
-         <a href="#key-derivation"><span class="secno">2.1.3</span> <span class="content">Key Derivation</span></a>
+         <a href="#key-derivation"><span class="secno">2.2.2</span> <span class="content">Key Derivation</span></a>
          <ol class="toc">
-          <li><a href="#password"><span class="secno">2.1.3.1</span> <span class="content">Password</span></a>
-          <li><a href="#key-file"><span class="secno">2.1.3.2</span> <span class="content">Key File</span></a>
-          <li><a href="#key-provider"><span class="secno">2.1.3.3</span> <span class="content">Key Provider</span></a>
+          <li><a href="#password"><span class="secno">2.2.2.1</span> <span class="content">Password</span></a>
+          <li><a href="#key-file"><span class="secno">2.2.2.2</span> <span class="content">Key File</span></a>
+          <li><a href="#key-provider"><span class="secno">2.2.2.3</span> <span class="content">Key Provider</span></a>
           <li>
-           <a href="#final-keys"><span class="secno">2.1.3.4</span> <span class="content">Symmetric Keys</span></a>
+           <a href="#final-keys"><span class="secno">2.2.2.4</span> <span class="content">Symmetric Keys</span></a>
            <ol class="toc">
-            <li><a href="#decrypting-the-master-secret"><span class="secno">2.1.3.4.1</span> <span class="content">Decrypting the master secret</span></a>
-            <li><a href="#deriving-symmetric-keys"><span class="secno">2.1.3.4.2</span> <span class="content">Deriving symmetric keys</span></a>
+            <li><a href="#decrypting-the-master-secret"><span class="secno">2.2.2.4.1</span> <span class="content">Decrypting the master secret</span></a>
+            <li><a href="#deriving-symmetric-keys"><span class="secno">2.2.2.4.2</span> <span class="content">Deriving symmetric keys</span></a>
            </ol>
          </ol>
        </ol>
       <li>
-       <a href="#body"><span class="secno">2.2</span> <span class="content">Body</span></a>
+       <a href="#body"><span class="secno">2.3</span> <span class="content">Body</span></a>
        <ol class="toc">
         <li>
-         <a href="#body-structure"><span class="secno">2.2.1</span> <span class="content">Body Data Structure</span></a>
+         <a href="#body-structure"><span class="secno">2.3.1</span> <span class="content">Body Data Structure</span></a>
          <ol class="toc">
-          <li><a href="#body-meta"><span class="secno">2.2.1.1</span> <span class="content">Meta</span></a>
-          <li><a href="#body-group"><span class="secno">2.2.1.2</span> <span class="content">Group</span></a>
-          <li><a href="#body-times"><span class="secno">2.2.1.3</span> <span class="content">Times</span></a>
+          <li><a href="#body-meta"><span class="secno">2.3.1.1</span> <span class="content">Meta</span></a>
+          <li><a href="#body-group"><span class="secno">2.3.1.2</span> <span class="content">Group</span></a>
+          <li><a href="#body-times"><span class="secno">2.3.1.3</span> <span class="content">Times</span></a>
           <li>
-           <a href="#body-entry"><span class="secno">2.2.1.4</span> <span class="content">Entry</span></a>
+           <a href="#body-entry"><span class="secno">2.3.1.4</span> <span class="content">Entry</span></a>
            <ol class="toc">
-            <li><a href="#example-password-entry"><span class="secno">2.2.1.4.1</span> <span class="content">Example: Password Entry</span></a>
-            <li><a href="#example-passkey-entry"><span class="secno">2.2.1.4.2</span> <span class="content">Example: Passkey Entry</span></a>
+            <li><a href="#example-password-entry"><span class="secno">2.3.1.4.1</span> <span class="content">Example: Password Entry</span></a>
+            <li><a href="#example-passkey-entry"><span class="secno">2.3.1.4.2</span> <span class="content">Example: Passkey Entry</span></a>
            </ol>
-          <li><a href="#attachment"><span class="secno">2.2.1.5</span> <span class="content">Attachment</span></a>
+          <li><a href="#attachment"><span class="secno">2.3.1.5</span> <span class="content">Attachment</span></a>
          </ol>
        </ol>
       <li>
-       <a href="#extensions"><span class="secno">2.3</span> <span class="content">Extensions</span></a>
+       <a href="#extensions"><span class="secno">2.4</span> <span class="content">Extensions</span></a>
        <ol class="toc">
-        <li><a href="#passkey"><span class="secno">2.3.1</span> <span class="content">Passkey</span></a>
+        <li><a href="#passkey"><span class="secno">2.4.1</span> <span class="content">Passkey</span></a>
        </ol>
-      <li><a href="#serialization"><span class="secno">2.4</span> <span class="content">Serialization</span></a>
-      <li><a href="#deserialization"><span class="secno">2.5</span> <span class="content">Deserialization</span></a>
+      <li><a href="#serialization"><span class="secno">2.5</span> <span class="content">Serialization</span></a>
+      <li><a href="#deserialization"><span class="secno">2.6</span> <span class="content">Deserialization</span></a>
      </ol>
     <li><a href="#security"><span class="secno">3</span> <span class="content">Security Considerations</span></a>
     <li><a href="#conformance"><span class="secno"></span> <span class="content"> Conformance</span></a>
@@ -2431,7 +2431,48 @@ is protected using a message authentication code (MAC).</p>
      </g>
     </svg>
    </div>
-   <h3 class="heading settled" data-level="2.1" id="trailer"><span class="secno">2.1. </span><span class="content">Trailer</span><a class="self-link" href="#trailer"></a></h3>
+   <h3 class="heading settled" data-level="2.1" id="version"><span class="secno">2.1. </span><span class="content">Version</span><a class="self-link" href="#version"></a></h3>
+   <p>The version information together with the magic string "CCDB" marks the beginning
+of a CCDB credential database and is structured as follows:</p>
+   <figure class="table" id="version①">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Name
+       <th>Data Type
+       <th>Description
+      <tr>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="sig">sig</dfn>
+       <td>u32
+       <td> CCDB 
+      <tr>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="major-version">major version</dfn>
+       <td>u16
+       <td> An unsigned value, giving the number of the current major version
+                of the format. The value for the current version of the format is 1. 
+      <tr>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="minor-version">minor version</dfn>
+       <td>u16
+       <td> An unsigned value, giving the number of the current minor version
+                of the format. The value for the current version of the format is 0. 
+    </table>
+   </figure>
+   <p>Writer of ccdb files MUST NOT write files with a major version other than 1 or a minor
+version other than 0. If they do so, they will create a file that many readers of ccdb
+files, such as password managers, will not be able to read.</p>
+   <p>The major version will only be changed with a new major releases of this specification.
+Such a version would introduce breaking changes, meaning the format is changed in a way
+that readers of the new format can not read the old format. Code to read both formats
+would have to check the version number and use different code paths for the two formats.</p>
+   <p>The minor version will only be changed with a new minor release of this specification.
+Such a release introduces changes that are backwards compatible, i.e. a reader of the
+new format is also capable of reading the old format but a reader of the old format
+is not neccessarily capable of reading the new format.</p>
+<pre class="example" id="example-0a44154b"><a class="self-link" href="#example-0a44154b"></a>43 43 44 42 01 00 00 00
+|_________| |___| |___|
+  "CCDB"      1  .  0
+</pre>
+   <h3 class="heading settled" data-level="2.2" id="trailer"><span class="secno">2.2. </span><span class="content">Trailer</span><a class="self-link" href="#trailer"></a></h3>
    <p>The trailer encodes information required to decrypt individual fields of the database. The overall structure of the trailer can be described as follows:</p>
    <div class="railroad">
     <svg class="railroad-diagram" height="182" viewBox="0 0 1077.0 182" width="1077.0">
@@ -2553,48 +2594,7 @@ A463636964036269764C010203040102030401020304636B6466A5652455554944509E298B1
 |_________________________________________________________________________|
                          Header Fields
 </pre>
-   <h4 class="heading settled" data-level="2.1.1" id="version"><span class="secno">2.1.1. </span><span class="content">Version</span><a class="self-link" href="#version"></a></h4>
-   <p>The version information together with the magic string "CCDB" marks the beginning
-of a CCDB credential database and is structured as follows:</p>
-   <figure class="table" id="version①">
-    <table class="complex data longlastcol">
-     <tbody>
-      <tr>
-       <th>Name
-       <th>Data Type
-       <th>Description
-      <tr>
-       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="sig">sig</dfn>
-       <td>u32
-       <td> CCDB 
-      <tr>
-       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="major-version">major version</dfn>
-       <td>u16
-       <td> An unsigned value, giving the number of the current major version
-                of the format. The value for the current version of the format is 1. 
-      <tr>
-       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="minor-version">minor version</dfn>
-       <td>u16
-       <td> An unsigned value, giving the number of the current minor version
-                of the format. The value for the current version of the format is 0. 
-    </table>
-   </figure>
-   <p>Writer of ccdb files MUST NOT write files with a major version other than 1 or a minor
-version other than 0. If they do so, they will create a file that many readers of ccdb
-files, such as password managers, will not be able to read.</p>
-   <p>The major version will only be changed with a new major releases of this specification.
-Such a version would introduce breaking changes, meaning the format is changed in a way
-that readers of the new format can not read the old format. Code to read both formats
-would have to check the version number and use different code paths for the two formats.</p>
-   <p>The minor version will only be changed with a new minor release of this specification.
-Such a release introduces changes that are backwards compatible, i.e. a reader of the
-new format is also capable of reading the old format but a reader of the old format
-is not neccessarily capable of reading the new format.</p>
-<pre class="example" id="example-0a44154b"><a class="self-link" href="#example-0a44154b"></a>43 43 44 42 01 00 00 00
-|_________| |___| |___|
-  "CCDB"      1  .  0
-</pre>
-   <h4 class="heading settled" data-level="2.1.2" id="trailer-fields"><span class="secno">2.1.2. </span><span class="content">Trailer Fields</span><a class="self-link" href="#trailer-fields"></a></h4>
+   <h4 class="heading settled" data-level="2.2.1" id="trailer-fields"><span class="secno">2.2.1. </span><span class="content">Trailer Fields</span><a class="self-link" href="#trailer-fields"></a></h4>
    <p>The fields of the trailer are encoded using a CBOR map (major type 5).  The keys are encoded
 as text strings (major type 3) whereas the value types vary. All listed fields are mandatory
 and MUST be encoded in the order listed below.</p>
@@ -2633,8 +2633,8 @@ and MUST be encoded in the order listed below.</p>
         <p><code>CCDB_XCHACHA20_POLY1305_SHA512</code> is considered the default cipher suit.</p>
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="kdf">kdf</dfn>
-       <td><a href="#kdf-map">§ 2.1.2.1 KDF Parameters</a>
-       <td> Values specific for the <a href="#key-derivation">§ 2.1.3 Key Derivation</a> 
+       <td><a href="#kdf-map">§ 2.2.1.1 KDF Parameters</a>
+       <td> Values specific for the <a href="#key-derivation">§ 2.2.2 Key Derivation</a> 
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="ext">ext</dfn>
        <td>[+ tstr]
@@ -2643,8 +2643,8 @@ and MUST be encoded in the order listed below.</p>
                 and MAY be defined within documents independent of this one. 
     </table>
    </figure>
-   <h5 class="heading settled" data-level="2.1.2.1" id="kdf-map"><span class="secno">2.1.2.1. </span><span class="content">KDF Parameters</span><a class="self-link" href="#kdf-map"></a></h5>
-   <p>The KDF parameters are used to derive a secret (<a href="#final-keys">§ 2.1.3.4 Symmetric Keys</a>). The <a data-link-type="dfn" href="#uuid" id="ref-for-uuid">$UUID</a> is mandatory and
+   <h5 class="heading settled" data-level="2.2.1.1" id="kdf-map"><span class="secno">2.2.1.1. </span><span class="content">KDF Parameters</span><a class="self-link" href="#kdf-map"></a></h5>
+   <p>The KDF parameters are used to derive a secret (<a href="#final-keys">§ 2.2.2.4 Symmetric Keys</a>). The <a data-link-type="dfn" href="#uuid" id="ref-for-uuid">$UUID</a> is mandatory and
 defines which algorithm should be used as key derivation function. The other parameters are optional
 and depend on the selected algorithm. All parameters associated with the specified algorithm MUST be 
 present for a specific algorithm, otherwise the database is malformed. The fields MUST be encoded
@@ -2659,7 +2659,7 @@ in the order listed below.</p>
        <th>Association
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="uuid">$UUID</dfn>
-       <td>bstr
+       <td>tstr
        <td>
          A 16 byte UUID indicating the key derivation algorithm. This should be
                 the first entry of the map. 
@@ -2671,17 +2671,17 @@ in the order listed below.</p>
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="i">I</dfn>
        <td>uint
-       <td> Iterations, encoded within a u64. 
+       <td> Iterations. 
        <td>Argon2
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="m">M</dfn>
        <td>uint
-       <td> Memory usage in KiB, encoded within a u64. 
+       <td> Memory usage in KiB. 
        <td>Argon2
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="p">P</dfn>
        <td>uint
-       <td> Parallelism encoded within a u32. 
+       <td> Parallelism. 
        <td>Argon2
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="s">S</dfn>
@@ -2715,24 +2715,24 @@ A5652455554944509E298B1956DB4773B23DFC3EC6F0A1E6614902614D19100061500
 861535820010203040102030401020304010203040102030401020304010203040102
 0304
 </pre>
-   <h4 class="heading settled" data-level="2.1.3" id="key-derivation"><span class="secno">2.1.3. </span><span class="content">Key Derivation</span><a class="self-link" href="#key-derivation"></a></h4>
+   <h4 class="heading settled" data-level="2.2.2" id="key-derivation"><span class="secno">2.2.2. </span><span class="content">Key Derivation</span><a class="self-link" href="#key-derivation"></a></h4>
    <p>The encryption key is derived from one or more sources of key data:</p>
    <ul>
     <li data-md>
-     <p>a <a href="#password">§ 2.1.3.1 Password</a>,</p>
+     <p>a <a href="#password">§ 2.2.2.1 Password</a>,</p>
     <li data-md>
-     <p>a <a href="#key-file">§ 2.1.3.2 Key File</a>,</p>
+     <p>a <a href="#key-file">§ 2.2.2.2 Key File</a>,</p>
     <li data-md>
-     <p>or a <a href="#key-provider">§ 2.1.3.3 Key Provider</a></p>
+     <p>or a <a href="#key-provider">§ 2.2.2.3 Key Provider</a></p>
    </ul>
-   <h5 class="heading settled" data-level="2.1.3.1" id="password"><span class="secno">2.1.3.1. </span><span class="content">Password</span><a class="self-link" href="#password"></a></h5>
+   <h5 class="heading settled" data-level="2.2.2.1" id="password"><span class="secno">2.2.2.1. </span><span class="content">Password</span><a class="self-link" href="#password"></a></h5>
    <p>A password is the most common source of key data. It is set by a user during
 database creation and is also referred to as the master password. It is recommended
 to use a strong password that fulfill the criteria published by reputable authorities, such as <a href="https://owasp.org/">OWASP</a> and <a href="https://www.nist.gov/">NIST</a>.</p>
    <p>It is further recommended that applications supporting the creation of CCDB databases
 further support the user with the creation of a secure master password, including the
 suggestion of randomized passwords.</p>
-   <h5 class="heading settled" data-level="2.1.3.2" id="key-file"><span class="secno">2.1.3.2. </span><span class="content">Key File</span><a class="self-link" href="#key-file"></a></h5>
+   <h5 class="heading settled" data-level="2.2.2.2" id="key-file"><span class="secno">2.2.2.2. </span><span class="content">Key File</span><a class="self-link" href="#key-file"></a></h5>
    <p>A key file can serve as an input either alongside a password or as an alternative to the key derivation function used for deriving a symmetric encryption key. It’s recommended that applications support a range of key file formats to enhance compatibility and flexibility.</p>
    <p>Applications SHOULD support the following key file formats:</p>
    <ul>
@@ -2741,15 +2741,15 @@ suggestion of randomized passwords.</p>
     <li data-md>
      <p><strong>Hex</strong>: A file containing exactly 64 bytes that are interpreted as a hex encoded 32 byte key.</p>
    </ul>
-   <h5 class="heading settled" data-level="2.1.3.3" id="key-provider"><span class="secno">2.1.3.3. </span><span class="content">Key Provider</span><a class="self-link" href="#key-provider"></a></h5>
+   <h5 class="heading settled" data-level="2.2.2.3" id="key-provider"><span class="secno">2.2.2.3. </span><span class="content">Key Provider</span><a class="self-link" href="#key-provider"></a></h5>
    <p>Key material MAY also be obtained from other sources, e.g., using the HMAC Secret Extension of CTAP2 <a data-link-type="biblio" href="#biblio-fido-v21" title="Client to Authenticator Protocol (CTAP)">[fido-v2.1]</a>. Such capabilities MAY be defined as
 extensions independent of this document.</p>
-   <h5 class="heading settled" data-level="2.1.3.4" id="final-keys"><span class="secno">2.1.3.4. </span><span class="content">Symmetric Keys</span><a class="self-link" href="#final-keys"></a></h5>
+   <h5 class="heading settled" data-level="2.2.2.4" id="final-keys"><span class="secno">2.2.2.4. </span><span class="content">Symmetric Keys</span><a class="self-link" href="#final-keys"></a></h5>
    <p>To minimize the exposure of sensitive information in memory, all database entries and related information are encrypted independently using the selected
 cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid②">cid</a>). For each entry, a symmetric key is derived from the master secret using the HKDF key derivation function.</p>
-   <h6 class="heading settled" data-level="2.1.3.4.1" id="decrypting-the-master-secret"><span class="secno">2.1.3.4.1. </span><span class="content">Decrypting the master secret</span><a class="self-link" href="#decrypting-the-master-secret"></a></h6>
+   <h6 class="heading settled" data-level="2.2.2.4.1" id="decrypting-the-master-secret"><span class="secno">2.2.2.4.1. </span><span class="content">Decrypting the master secret</span><a class="self-link" href="#decrypting-the-master-secret"></a></h6>
    <p>Before the master secret can be used it must be decrypted using a key derived from the selected password key derivation function (<a data-link-type="dfn" href="#kdf" id="ref-for-kdf①">kdf</a>).
-The input into this selected key derivation function is as follows, with its remaining arguments defined by <a href="#kdf-map">§ 2.1.2.1 KDF Parameters</a>:</p>
+The input into this selected key derivation function is as follows, with its remaining arguments defined by <a href="#kdf-map">§ 2.2.1.1 KDF Parameters</a>:</p>
 <pre class="highlight">password <c- o>||</c-> keyFileContent <c- o>||</c-> keyProviderContent
 </pre>
    <p>It’s essential to ensure that the string passed to the KDF is not empty. Therefore, an application must enforce the usage of at least one of the defined
@@ -2760,7 +2760,7 @@ password<c- o>:</c-> supersecret
 
 symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed68ede40c225ce4e98 <c- o>=</c-> Argon2id<c- p>(</c-><c- u>"supersecret"</c-><c- p>)</c->
 </pre>
-   <h6 class="heading settled" data-level="2.1.3.4.2" id="deriving-symmetric-keys"><span class="secno">2.1.3.4.2. </span><span class="content">Deriving symmetric keys</span><a class="self-link" href="#deriving-symmetric-keys"></a></h6>
+   <h6 class="heading settled" data-level="2.2.2.4.2" id="deriving-symmetric-keys"><span class="secno">2.2.2.4.2. </span><span class="content">Deriving symmetric keys</span><a class="self-link" href="#deriving-symmetric-keys"></a></h6>
    <p>The symmetric key for each entry is derived from the master secret using HKDF. The master secret is considered uniform, i.e., it is directly
 used as a input into the <code>expand()</code> function. When creating a new master secret, e.g., during the creation of a new database, one must ensure the
 uniformness of the master secret, e.g., by deriving a the key from a cryptographically secure pseudo random number generator, and in addition using the <code>extract</code> function of HKDF with the fixed salt "CCDB".</p>
@@ -2771,8 +2771,8 @@ masterSecret <c- o>=</c-> HKDF<c- p>.</c->extract<c- p>(</c-><c- u>"CCDB"</c-><c
 (the info argument), e.g., for the second entry the key derivation looks as follows:</p>
 <pre class="example highlight" id="example-c2222a39"><a class="self-link" href="#example-c2222a39"></a>k <c- o>=</c-> HKDF<c- p>.</c->expand<c- p>(</c->masterSecret<c- p>,</c-> <c- u>"\x01\x00\x00\x00"</c-><c- p>)</c->
 </pre>
-   <h3 class="heading settled" data-level="2.2" id="body"><span class="secno">2.2. </span><span class="content">Body</span><a class="self-link" href="#body"></a></h3>
-   <p>Directly after the <a href="#trailer">§ 2.1 Trailer</a> follows the body, consisting of the body length (<code>u64</code>) and the body data.</p>
+   <h3 class="heading settled" data-level="2.3" id="body"><span class="secno">2.3. </span><span class="content">Body</span><a class="self-link" href="#body"></a></h3>
+   <p>Directly after the <a href="#trailer">§ 2.2 Trailer</a> follows the body, consisting of the body length (<code>u64</code>) and the body data.</p>
    <figure class="table" id="body①">
     <table class="complex data longlastcol">
      <tbody>
@@ -2787,11 +2787,11 @@ masterSecret <c- o>=</c-> HKDF<c- p>.</c->extract<c- p>(</c-><c- u>"CCDB"</c-><c
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="body-data">Body Data</dfn>
        <td>Map
-       <td> The <a href="#body-structure">§ 2.2.1 Body Data Structure</a>. 
+       <td> The <a href="#body-structure">§ 2.3.1 Body Data Structure</a>. 
     </table>
    </figure>
-   <h4 class="heading settled" data-level="2.2.1" id="body-structure"><span class="secno">2.2.1. </span><span class="content">Body Data Structure</span><a class="self-link" href="#body-structure"></a></h4>
-   <p>The body data is a nested CBOR map (major type 5) consisting of <a href="#body-meta">§ 2.2.1.1 Meta</a>, <a href="#body-group">§ 2.2.1.2 Group</a>, and <a href="#body-entry">§ 2.2.1.4 Entry</a> data items.</p>
+   <h4 class="heading settled" data-level="2.3.1" id="body-structure"><span class="secno">2.3.1. </span><span class="content">Body Data Structure</span><a class="self-link" href="#body-structure"></a></h4>
+   <p>The body data is a nested CBOR map (major type 5) consisting of <a href="#body-meta">§ 2.3.1.1 Meta</a>, <a href="#body-group">§ 2.3.1.2 Group</a>, and <a href="#body-entry">§ 2.3.1.4 Entry</a> data items.</p>
    <figure class="table" id="rootBodyContent">
     <table class="complex data longlastcol">
      <tbody>
@@ -2803,16 +2803,16 @@ masterSecret <c- o>=</c-> HKDF<c- p>.</c->extract<c- p>(</c-><c- u>"CCDB"</c-><c
       <tr>
        <td>meta (0x00)
        <td>map
-       <td> Properties describing the database itself (<a href="#body-meta">§ 2.2.1.1 Meta</a>). 
+       <td> Properties describing the database itself (<a href="#body-meta">§ 2.3.1.1 Meta</a>). 
        <td>
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="entries">entries</dfn> (0x01)
-       <td>[+ <a href="#body-entry">§ 2.2.1.4 Entry</a>]
+       <td>[+ <a href="#body-entry">§ 2.3.1.4 Entry</a>]
        <td> All entries of this database. 
        <td>
       <tr>
        <td>groups (0x02)
-       <td><a href="#body-group">§ 2.2.1.2 Group</a>
+       <td><a href="#body-group">§ 2.3.1.2 Group</a>
        <td> The root of an arbitrary number of (nested) groups. Groups only hold references
                 to entries within <a data-link-type="dfn" href="#entries" id="ref-for-entries">entries</a>. 
        <td>
@@ -2852,7 +2852,7 @@ B0011A66327DB0037825492073686F756C642070726F6261626C79206368616E6765206D79207061
 A3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D066A6769746875622E636F6D07657234677573085820B5E36834A0
 DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
 </pre>
-   <h5 class="heading settled" data-level="2.2.1.1" id="body-meta"><span class="secno">2.2.1.1. </span><span class="content">Meta</span><a class="self-link" href="#body-meta"></a></h5>
+   <h5 class="heading settled" data-level="2.3.1.1" id="body-meta"><span class="secno">2.3.1.1. </span><span class="content">Meta</span><a class="self-link" href="#body-meta"></a></h5>
    <p>The meta data structure contains information about the database itself, like its name and the time it was created.
 The values of all fields, except for the <code>iv</code>, are encrypted using the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid③">cid</a>). The
 individual fields decrypted by concatenating them:</p>
@@ -2886,7 +2886,7 @@ s <c- o>=</c-> dec<c- p>(</c->gen <c- o>||</c-> name <c- o>||</c-> times<c- p>,<
        <td>
       <tr>
        <td>times (0x03)
-       <td><a href="#body-times">§ 2.2.1.3 Times</a>
+       <td><a href="#body-times">§ 2.3.1.3 Times</a>
        <td> Time stamps. This field has to be updated each time the database content is changed. 
        <td>
     </table>
@@ -2900,7 +2900,7 @@ s <c- o>=</c-> dec<c- p>(</c->gen <c- o>||</c-> name <c- o>||</c-> times<c- p>,<
 A30068506173734B65655A016A4D79205365637265747302A2001A66327DB001
 1A66327DB0
 </pre>
-   <h5 class="heading settled" data-level="2.2.1.2" id="body-group"><span class="secno">2.2.1.2. </span><span class="content">Group</span><a class="self-link" href="#body-group"></a></h5>
+   <h5 class="heading settled" data-level="2.3.1.2" id="body-group"><span class="secno">2.3.1.2. </span><span class="content">Group</span><a class="self-link" href="#body-group"></a></h5>
    <p>A group represents a way to set entries into context and into relation to each other, e.g., one can
 group multiple entries that belong to the same (online) service represented by its relying party id.
 Groups are represented as (imbalanced) tree, with a root group and a arbitrary number of nested groups.
@@ -2944,7 +2944,7 @@ s <c- o>=</c-> dec<c- p>(</c->uuid <c- o>||</c-> name <c- o>||</c-> times <c- o>
       <tr>
        <td>times (0x03)
        <td>map
-       <td> Counters and time values (see <a href="#body-times">§ 2.2.1.3 Times</a>). 
+       <td> Counters and time values (see <a href="#body-times">§ 2.3.1.3 Times</a>). 
        <td>
       <tr>
        <td>entries (0x04)
@@ -2955,12 +2955,12 @@ s <c- o>=</c-> dec<c- p>(</c->uuid <c- o>||</c-> name <c- o>||</c-> times <c- o>
        <td>
       <tr>
        <td>groups (0x05)
-       <td>[+ <a href="#body-group">§ 2.2.1.2 Group</a> ]
-       <td> An array of <a href="#body-group">§ 2.2.1.2 Group</a>s. 
+       <td>[+ <a href="#body-group">§ 2.3.1.2 Group</a> ]
+       <td> An array of <a href="#body-group">§ 2.3.1.2 Group</a>s. 
        <td>Optional
     </table>
    </figure>
-   <h5 class="heading settled" data-level="2.2.1.3" id="body-times"><span class="secno">2.2.1.3. </span><span class="content">Times</span><a class="self-link" href="#body-times"></a></h5>
+   <h5 class="heading settled" data-level="2.3.1.3" id="body-times"><span class="secno">2.3.1.3. </span><span class="content">Times</span><a class="self-link" href="#body-times"></a></h5>
    <figure class="table" id="timeContent">
     <table class="complex data longlastcol">
      <tbody>
@@ -2995,7 +2995,7 @@ s <c- o>=</c-> dec<c- p>(</c->uuid <c- o>||</c-> name <c- o>||</c-> times <c- o>
 
 A2001A66327DB0011A66327DB0
 </pre>
-   <h5 class="heading settled" data-level="2.2.1.4" id="body-entry"><span class="secno">2.2.1.4. </span><span class="content">Entry</span><a class="self-link" href="#body-entry"></a></h5>
+   <h5 class="heading settled" data-level="2.3.1.4" id="body-entry"><span class="secno">2.3.1.4. </span><span class="content">Entry</span><a class="self-link" href="#body-entry"></a></h5>
    <p>A entry usually represents a set of credentials for a specific service and user. Each entry has a unique id.</p>
    <p>The values of all fields, except for the <code>iv</code>, are encrypted using the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid⑤">cid</a>). The
 individual fields are decrypted by concatenating them. Missing fields are skipped. The context for the 
@@ -3039,7 +3039,7 @@ s <c- o>=</c-> dec<c- p>(</c->uuid <c- o>||</c-> times <c- o>||</c-> pw<c- p>,</
        <td>times (0x03)
        <td>map
        <td>
-         Counters and time values (see <a href="#body-times">§ 2.2.1.3 Times</a>). 
+         Counters and time values (see <a href="#body-times">§ 2.3.1.3 Times</a>). 
         <p class="note" role="note"><span class="marker">Note:</span> For applications supporting passkeys, the UsageCount field might be of particular relevance
                 but please be aware that counters make the synchronization between devices difficult and may lead
                 to scenarios where the user locks himself out of his accounts.</p>
@@ -3098,18 +3098,18 @@ A4            # map(4)
       <tr>
        <td>group (0x0a)
        <td>tstr
-       <td> A UUID (URN) referencing a <a href="#body-group">§ 2.2.1.2 Group</a>. If not present, the given entry is implicitly
+       <td> A UUID (URN) referencing a <a href="#body-group">§ 2.3.1.2 Group</a>. If not present, the given entry is implicitly
                 associated to the group directly under the document root. 
        <td>Optional
       <tr>
        <td>attach (0x0b)
-       <td>[+ <a href="#attachment">§ 2.2.1.5 Attachment</a> ]
+       <td>[+ <a href="#attachment">§ 2.3.1.5 Attachment</a> ]
        <td> One or more attachments associated with the given entry. This can for example be a file
                 containing recovery keys. 
        <td>Optional
     </table>
    </figure>
-   <h6 class="heading settled" data-level="2.2.1.4.1" id="example-password-entry"><span class="secno">2.2.1.4.1. </span><span class="content">Example: Password Entry</span><a class="self-link" href="#example-password-entry"></a></h6>
+   <h6 class="heading settled" data-level="2.3.1.4.1" id="example-password-entry"><span class="secno">2.3.1.4.1. </span><span class="content">Example: Password Entry</span><a class="self-link" href="#example-password-entry"></a></h6>
 <pre class="example" id="example-24fe29e3"><a class="self-link" href="#example-24fe29e3"></a>{
   0x00: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
   0x01: "Github", 
@@ -3123,7 +3123,7 @@ A500782430653639356332382D343266392D343365342D396163612D33663731
 25492073686F756C642070726F6261626C79206368616E6765206D7920706173
 73776F72642E046B7375706572736563726574
 </pre>
-   <h6 class="heading settled" data-level="2.2.1.4.2" id="example-passkey-entry"><span class="secno">2.2.1.4.2. </span><span class="content">Example: Passkey Entry</span><a class="self-link" href="#example-passkey-entry"></a></h6>
+   <h6 class="heading settled" data-level="2.3.1.4.2" id="example-passkey-entry"><span class="secno">2.3.1.4.2. </span><span class="content">Example: Passkey Entry</span><a class="self-link" href="#example-passkey-entry"></a></h6>
    <p>The given example shows a passkey entry. The passkey properties map to the <code>Entry</code> fields as follows:</p>
    <ul>
     <li data-md>
@@ -3154,7 +3154,7 @@ A700782430653639356332382D343266392D343365342D396163612D33663731
 81C8302D5199DE9D0D066A6769746875622E636F6D07657234677573085820B5
 E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
 </pre>
-   <h5 class="heading settled" data-level="2.2.1.5" id="attachment"><span class="secno">2.2.1.5. </span><span class="content">Attachment</span><a class="self-link" href="#attachment"></a></h5>
+   <h5 class="heading settled" data-level="2.3.1.5" id="attachment"><span class="secno">2.3.1.5. </span><span class="content">Attachment</span><a class="self-link" href="#attachment"></a></h5>
    <figure class="table" id="attachmentEntry">
     <table class="complex data longlastcol">
      <tbody>
@@ -3175,12 +3175,12 @@ E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
        <td>
     </table>
    </figure>
-   <h3 class="heading settled" data-level="2.3" id="extensions"><span class="secno">2.3. </span><span class="content">Extensions</span><a class="self-link" href="#extensions"></a></h3>
+   <h3 class="heading settled" data-level="2.4" id="extensions"><span class="secno">2.4. </span><span class="content">Extensions</span><a class="self-link" href="#extensions"></a></h3>
    <p>Extensions extend the given specification and are identified by a unique
 human readable ASCII string. While extensions MAY be defined outside of
 this document, it is RECOMMENDED that extensions are proposed using a pull-request
 before they are added to this document.</p>
-   <h4 class="heading settled" data-level="2.3.1" id="passkey"><span class="secno">2.3.1. </span><span class="content">Passkey</span><a class="self-link" href="#passkey"></a></h4>
+   <h4 class="heading settled" data-level="2.4.1" id="passkey"><span class="secno">2.4.1. </span><span class="content">Passkey</span><a class="self-link" href="#passkey"></a></h4>
    <p><strong>Identifier</strong>: <code>passkey</code></p>
    <p>The passkey extension indicates that FIDO2 related passkeys are stored in a
 well defined format. This allows users to easily migrate between applications
@@ -3205,12 +3205,12 @@ Passkey realted values map as follows to entry values:</p>
     <li data-md>
      <p><code>usageCount</code>: <code>times</code></p>
    </ul>
-   <h3 class="heading settled" data-level="2.4" id="serialization"><span class="secno">2.4. </span><span class="content">Serialization</span><a class="self-link" href="#serialization"></a></h3>
+   <h3 class="heading settled" data-level="2.5" id="serialization"><span class="secno">2.5. </span><span class="content">Serialization</span><a class="self-link" href="#serialization"></a></h3>
    <p>During usage, the database typically exists in an intermediate form, largely contingent upon the programming language employed.
 Before persisting it to disk, the database must undergo serialization according to the following steps:</p>
    <ol>
     <li data-md>
-     <p><strong>Serialize Header Version</strong>: Serialize the version of the header as specified in <a href="#version">§ 2.1.1 Version</a>.</p>
+     <p><strong>Serialize Header Version</strong>: Serialize the version of the header as specified in <a href="#version">§ 2.1 Version</a>.</p>
     <li data-md>
      <p><strong>Reserve Space for Master Secret and Tag</strong>: Allocate N bytes to fit the master secret and tag, as well as their lengths.</p>
     <li data-md>
@@ -3227,21 +3227,21 @@ Before persisting it to disk, the database must undergo serialization according 
      <p><strong>Encrypt the Master Secret</strong>: Apply the selected AEAD cipher to encrypt the master secret and fill the memory reserved in 2.</p>
      <ul>
       <li data-md>
-       <p>key: The symmetric key specified in <a href="#final-keys">§ 2.1.3.4 Symmetric Keys</a></p>
+       <p>key: The symmetric key specified in <a href="#final-keys">§ 2.2.2.4 Symmetric Keys</a></p>
       <li data-md>
        <p>Initialization Vector (IV): <a data-link-type="dfn" href="#iv" id="ref-for-iv③">iv</a></p>
       <li data-md>
        <p>Associated Data (AD): All data following the Tag (i.e., <code>Header Length || Header || Body Length || Body</code>)</p>
      </ul>
    </ol>
-   <h3 class="heading settled" data-level="2.5" id="deserialization"><span class="secno">2.5. </span><span class="content">Deserialization</span><a class="self-link" href="#deserialization"></a></h3>
+   <h3 class="heading settled" data-level="2.6" id="deserialization"><span class="secno">2.6. </span><span class="content">Deserialization</span><a class="self-link" href="#deserialization"></a></h3>
    <p>Before an application can use a database it has to be deserialized and decrypted
 according to the following steps:</p>
    <ol>
     <li data-md>
      <p><strong>Read Serialized Data</strong>: Retrieve the serialized data from storage.</p>
     <li data-md>
-     <p><strong>Validate Version</strong>: Read the <a href="#version">§ 2.1.1 Version</a> and validate that <a data-link-type="dfn" href="#sig" id="ref-for-sig">sig</a> equals <code>CCDB</code>.</p>
+     <p><strong>Validate Version</strong>: Read the <a href="#version">§ 2.1 Version</a> and validate that <a data-link-type="dfn" href="#sig" id="ref-for-sig">sig</a> equals <code>CCDB</code>.</p>
     <li data-md>
      <p><strong>Extract Master Secret</strong>: Extract the master secret for decryption.</p>
     <li data-md>
@@ -3254,14 +3254,14 @@ according to the following steps:</p>
      <p><strong>Decrypt the Master Secret</strong>: Utilize the specified cipher and associated parameters to decrypt the encrypted master secret:</p>
      <ul>
       <li data-md>
-       <p>key: The symmetric key specified in <a href="#final-keys">§ 2.1.3.4 Symmetric Keys</a>.</p>
+       <p>key: The symmetric key specified in <a href="#final-keys">§ 2.2.2.4 Symmetric Keys</a>.</p>
       <li data-md>
        <p>Initialization Vector (IV): <a data-link-type="dfn" href="#iv" id="ref-for-iv④">iv</a></p>
       <li data-md>
        <p>Associated Data (AD): <code>Header Length || Header || Body Length || Body</code></p>
      </ul>
     <li data-md>
-     <p><strong>Decode the Body</strong>: Decode the body according to the specifications outlined in the <a href="#body">§ 2.2 Body</a> section.</p>
+     <p><strong>Decode the Body</strong>: Decode the body according to the specifications outlined in the <a href="#body">§ 2.3 Body</a> section.</p>
    </ol>
    <h2 class="heading settled" data-level="3" id="security"><span class="secno">3. </span><span class="content">Security Considerations</span><a class="self-link" href="#security"></a></h2>
    <p>Files that store sensitive information are of particular interest to adversaries. The threads posed to
@@ -3429,21 +3429,21 @@ for a small message size making compression less relevant. This is why CCDB spec
   <h2 class="no-num no-ref heading settled" id="index"><span class="content">Index</span><a class="self-link" href="#index"></a></h2>
   <h3 class="no-num no-ref heading settled" id="index-defined-here"><span class="content">Terms defined by this specification</span><a class="self-link" href="#index-defined-here"></a></h3>
   <ul class="index">
-   <li><a href="#body-data">Body Data</a><span>, in § 2.2</span>
-   <li><a href="#body-length">Body Length</a><span>, in § 2.2</span>
-   <li><a href="#cid">cid</a><span>, in § 2.1.2</span>
-   <li><a href="#entries">entries</a><span>, in § 2.2.1</span>
-   <li><a href="#ext">ext</a><span>, in § 2.1.2</span>
-   <li><a href="#i">I</a><span>, in § 2.1.2.1</span>
-   <li><a href="#iv">iv</a><span>, in § 2.1.2</span>
-   <li><a href="#kdf">kdf</a><span>, in § 2.1.2</span>
-   <li><a href="#m">M</a><span>, in § 2.1.2.1</span>
-   <li><a href="#major-version">major version</a><span>, in § 2.1.1</span>
-   <li><a href="#minor-version">minor version</a><span>, in § 2.1.1</span>
-   <li><a href="#p">P</a><span>, in § 2.1.2.1</span>
-   <li><a href="#s">S</a><span>, in § 2.1.2.1</span>
-   <li><a href="#sig">sig</a><span>, in § 2.1.1</span>
-   <li><a href="#uuid">$UUID</a><span>, in § 2.1.2.1</span>
+   <li><a href="#body-data">Body Data</a><span>, in § 2.3</span>
+   <li><a href="#body-length">Body Length</a><span>, in § 2.3</span>
+   <li><a href="#cid">cid</a><span>, in § 2.2.1</span>
+   <li><a href="#entries">entries</a><span>, in § 2.3.1</span>
+   <li><a href="#ext">ext</a><span>, in § 2.2.1</span>
+   <li><a href="#i">I</a><span>, in § 2.2.1.1</span>
+   <li><a href="#iv">iv</a><span>, in § 2.2.1</span>
+   <li><a href="#kdf">kdf</a><span>, in § 2.2.1</span>
+   <li><a href="#m">M</a><span>, in § 2.2.1.1</span>
+   <li><a href="#major-version">major version</a><span>, in § 2.1</span>
+   <li><a href="#minor-version">minor version</a><span>, in § 2.1</span>
+   <li><a href="#p">P</a><span>, in § 2.2.1.1</span>
+   <li><a href="#s">S</a><span>, in § 2.2.1.1</span>
+   <li><a href="#sig">sig</a><span>, in § 2.1</span>
+   <li><a href="#uuid">$UUID</a><span>, in § 2.2.1.1</span>
   </ul>
   <h2 class="no-num no-ref heading settled" id="references"><span class="content">References</span><a class="self-link" href="#references"></a></h2>
   <h3 class="no-num no-ref heading settled" id="normative"><span class="content">Normative References</span><a class="self-link" href="#normative"></a></h3>
@@ -3664,21 +3664,21 @@ function parseHTML(markup) {
 "use strict";
 {
 let dfnPanelData = {
-"body-data": {"dfnID":"body-data","dfnText":"Body Data","external":false,"refSections":[{"refs":[{"id":"ref-for-body-data"}],"title":"2.2. Body"}],"url":"#body-data"},
+"body-data": {"dfnID":"body-data","dfnText":"Body Data","external":false,"refSections":[{"refs":[{"id":"ref-for-body-data"}],"title":"2.3. Body"}],"url":"#body-data"},
 "body-length": {"dfnID":"body-length","dfnText":"Body Length","external":false,"refSections":[],"url":"#body-length"},
-"cid": {"dfnID":"cid","dfnText":"cid","external":false,"refSections":[{"refs":[{"id":"ref-for-cid"},{"id":"ref-for-cid\u2460"}],"title":"2.1. Trailer"},{"refs":[{"id":"ref-for-cid\u2461"}],"title":"2.1.3.4. Symmetric Keys"},{"refs":[{"id":"ref-for-cid\u2462"}],"title":"2.2.1.1. Meta"},{"refs":[{"id":"ref-for-cid\u2463"}],"title":"2.2.1.2. Group"},{"refs":[{"id":"ref-for-cid\u2464"}],"title":"2.2.1.4. Entry"}],"url":"#cid"},
-"entries": {"dfnID":"entries","dfnText":"entries","external":false,"refSections":[{"refs":[{"id":"ref-for-entries"}],"title":"2.2.1. Body Data Structure"}],"url":"#entries"},
-"ext": {"dfnID":"ext","dfnText":"ext","external":false,"refSections":[{"refs":[{"id":"ref-for-ext"}],"title":"2.1. Trailer"}],"url":"#ext"},
+"cid": {"dfnID":"cid","dfnText":"cid","external":false,"refSections":[{"refs":[{"id":"ref-for-cid"},{"id":"ref-for-cid\u2460"}],"title":"2.2. Trailer"},{"refs":[{"id":"ref-for-cid\u2461"}],"title":"2.2.2.4. Symmetric Keys"},{"refs":[{"id":"ref-for-cid\u2462"}],"title":"2.3.1.1. Meta"},{"refs":[{"id":"ref-for-cid\u2463"}],"title":"2.3.1.2. Group"},{"refs":[{"id":"ref-for-cid\u2464"}],"title":"2.3.1.4. Entry"}],"url":"#cid"},
+"entries": {"dfnID":"entries","dfnText":"entries","external":false,"refSections":[{"refs":[{"id":"ref-for-entries"}],"title":"2.3.1. Body Data Structure"}],"url":"#entries"},
+"ext": {"dfnID":"ext","dfnText":"ext","external":false,"refSections":[{"refs":[{"id":"ref-for-ext"}],"title":"2.2. Trailer"}],"url":"#ext"},
 "i": {"dfnID":"i","dfnText":"I","external":false,"refSections":[],"url":"#i"},
-"iv": {"dfnID":"iv","dfnText":"iv","external":false,"refSections":[{"refs":[{"id":"ref-for-iv"}],"title":"2.1. Trailer"},{"refs":[{"id":"ref-for-iv\u2460"},{"id":"ref-for-iv\u2461"},{"id":"ref-for-iv\u2462"}],"title":"2.4. Serialization"},{"refs":[{"id":"ref-for-iv\u2463"}],"title":"2.5. Deserialization"}],"url":"#iv"},
-"kdf": {"dfnID":"kdf","dfnText":"kdf","external":false,"refSections":[{"refs":[{"id":"ref-for-kdf"}],"title":"2.1. Trailer"},{"refs":[{"id":"ref-for-kdf\u2460"}],"title":"2.1.3.4.1. Decrypting the master secret"}],"url":"#kdf"},
+"iv": {"dfnID":"iv","dfnText":"iv","external":false,"refSections":[{"refs":[{"id":"ref-for-iv"}],"title":"2.2. Trailer"},{"refs":[{"id":"ref-for-iv\u2460"},{"id":"ref-for-iv\u2461"},{"id":"ref-for-iv\u2462"}],"title":"2.5. Serialization"},{"refs":[{"id":"ref-for-iv\u2463"}],"title":"2.6. Deserialization"}],"url":"#iv"},
+"kdf": {"dfnID":"kdf","dfnText":"kdf","external":false,"refSections":[{"refs":[{"id":"ref-for-kdf"}],"title":"2.2. Trailer"},{"refs":[{"id":"ref-for-kdf\u2460"}],"title":"2.2.2.4.1. Decrypting the master secret"}],"url":"#kdf"},
 "m": {"dfnID":"m","dfnText":"M","external":false,"refSections":[],"url":"#m"},
 "major-version": {"dfnID":"major-version","dfnText":"major version","external":false,"refSections":[],"url":"#major-version"},
 "minor-version": {"dfnID":"minor-version","dfnText":"minor version","external":false,"refSections":[],"url":"#minor-version"},
 "p": {"dfnID":"p","dfnText":"P","external":false,"refSections":[],"url":"#p"},
 "s": {"dfnID":"s","dfnText":"S","external":false,"refSections":[],"url":"#s"},
-"sig": {"dfnID":"sig","dfnText":"sig","external":false,"refSections":[{"refs":[{"id":"ref-for-sig"}],"title":"2.5. Deserialization"}],"url":"#sig"},
-"uuid": {"dfnID":"uuid","dfnText":"$UUID","external":false,"refSections":[{"refs":[{"id":"ref-for-uuid"}],"title":"2.1.2.1. KDF Parameters"}],"url":"#uuid"},
+"sig": {"dfnID":"sig","dfnText":"sig","external":false,"refSections":[{"refs":[{"id":"ref-for-sig"}],"title":"2.6. Deserialization"}],"url":"#sig"},
+"uuid": {"dfnID":"uuid","dfnText":"$UUID","external":false,"refSections":[{"refs":[{"id":"ref-for-uuid"}],"title":"2.2.1.1. KDF Parameters"}],"url":"#uuid"},
 };
 
 document.addEventListener("DOMContentLoaded", ()=>{

@@ -100,48 +100,7 @@ N: Body
 N: Trailer
 </pre>
 
-## Trailer ## {#trailer}
-
-The trailer encodes information required to decrypt individual fields of the database. The overall structure of the trailer can be described as follows:
-
-<pre class='railroad'>
-N: Fields Length (u64)
-OneOrMore:
-    N: Fields
-    Choice:
-        N: [=iv=]
-        N: [=cid=]
-        N: [=kdf=]
-        N: [=ext=]
-N: Master Secret Length (u8)
-N: Master Secret
-N: Tag Length (u8)
-N: Tag
-</pre>
-
-The trailer begins with one or more CBOR encoded fields, followed by the master secret and a tag used to verify the entegrity of the overall
-data structure.
-
-The master secret is encrypted using the AEAD cipher specified by [=cid=]. The associated data includes all data that comes before the
-length of the master secret. 
-
-<pre class="example">
-43 43 44 42 01 00 00 00
-|_________| |___| |___|
-  "CCDB"      1  .  0
-
-66 00 00 00
-|_________|
-Header Field Length
-
-A463636964036269764C010203040102030401020304636B6466A5652455554944509E298B1
-956DB4773B23DFC3EC6F0A1E6614902614D1910006150086153582001020304010203040102
-030401020304010203040102030401020304010203046365787480
-|_________________________________________________________________________|
-                         Header Fields
-</pre>
-
-### Version ### {#version}
+## Version ## {#version}
 
 The version information together with the magic string "CCDB" marks the beginning
 of a CCDB credential database and is structured as follows:
@@ -197,6 +156,47 @@ is not neccessarily capable of reading the new format.
 43 43 44 42 01 00 00 00
 |_________| |___| |___|
   "CCDB"      1  .  0
+</pre>
+
+## Trailer ## {#trailer}
+
+The trailer encodes information required to decrypt individual fields of the database. The overall structure of the trailer can be described as follows:
+
+<pre class='railroad'>
+N: Fields Length (u64)
+OneOrMore:
+    N: Fields
+    Choice:
+        N: [=iv=]
+        N: [=cid=]
+        N: [=kdf=]
+        N: [=ext=]
+N: Master Secret Length (u8)
+N: Master Secret
+N: Tag Length (u8)
+N: Tag
+</pre>
+
+The trailer begins with one or more CBOR encoded fields, followed by the master secret and a tag used to verify the entegrity of the overall
+data structure.
+
+The master secret is encrypted using the AEAD cipher specified by [=cid=]. The associated data includes all data that comes before the
+length of the master secret. 
+
+<pre class="example">
+43 43 44 42 01 00 00 00
+|_________| |___| |___|
+  "CCDB"      1  .  0
+
+66 00 00 00
+|_________|
+Header Field Length
+
+A463636964036269764C010203040102030401020304636B6466A5652455554944509E298B1
+956DB4773B23DFC3EC6F0A1E6614902614D1910006150086153582001020304010203040102
+030401020304010203040102030401020304010203046365787480
+|_________________________________________________________________________|
+                         Header Fields
 </pre>
 
 ### Trailer Fields ### {#trailer-fields}
@@ -274,7 +274,7 @@ in the order listed below.
         </tr>
         <tr>
             <td><dfn>$UUID</dfn></td>
-            <td>bstr</td>
+            <td>tstr</td>
             <td>
                 A 16 byte UUID indicating the key derivation algorithm. This should be
                 the first entry of the map.
@@ -287,7 +287,7 @@ in the order listed below.
             <td><dfn>I</dfn></td>
             <td>uint</td>
             <td>
-                Iterations, encoded within a u64.
+                Iterations.
             </td>
             <td>Argon2</td>
         </tr>
@@ -295,7 +295,7 @@ in the order listed below.
             <td><dfn>M</dfn></td>
             <td>uint</td>
             <td>
-                Memory usage in KiB, encoded within a u64.
+                Memory usage in KiB.
             </td>
             <td>Argon2</td>
         </tr>
@@ -303,7 +303,7 @@ in the order listed below.
             <td><dfn>P</dfn></td>
             <td>uint</td>
             <td>
-                Parallelism encoded within a u32.
+                Parallelism.
             </td>
             <td>Argon2</td>
         </tr>
