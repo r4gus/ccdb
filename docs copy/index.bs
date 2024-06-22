@@ -90,40 +90,35 @@ This document uses the same grammar as used by [[!RFC8152]]. The CBOR structures
 Database Format {#db-format}
 =====================
 
-The CCDB data consists of a CBOR encoded body followed by a trailer. To insure the integrity of the data, the whole data structure
-is protected using a message authentication code (MAC).
+The CCDB data consists of a public and a confidential part. The database starts with a public header that encodes the properties of
+the database, including its version, followed by a encrypted block that contains the actual, CBOR encoded, data. The integrity of the 
+header as well as the confidential block is verified using message authentication codes.
+
+<pre class='railroad'>
+N: Outer Header
+N: Body Length (u64)
+N: AEAD Tag
+N: Encrypted Body
+</pre>
+
+## Outer Header ## {#outer-header}
+
+The outer header encodes information required to decrypt the remaining database. The overall structure of the outer header can be described as follows:
 
 <pre class='railroad'>
 N: Version
-N: Body Length (u64)
-N: Body
-N: Trailer
-</pre>
-
-## Trailer ## {#trailer}
-
-The trailer encodes information required to decrypt individual fields of the database. The overall structure of the trailer can be described as follows:
-
-<pre class='railroad'>
-N: Fields Length (u64)
+N: Header Field Length (u64)
 OneOrMore:
-    N: Fields
+    N: Header Field
     Choice:
-        N: [=iv=]
         N: [=cid=]
+        N: [=iv=]
         N: [=kdf=]
-        N: [=ext=]
-N: Master Secret Length (u8)
-N: Master Secret
-N: Tag Length (u8)
-N: Tag
 </pre>
 
-The trailer begins with one or more CBOR encoded fields, followed by the master secret and a tag used to verify the entegrity of the overall
-data structure.
+The header begins with the database version ([[#header-version]]) followed by the length of the header fields in bytes, followed by one or more header fields ([[#header-fields]]).
 
-The master secret is encrypted using the AEAD cipher specified by [=cid=]. The associated data includes all data that comes before the
-length of the master secret. 
+Note: The integrity of the header is validated by the selected AEAD cipher.
 
 <pre class="example">
 43 43 44 42 01 00 00 00
@@ -134,17 +129,16 @@ length of the master secret.
 |_________|
 Header Field Length
 
-A463636964036269764C010203040102030401020304636B6466A5652455554944509E298B1
-956DB4773B23DFC3EC6F0A1E6614902614D1910006150086153582001020304010203040102
-030401020304010203040102030401020304010203046365787480
+A46269764C010203040102030401020304636369640363636D7001636B6466A565245555494
+4509E298B1956DB4773B23DFC3EC6F0A1E6614902614D191000615008615358200102030401
+020304010203040102030401020304010203040102030401020304
 |_________________________________________________________________________|
                          Header Fields
 </pre>
 
-### Version ### {#version}
+### Version ### {#header-version}
 
-The version information together with the magic string "CCDB" marks the beginning
-of a CCDB credential database and is structured as follows:
+The initial 8 bytes encode the CCDB version.
 
 <figure id="version" class="table">
     <table class="complex data longlastcol">
@@ -164,45 +158,23 @@ of a CCDB credential database and is structured as follows:
             <td><dfn>major version</dfn></td>
             <td>u16</td>
             <td>
-                An unsigned value, giving the number of the current major version
-                of the format. The value for the current version of the format is 1.
+                0x01 for CDF major version 1
             </td>
         </tr>
         <tr>
             <td><dfn>minor version</dfn></td>
             <td>u16</td>
             <td>
-                An unsigned value, giving the number of the current minor version
-                of the format. The value for the current version of the format is 0.
+                Minor version number, e.g., 0 if the CDF version is 1.0
             </td>
         </tr>
     </table>
 </figure>
 
-Writer of ccdb files MUST NOT write files with a major version other than 1 or a minor
-version other than 0. If they do so, they will create a file that many readers of ccdb
-files, such as password managers, will not be able to read.
+### Header Fields ### {#header-fields}
 
-The major version will only be changed with a new major releases of this specification.
-Such a version would introduce breaking changes, meaning the format is changed in a way
-that readers of the new format can not read the old format. Code to read both formats
-would have to check the version number and use different code paths for the two formats.
-
-The minor version will only be changed with a new minor release of this specification.
-Such a release introduces changes that are backwards compatible, i.e. a reader of the
-new format is also capable of reading the old format but a reader of the old format
-is not neccessarily capable of reading the new format.
-
-<pre class="example">
-43 43 44 42 01 00 00 00
-|_________| |___| |___|
-  "CCDB"      1  .  0
-</pre>
-
-### Trailer Fields ### {#trailer-fields}
-
-The fields of the trailer are encoded using a CBOR map (major type 5).  The keys are encoded
-as text strings (major type 3) whereas the value types vary. All listed fields are mandatory
+The [[#header-version]] is followed by a CBOR map (major type 5) of the following header fields. The keys are encoded
+as text strings (major type 3) whereas the value types vary. All listed header fields are mandatory
 and MUST be encoded in the order listed below.
 
 <figure id="fieldTypes" class="table">
@@ -213,28 +185,31 @@ and MUST be encoded in the order listed below.
             <th>Description</th>
         </tr>
         <tr>
+            <td><dfn>cid</dfn></td>
+            <td>int</td>
+            <td>
+                The cipher the database is encrypted with, encoded as integer as defined by [[!RFC9053]] and [[!RFC9054]]. 
+
+                The following ciphers MUST be supported:
+                - **XChaCha20-Poly1305**: 24 (the nonce-extended version of the IETF ChaCha20 variant as authenticated cipher)
+                
+                The following ciphers MAY be supported:
+                - AES256GCM: 3
+
+                XChaCha20-Poly1305 is considered the default AEAD cipher.
+            </td>
+        </tr>
+        <tr>
             <td><dfn>iv</dfn></td>
             <td>bstr</td>
             <td>
-                Initialization vector (nonce) used for encrypting the master secret.
+                Initialization vector (nonce) used for encryption. The IVs size depends
+                on the cipher used for encryption:
+                
+                - **XChaCha20-Poly1305**: 24 bytes
+                - AES256GCM: 12 bytes
 
                 Note: A new and unique IV MUST be used for every encryption. One MUST NOT use the same IV twice! This can be achieved by using a counter or by using a cryptographically secure (pseudo) random number generator (CSRNG) to generate the IV at random.
-            </td>
-            <td></td>
-        </tr>
-        <tr>
-            <td><dfn>cid</dfn></td>
-            <td>tstr</td>
-            <td>
-                The cipher suit used for en-/decryption, encoded as string. 
-
-                The following cipher suits MUST be supported:
-                - `CCDB_XCHACHA20_POLY1305_SHA512`
-                    - `XChaCha20-Poly1305` for master secret encryption and integrity validation.
-                    - `XChaCha20` for en-/decryption of entries.
-                    - `SHA512` as hash function for HKDF.
-
-                `CCDB_XCHACHA20_POLY1305_SHA512` is considered the default cipher suit.
             </td>
         </tr>
         <tr>
@@ -244,17 +219,48 @@ and MUST be encoded in the order listed below.
                 Values specific for the [[#key-derivation]]
             </td>
         </tr>
-        <tr>
-            <td><dfn>ext</dfn></td>
-            <td>[+ tstr]</td>
-            <td>
-                Extensions used with this database. Each extension used by this database
-                is specified using a extension string. Extensions extend the database format
-                and MAY be defined within documents independent of this one.
-            </td>
-        </tr>
     </table>
 </figure>
+
+<pre class="example">
+{"cid": 3, "iv": h'010203040102030401020304', "cmp": 1, "kdf": {"$UUID": h'9E298B1956DB4773B23DFC3EC6F0A1E6', "I": 2, "M": 4096, "P": 8, "S": h'0102030401020304010203040102030401020304010203040102030401020304'}}
+
+A4                                      # map(4)
+   63                                   # text(3)
+      636964                            # "cid"
+   03                                   # unsigned(3)
+   62                                   # text(2)
+      6976                              # "iv"
+   4C                                   # bytes(12)
+      010203040102030401020304          # "\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004"
+   63                                   # text(3)
+      636D70                            # "cmp"
+   01                                   # unsigned(1)
+   63                                   # text(3)
+      6B6466                            # "kdf"
+   A5                                   # map(5)
+      65                                # text(5)
+         2455554944                     # "$UUID"
+      50                                # bytes(16)
+         9E298B1956DB4773B23DFC3EC6F0A1E6 # "\x9E)\x8B\u0019V\xDBGs\xB2=\xFC>\xC6\xF0\xA1\xE6"
+      61                                # text(1)
+         49                             # "I"
+      02                                # unsigned(2)
+      61                                # text(1)
+         4D                             # "M"
+      19 1000                           # unsigned(4096)
+      61                                # text(1)
+         50                             # "P"
+      08                                # unsigned(8)
+      61                                # text(1)
+         53                             # "S"
+      58 20                             # bytes(32)
+         0102030401020304010203040102030401020304010203040102030401020304 # "\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004"
+
+A463636964036269764C01020304010203040102030463636D7001636B6466A565245555494
+4509E298B1956DB4773B23DFC3EC6F0A1E6614902614D191000615008615358200102030401
+020304010203040102030401020304010203040102030401020304
+</pre>
 
 #### KDF Parameters #### {#kdf-map}
 
@@ -375,27 +381,31 @@ Applications SHOULD support the following key file formats:
 
 #### Key Provider #### {#key-provider}
 
-Key material MAY also be obtained from other sources, e.g., using the HMAC Secret Extension of CTAP2 [[fido-v2.1]]. Such capabilities MAY be defined as
-extensions independent of this document.
+Key material MAY also be obtained from other sources, e.g., using the HMAC Secret Extension of CTAP2 [[fido-v2.1]]. 
 
-#### Symmetric Keys #### {#final-keys}
+#### Symmetric Key #### {#final-keys}
 
-To minimize the exposure of sensitive information in memory, all database entries and related information are encrypted independently using the selected
-cipher ([=cid=]). For each entry, a symmetric key is derived from the master secret using the HKDF key derivation function.
-
-##### Decrypting the master secret
-
-Before the master secret can be used it must be decrypted using a key derived from the selected password key derivation function ([=kdf=]).
-The input into this selected key derivation function is as follows, with its remaining arguments defined by [[#kdf-map]]:
+To generate a symmetric key, a key derivation function ([=kdf=]) is employed, which derives the key from either a password, key file or key provider. The input into this selected key derivation function is as follows, with its remaining arguments defined by [[#kdf-map]]:
 
 <pre highlight="js">
 password || keyFileContent || keyProviderContent
 </pre>
 
-It's essential to ensure that the string passed to the KDF is not empty. Therefore, an application must enforce the usage of at least one of the defined
-sources of key data.
+It's essential to ensure that the string passed to the KDF is not empty. Therefore, an application must enforce the usage of at least one of the following sources:
 
-The process for deriving a symmetric key for encryption is `KDF(password || keyFileContent || keyProviderContent)`, e.g.,:
+- password
+- key file
+- key provider
+
+The process for deriving a symmetric key for encryption is as follows:
+
+<pre highlight="js">
+symKey = KDF(password || keyFileContent || keyProviderContent)
+</pre>
+
+Note: It's important to note that the length of the symmetric key must be adjusted according to the selected cipher ([=cid=]). For example, for AES256GCM, one can utilize the default hash length of 32 bytes for the symmetric key.
+
+##### Argon2id + Password
 
 <pre class="example" highlight="js">
 I: 2, M: 4096, P: 8, S: 0102030401020304010203040102030401020304010203040102030401020304
@@ -404,28 +414,9 @@ password: supersecret
 symKey = 1800b386aff0488a7a3720e014afd4b57d27c915ead08ed68ede40c225ce4e98 = Argon2id("supersecret")
 </pre>
 
-##### Deriving symmetric keys
-
-The symmetric key for each entry is derived from the master secret using HKDF. The master secret is considered uniform, i.e., it is directly
-used as a input into the `expand()` function. When creating a new master secret, e.g., during the creation of a new database, one must ensure the
-uniformness of the master secret, e.g., by deriving a the key from a cryptographically secure pseudo random number generator, and in addition using the `extract`
-function of HKDF with the fixed salt "CCDB".
-
-<pre class="example" highlight="js">
-ikm = CSPRNG.rand()
-masterSecret = HKDF.extract("CCDB", ikm)
-</pre>
-
-For each database entry, a key is derived from the master secret and the index of the entry represented as `u32` in little endian format
-(the info argument), e.g., for the second entry the key derivation looks as follows:
-
-<pre class="example" highlight="js">
-k = HKDF.expand(masterSecret, "\x01\x00\x00\x00")
-</pre>
-
 ## Body ## {#body}
 
-Directly after the [[#trailer]] follows the body, consisting of the body length (`u64`) and the body data.
+Directly after the [[#outer-header]] follows the body, consisting of the body length (`u64`), a tag, and the encrypted body data.
 
 <figure id="body" class="table">
     <table class="complex data longlastcol">
@@ -438,20 +429,29 @@ Directly after the [[#trailer]] follows the body, consisting of the body length 
             <td><dfn>Body Length</dfn></td>
             <td>u64</td>
             <td>
-                The length of the [=Body Data=] in bytes.
+                The length of the [=Encrypted Body Data=] in bytes.
             </td>
         </tr>
         <tr>
-            <td><dfn>Body Data</dfn></td>
-            <td>Map</td>
+            <td><dfn>Body Tag</dfn></td>
+            <td>byte[]</td>
             <td>
-                The [[#body-structure]].
+                The AEAD tag is the result of encrypting the Body Data using the AEAD cipher defined by [=cid=].
+                The length N of the tag depends on the AEAD cipher used for encryption:
+                - AES256GCM: `byte[16]`
+            </td>
+        </tr>
+        <tr>
+            <td><dfn>Encrypted Body Data</dfn></td>
+            <td>byte[[=Body Length=]]</td>
+            <td>
+                The body data encrypted using the AEAD cipher defined by [=cid=] of length [=Body Length=].
             </td>
         </tr>
     </table>
 </figure>
 
-### Body Data Structure ### {#body-structure}
+### Body Data Structure
 
 The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], [[#body-group]], and [[#body-entry]] data items.
 
@@ -486,7 +486,17 @@ The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], 
                 The root of an arbitrary number of (nested) groups. Groups only hold references
                 to entries within [=entries=].
             </td>
-            <td></td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>bin (0x03)</td>
+            <td>[+ [[#body-bin]] ]</td>
+            <td>
+                The bin is a array of elements of type [[#body-bin]] that
+                represent deleted entries. This filed MAY NOT be present
+                if no entries have been deleted.
+            </td>
+            <td>Optional</td>
         </tr>
     </table>
 </figure>
@@ -527,16 +537,41 @@ A3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D066A6769746875622E636F6D07657234677573
 DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
 </pre>
 
+#### Bin Entry #### {#body-bin}
+
+When a [[#body-entry]] is deleted it SHOULD NOT be removed directly but instead
+moved into the [=Bin=]. Moving a deleted entry in the bin allows the user
+to undo a deletion. Each application MAY define a limit after which a
+deleted entry is permanently removed from the database.
+
+<figure id="binEntry" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Field</th>
+            <th>Data Type</th>
+            <th>Description</th>
+            <th>Optional</th>
+        </tr>
+        <tr>
+            <td>time (0x00)</td>
+            <td>uint</td>
+            <td>
+                Epoch-based date/time the entry was deleted.
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>entry (0x01)</td>
+            <td>map</td>
+            <td>
+                The deleted [[#body-entry]]. The exact location where the entry was deleted from is defined by [=Groups=].
+            </td>
+            <td></td>
+        </tr>
+    </table>
+</figure>
+
 #### Meta #### {#body-meta}
-
-The meta data structure contains information about the database itself, like its name and the time it was created.
-The values of all fields, except for the `iv`, are encrypted using the selected cipher ([=cid=]). The
-individual fields decrypted by concatenating them:
-
-<pre class="example" highlight="js">
-k = HKDF.expand(masterSecret, "meta")
-s = dec(gen || name || times, k, iv)
-</pre>
 
 <figure id="metaBodyContent" class="table">
     <table class="complex data longlastcol">
@@ -547,17 +582,7 @@ s = dec(gen || name || times, k, iv)
             <th>Optional</th>
         </tr>
         <tr>
-            <td>iv (0x00)</td>
-            <td>bstr</td>
-            <td>
-                Initialization vector (nonce) used for encryption.
-
-                Note: A new and unique IV MUST be used for every encryption. One MUST NOT use the same IV twice! This can be achieved by using a counter or by using a cryptographically secure (pseudo) random number generator (CSRNG) to generate the IV at random.
-            </td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>gen (0x01)</td>
+            <td>gen (0x00)</td>
             <td>tstr</td>
             <td>
                 The name of the application that created the database.
@@ -565,7 +590,7 @@ s = dec(gen || name || times, k, iv)
             <td></td>
         </tr>
         <tr>
-            <td>name (0x02)</td>
+            <td>name (0x01)</td>
             <td>tstr</td>
             <td>
                 The name of the database.
@@ -573,7 +598,7 @@ s = dec(gen || name || times, k, iv)
             <td></td>
         </tr>
         <tr>
-            <td>times (0x03)</td>
+            <td>times (0x02)</td>
             <td>[[#body-times]]</td>
             <td>
                 Time stamps. This field has to be updated each time the database content is changed. 
@@ -596,22 +621,6 @@ A30068506173734B65655A016A4D79205365637265747302A2001A66327DB001
 
 #### Group #### {#body-group}
 
-A group represents a way to set entries into context and into relation to each other, e.g., one can
-group multiple entries that belong to the same (online) service represented by its relying party id.
-Groups are represented as (imbalanced) tree, with a root group and a arbitrary number of nested groups.
-Each group has zero or more references to entries.
-
-The values of all fields, except for the `iv` and groups, are encrypted using the selected cipher ([=cid=]). The
-individual fields are decrypted by concatenating them. The context for the key expansion is the word `group` followed
-by (nested) group indices separated by colones (`:`), e.g., `"group:0:1"` refers to the second entry (1) under the root entry
-(0).
-
-<pre class="example" highlight="js">
-// Decrypt the root entry
-k = HKDF.expand(masterSecret, "group:0")
-s = dec(uuid || name || times || entries, k, iv)
-</pre>
-
 <figure id="groupBodyContent" class="table">
     <table class="complex data longlastcol">
         <tr>
@@ -621,15 +630,7 @@ s = dec(uuid || name || times || entries, k, iv)
             <th>Optional</th>
         </tr>
         <tr>
-            <td>iv (0x00)</td>
-            <td>bstr</td>
-            <td>
-                Initialization vector (nonce) used for encryption.
-            </td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>uuid (0x01)</td>
+            <td>uuid (0x00)</td>
             <td>tstr</td>
             <td>
                 A unique identifier for the given group, e.g., UUIDv4 or UUIDv7 encoded as URN, e.g.:
@@ -639,7 +640,7 @@ s = dec(uuid || name || times || entries, k, iv)
             <td></td>
         </tr>
         <tr>
-            <td>name (0x02)</td>
+            <td>name (0x01)</td>
             <td>tstr</td>
             <td>
                 A human readable name for the given group.
@@ -647,7 +648,7 @@ s = dec(uuid || name || times || entries, k, iv)
             <td></td>
         </tr>
         <tr>
-            <td>times (0x03)</td>
+            <td>times (0x02)</td>
             <td>map</td>
             <td>
                 Counters and time values (see [[#body-times]]).
@@ -655,20 +656,18 @@ s = dec(uuid || name || times || entries, k, iv)
             <td></td>
         </tr>
         <tr>
-            <td>entries (0x04)</td>
-            <td>[+ uint]</td>
-            <td>
-                An array of zero or more entry indices.
-
-                Note: The database uses indices instead of the entry UUIDs to make look ups, which are the common case, a little bit faster. This also means that the database MUST update the indices every time a entry is moved within the linear entry list, e.g., when a entry is deleted.
-            </td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>groups (0x05)</td>
+            <td>groups (0x03)</td>
             <td>[+ [[#body-group]] ]</td>
             <td>
                 An array of [[#body-group]]s.
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>entries (0x04)</td>
+            <td>[+ tstr]</td>
+            <td>
+                An array of UUID references to entries.
             </td>
             <td>Optional</td>
         </tr>
@@ -728,18 +727,6 @@ A2001A66327DB0011A66327DB0
 
 #### Entry #### {#body-entry}
 
-A entry usually represents a set of credentials for a specific service and user. Each entry has a unique id.
-
-The values of all fields, except for the `iv`, are encrypted using the selected cipher ([=cid=]). The
-individual fields are decrypted by concatenating them. Missing fields are skipped. The context for the 
-key expansion is the index of the entry as little-endian `u32`, starting from 0.
-
-<pre class="example" highlight="js">
-// Decrypt the second entry consisting only of the uuid, times, and pw.
-k = HKDF.expand(masterSecret, "\x01\x00\x00\x00")
-s = dec(uuid || times || pw, k, iv)
-</pre>
-
 <figure id="entryBodyContent" class="table">
     <table class="complex data longlastcol">
         <tr>
@@ -749,18 +736,7 @@ s = dec(uuid || times || pw, k, iv)
             <th>Optional</th>
         </tr>
         <tr>
-            <td>iv (0x00)</td>
-            <td>bstr</td>
-            <td>
-                Initialization vector (nonce) used for encryption. The IVs size depends
-                on the cipher used for encryption:
-
-                Note: A new and unique IV MUST be used for every encryption. One MUST NOT use the same IV twice! This can be achieved by using a counter or by using a cryptographically secure (pseudo) random number generator (CSRNG) to generate the IV at random.
-            </td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>uuid (0x01)</td>
+            <td>uuid (0x00)</td>
             <td>tstr</td>
             <td>
                 A unique identifier for the given entry, e.g., UUIDv4 or UUIDv7, encoded as URN, e.g.:
@@ -770,7 +746,7 @@ s = dec(uuid || times || pw, k, iv)
             <td></td>
         </tr>
         <tr>
-            <td>name (0x02)</td>
+            <td>name (0x01)</td>
             <td>tstr</td>
             <td>
                 A human readable name for the given entry.
@@ -778,7 +754,7 @@ s = dec(uuid || times || pw, k, iv)
             <td>Optional</td>
         </tr>
         <tr>
-            <td>times (0x03)</td>
+            <td>times (0x02)</td>
             <td>map</td>
             <td>
                 Counters and time values (see [[#body-times]]).
@@ -790,7 +766,7 @@ s = dec(uuid || times || pw, k, iv)
             <td></td>
         </tr>
         <tr>
-            <td>notes (0x04)</td>
+            <td>notes (0x03)</td>
             <td>tstr</td>
             <td>
                 Notes related to the given entry.
@@ -798,7 +774,7 @@ s = dec(uuid || times || pw, k, iv)
             <td>Optional</td>
         </tr>
         <tr>
-            <td>pw (0x05)</td>
+            <td>pw (0x04)</td>
             <td>tstr</td>
             <td>
                 A password string.
@@ -806,7 +782,7 @@ s = dec(uuid || times || pw, k, iv)
             <td>Optional</td>
         </tr>
         <tr>
-            <td>key (0x06)</td>
+            <td>key (0x05)</td>
             <td>map</td>
             <td>
                 A CBOR Object Signing and Encryption (COSE) key [[!RFC8152]]. Also see Double Coordinate Curves, Octet Key Pair, and Symmetric Keys.
@@ -835,7 +811,7 @@ s = dec(uuid || times || pw, k, iv)
             <td>Optional</td>
         </tr>
         <tr>
-            <td>url (0x07)</td>
+            <td>url (0x06)</td>
             <td>tstr</td>
             <td>
                 A text string representing a URL.
@@ -843,7 +819,7 @@ s = dec(uuid || times || pw, k, iv)
             <td>Optional</td>
         </tr>
         <tr>
-            <td>uname (0x08)</td>
+            <td>uname (0x07)</td>
             <td>tstr</td>
             <td>
                 The user name corresponding to the given credential.
@@ -851,16 +827,15 @@ s = dec(uuid || times || pw, k, iv)
             <td>Optional</td>
         </tr>
         <tr>
-            <td>uid (0x09)</td>
+            <td>uid (0x08)</td>
             <td>bstr</td>
             <td>
-                A ID assigned to the user by the relying party. This is different from the uname as the uname is chosen
-                by the user herself.
+                A ID assigned to the user by the relying party.
             </td>
             <td>Optional</td>
         </tr>
         <tr>
-            <td>group (0x0a)</td>
+            <td>group (0x09)</td>
             <td>tstr</td>
             <td>
                 A UUID (URN) referencing a [[#body-group]]. If not present, the given entry is implicitly
@@ -869,7 +844,7 @@ s = dec(uuid || times || pw, k, iv)
             <td>Optional</td>
         </tr>
         <tr>
-            <td>attach (0x0b)</td>
+            <td>attach (0x0a)</td>
             <td>[+ [[#attachment]] ]</td>
             <td>
                 One or more attachments associated with the given entry. This can for example be a file
@@ -958,52 +933,30 @@ E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
     </table>
 </figure>
 
-## Extensions 
+## Database Creation
 
-Extensions extend the given specification and are identified by a unique
-human readable ASCII string. While extensions MAY be defined outside of
-this document, it is RECOMMENDED that extensions are proposed using a pull-request
-before they are added to this document.
+Every application that supports the given standard should provide the flexibility to configure parameters that influence the behavior of the database. These parameters typically include the cipher, compression algorithm, and key derivation function. It's recommended that applications only propose sensible values for ciphers and key derivation functions sourced from reputable authorities, such as <a href="https://owasp.org/">OWASP</a> and <a href="https://www.nist.gov/">NIST</a>.
 
-### Passkey
-
-**Identifier**: `passkey`
-
-The passkey extension indicates that FIDO2 related passkeys are stored in a
-well defined format. This allows users to easily migrate between applications
-that support the CCDB format.
-
-A passkey is identified by a entry with a note containing the word "passkey".
-Passkey realted values map as follows to entry values:
-
-**Required**
-
-* `credId`: `uuid`
-* `private-key`: `key`
-* `rpId`: url
-* `userId`: uid
-* `userName`: `uname`
-
-**Optional**
-
-* `usageCount`: `times`
+By allowing configuration of these parameters, applications empower users to tailor their security settings to best suit their specific needs and environments. This adaptability ensures compatibility with various security protocols and standards, fostering a robust and customizable security posture for the application.
 
 ## Serialization
 
 During usage, the database typically exists in an intermediate form, largely contingent upon the programming language employed. 
 Before persisting it to disk, the database must undergo serialization according to the following steps:
 
-1. **Serialize Header Version**: Serialize the version of the header as specified in [[#version]].
-2. **Reserve Space for Master Secret and Tag**: Allocate N bytes to fit the master secret and tag, as well as their lengths.
-3. **Header Field Length**: Allocate 4 bytes to reserve space for the length of the header fields.
-4. **Generate Initialization Vector (IV)**: Create a new and unique initialization vector ([=iv=]), ensuring it is not reused.
-5. Serialize the header fields, incorporating the [=iv=].
-6. **Write Serialized Header Length**: Record the size of the serialized header fields within the 4 bytes reserved in the previous step.
-7. **Serialize the Body Length and Body**: All fields containing information about user data are already encrypted at rest, i.e., the body can be serialized directly.
-8. **Encrypt the Master Secret**: Apply the selected AEAD cipher to encrypt the master secret and fill the memory reserved in 2.
-    - key: The symmetric key specified in [[#final-keys]]
+1. **Serialize Header Version**: Serialize the version of the header as specified in [[#header-version]].
+2. **Header Field Length**: Allocate 4 bytes to reserve space for the length of the header fields.
+3. **Generate Initialization Vector (IV)**: Create a new and unique initialization vector ([=iv=]), ensuring it is not reused.
+4. Serialize the header fields, incorporating the [=iv=].
+5. **Write Serialized Header Length**: Record the size of the serialized header fields within the 4 bytes reserved in the previous step.
+6. **Encode the Body**: The body is encoded as specified by the guidelines outlined in the [[#body]] section.
+7. **Compression (Optional)**: If the [=cmp=] header field is not set to None, compress the encoded body using the designated compression algorithm.
+8. **Serialize Body Length**: Serialize the length of the body as a u64 data type.
+9. **Encrypt the Body**: Utilize the cipher specified by [=cid=] to encrypt the body with the following parameters:
+    - key: The symmetric key specified in [[#final-keys]].
     - Initialization Vector (IV): [=iv=]
-    - Associated Data (AD): All data following the Tag (i.e., `Header Length || Header || Body Length || Body`)
+    - Associated Data (AD): The serialized header and body length.
+10. **Write Tag and Encrypted Body**: Place the resulting tag immediately after the body length, followed by the encrypted body.
 
 ## Deserialization
 
@@ -1011,16 +964,18 @@ Before an application can use a database it has to be deserialized and decrypted
 according to the following steps:
 
 1. **Read Serialized Data**: Retrieve the serialized data from storage.
-2. **Validate Version**: Read the [[#version]] and validate that [=sig=] equals `CCDB`.
-3. **Extract Master Secret**: Extract the master secret for decryption.
-4. **Extract Tag**: Extract the tag for integrity validation.
-5. **Extract Header**: Extract the header based on the header length.
-6. **Validate Header**: Validate that all required header fields are present and contain sain values.
-7. **Decrypt the Master Secret**: Utilize the specified cipher and associated parameters to decrypt the encrypted master secret:
+2. **Validate Version**: Read the [[#header-version]] and validate that [=sig=] equals `CCDB`.
+3. **Extract Header Length**: Extract the length of the header from the serialized data.
+4. **Extract Header**: Extract the header based on the header length.
+5. **Validate Header**: Validate that all required header fields are present and contain sain values.
+6. **Extract Body Length**: Extract the length of the body from the serialized data.
+7. **Extract Tag and Encrypted Body**: Extract the tag followed by the encrypted body from the serialized data.
+8. **Decrypt the Body**: Utilize the specified cipher and associated parameters to decrypt the encrypted body:
     - key: The symmetric key specified in [[#final-keys]].
     - Initialization Vector (IV): [=iv=]
-    - Associated Data (AD): `Header Length || Header || Body Length || Body`
-8. **Decode the Body**: Decode the body according to the specifications outlined in the [[#body]] section.
+    - Associated Data (AD): `Outer Header || Body Length` 
+9. **Decompression (Optional)**: If compression was applied during serialization, decompress the encoded body using the designated decompression algorithm.
+10. **Decode the Body**: Decode the body according to the specifications outlined in the [[#body]] section.
 
 Security Considerations {#security}
 =====================
@@ -1031,15 +986,16 @@ data-in-use.
 
 An attacker with access to the database at rest or in transit might try to decrypt or manipulate the
 database. To prevent decryption without a valid key and to ensure the integrity of the whole database,
-including all public parts, only state-of-the-art AEAD ciphers are allowed. The header and body are part
-of the associated data. This ensures that any manipulation by an attacker will lead to an error when
-decrypting the master secret. The downside is that any manipulation of the file will inevitably lead 
-to a malformed database, which can be used for an denial-of-service (DOS) attack.
+including all public parts, only state-of-the-art AEAD ciphers are allowed. The public parts build
+the associated data. This ensures that any bit flipped by an attacker will lead to an decryption error,
+indicating a manipulated file.
 
-Instead of encrypting the whole body, only the values of each entry and metadata are encrypted. This prevents the unnecessary
-cluttering of the address space with potential sensitive information. Instead, the application can decrypt individual
-fields on a on demand basis, making it easier to manage the secrets held in memory. This means that at a specific point
-during execution, only the master secret, the key for the entry, and the decrypted fields must be managed by the application.
+The downside is that any manipulation of the file will inevitably lead to a malformed database, which can
+be used for an denial-of-service (DOS) attack. 
+
+TODO
+
+## No Compression
 
 Compression, in combination with encryption, may lead to unwanted behavior. Using CBOR as the main data format allows
-for a small message size making compression less relevant. This is why CCDB specifically doesn't use compression.
+for a small message size making compression less relevant. This is why CCDB specifically doesn't use compression. 
