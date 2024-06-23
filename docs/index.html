@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="b0e8bbc896393c53c5036d3a14a7ff542161fe9a" name="revision">
+  <meta content="3bebb7d0546e6425f88cd240e7aaa3696337a940" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -1955,45 +1955,6 @@ a[href].issue-return {
     margin-bottom: 0;
 }
 </style>
-<style>/* Boilerplate: style-railroad */
-:root {
-    --railroad-bg: hsl(30, 20%, 95%);
-    --railroad-stroke: black;
-    --railroad-fill: hsl(120,100%,90%);
-}
-svg.railroad-diagram {
-    background-color: var(--railroad-bg);
-}
-svg.railroad-diagram path {
-    stroke-width:3px;
-    stroke: var(--railroad-stroke);
-    fill:transparent;
-}
-svg.railroad-diagram text {
-    font: bold 14px monospace;
-    fill: var(--text, currentcolor);
-    text-anchor:middle;
-}
-svg.railroad-diagram text.label {
-    text-anchor:start;
-}
-svg.railroad-diagram text.comment {
-    font:italic 12px monospace;
-}
-svg.railroad-diagram rect {
-    stroke-width:3px;
-    stroke: var(--railroad-stroke);
-    fill: var(--railroad-fill);
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --railroad-bg: rgba(255, 255, 255, .05);
-        --railroad-stroke: #bbb;
-        --railroad-fill: hsla(240deg, 20%, 15%);
-    }
-}
-</style>
 <style>/* Boilerplate: style-ref-hints */
 :root {
     --ref-hint-bg: #ddd;
@@ -2274,19 +2235,18 @@ Parts of this work may be from another specification document.  If so, those par
       <li>
        <a href="#body"><span class="secno">2.3</span> <span class="content">Body</span></a>
        <ol class="toc">
+        <li><a href="#body-meta"><span class="secno">2.3.1</span> <span class="content">Meta</span></a>
+        <li><a href="#body-group"><span class="secno">2.3.2</span> <span class="content">Group</span></a>
         <li>
-         <a href="#body-structure"><span class="secno">2.3.1</span> <span class="content">Body Data Structure</span></a>
+         <a href="#body-times"><span class="secno">2.3.3</span> <span class="content">Times</span></a>
          <ol class="toc">
-          <li><a href="#body-meta"><span class="secno">2.3.1.1</span> <span class="content">Meta</span></a>
-          <li><a href="#body-group"><span class="secno">2.3.1.2</span> <span class="content">Group</span></a>
-          <li><a href="#body-times"><span class="secno">2.3.1.3</span> <span class="content">Times</span></a>
           <li>
-           <a href="#body-entry"><span class="secno">2.3.1.4</span> <span class="content">Entry</span></a>
+           <a href="#body-entry"><span class="secno">2.3.3.1</span> <span class="content">Entry</span></a>
            <ol class="toc">
-            <li><a href="#example-password-entry"><span class="secno">2.3.1.4.1</span> <span class="content">Example: Password Entry</span></a>
-            <li><a href="#example-passkey-entry"><span class="secno">2.3.1.4.2</span> <span class="content">Example: Passkey Entry</span></a>
+            <li><a href="#example-password-entry"><span class="secno">2.3.3.1.1</span> <span class="content">Example: Password Entry</span></a>
+            <li><a href="#example-passkey-entry"><span class="secno">2.3.3.1.2</span> <span class="content">Example: Passkey Entry</span></a>
            </ol>
-          <li><a href="#attachment"><span class="secno">2.3.1.5</span> <span class="content">Attachment</span></a>
+          <li><a href="#attachment"><span class="secno">2.3.3.2</span> <span class="content">Attachment</span></a>
          </ol>
        </ol>
       <li>
@@ -2387,53 +2347,42 @@ later query related sets of data.</p>
      <p>Indicates that the type FOO appears one or more times in an array.</p>
    </dl>
    <h2 class="heading settled" data-level="2" id="db-format"><span class="secno">2. </span><span class="content">Database Format</span><a class="self-link" href="#db-format"></a></h2>
-   <p>The CCDB data consists of a CBOR encoded body followed by a trailer. To insure the integrity of the data, the whole data structure
-is protected using a message authentication code (MAC).</p>
-   <div class="railroad">
-    <svg class="railroad-diagram" height="62" viewBox="0 0 537.5 62" width="537.5">
-     <g transform="translate(.5 .5)">
-      <g>
-       <path d="M20 21v20m10 -20v20m-10 -10h20"></path>
-      </g>
-      <path d="M40 31h10"></path>
-      <g class="non-terminal ">
-       <path d="M50 31h0.0"></path>
-       <path d="M129.5 31h0.0"></path>
-       <rect height="22" width="79.5" x="50" y="20"></rect>
-       <text x="89.75" y="35">Version</text>
-      </g>
-      <path d="M129.5 31h10"></path>
-      <path d="M139.5 31h10"></path>
-      <g class="non-terminal ">
-       <path d="M149.5 31h0.0"></path>
-       <path d="M314.0 31h0.0"></path>
-       <rect height="22" width="164.5" x="149.5" y="20"></rect>
-       <text x="231.75" y="35">Body Length (u64)</text>
-      </g>
-      <path d="M314.0 31h10"></path>
-      <path d="M324.0 31h10"></path>
-      <g class="non-terminal ">
-       <path d="M334.0 31h0.0"></path>
-       <path d="M388.0 31h0.0"></path>
-       <rect height="22" width="54" x="334" y="20"></rect>
-       <text x="361" y="35">Body</text>
-      </g>
-      <path d="M388.0 31h10"></path>
-      <path d="M398.0 31h10"></path>
-      <g class="non-terminal ">
-       <path d="M408.0 31h0.0"></path>
-       <path d="M487.5 31h0.0"></path>
-       <rect height="22" width="79.5" x="408" y="20"></rect>
-       <text x="447.75" y="35">Trailer</text>
-      </g>
-      <path d="M487.5 31h10"></path>
-      <path d="M 497.5 31 h 20 m -10 -10 v 20 m 10 -20 v 20"></path>
-     </g>
-    </svg>
-   </div>
+   <p>The CCDB data consists of a CBOR encoded body followed by a trailer. To insure the integrity
+of the data, the whole data structure is protected using a message authentication code (MAC),
+stored alongside the encrpyted master secret within the trailer.</p>
+   <p>The body length is encoded as unsigned 64 bit integer in little endian format and comes before
+and after body, making it easy to traverse the data structure both forwards and backwards. 
+The body is indirectly 32 bit alligned because all elements of the body are also alligned
+by 32 bits.</p>
+<pre>                            1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     0 |                           Version                             |
+     4 |                                                               |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     8 |                         Body Length                           |
+    12 |                                                               |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    16 /                            Body                               /
+       /                      (variable length N)                      /
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+N + 16 |                         Body Length                           |
+N + 20 |                                                               |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+N + 24 /                           Trailer                             /
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
    <h3 class="heading settled" data-level="2.1" id="version"><span class="secno">2.1. </span><span class="content">Version</span><a class="self-link" href="#version"></a></h3>
    <p>The version information together with the magic string "CCDB" marks the beginning
 of a CCDB credential database and is structured as follows:</p>
+<pre>                       1                   2                   3
+   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+0 |                            "CCDB"                             |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+4 |    major version             |     minor version              |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
    <figure class="table" id="version①">
     <table class="complex data longlastcol">
      <tbody>
@@ -2473,127 +2422,43 @@ is not neccessarily capable of reading the new format.</p>
   "CCDB"      1  .  0
 </pre>
    <h3 class="heading settled" data-level="2.2" id="trailer"><span class="secno">2.2. </span><span class="content">Trailer</span><a class="self-link" href="#trailer"></a></h3>
-   <p>The trailer encodes information required to decrypt individual fields of the database. The overall structure of the trailer can be described as follows:</p>
-   <div class="railroad">
-    <svg class="railroad-diagram" height="182" viewBox="0 0 1077.0 182" width="1077.0">
-     <g transform="translate(.5 .5)">
-      <g>
-       <path d="M20 21v20m10 -20v20m-10 -10h20"></path>
-      </g>
-      <path d="M40 31h10"></path>
-      <g class="non-terminal ">
-       <path d="M50 31h0.0"></path>
-       <path d="M231.5 31h0.0"></path>
-       <rect height="22" width="181.5" x="50" y="20"></rect>
-       <text x="140.75" y="35">Fields Length (u64)</text>
-      </g>
-      <path d="M231.5 31h10"></path>
-      <path d="M241.5 31h10"></path>
-      <g>
-       <path d="M251.5 31h0.0"></path>
-       <path d="M391.0 31h0.0"></path>
-       <path d="M251.5 31h10"></path>
-       <g class="non-terminal ">
-        <path d="M261.5 31h24.25"></path>
-        <path d="M356.75 31h24.25"></path>
-        <rect height="22" width="71" x="285.75" y="20"></rect>
-        <text x="321.25" y="35">Fields</text>
-       </g>
-       <path d="M381.0 31h10"></path>
-       <path d="M261.5 31a10 10 0 0 0 -10 10v10a10 10 0 0 0 10 10"></path>
-       <g>
-        <path d="M261.5 61h0.0"></path>
-        <path d="M381.0 61h0.0"></path>
-        <path d="M261.5 61h20"></path>
-        <g class="non-terminal ">
-         <path d="M281.5 61h4.25"></path>
-         <path d="M356.75 61h4.25"></path>
-         <rect height="22" width="71" x="285.75" y="50"></rect>
-         <text x="321.25" y="65"><a data-link-type="dfn" href="#iv" id="ref-for-iv">iv</a></text>
-        </g>
-        <path d="M361.0 61h20"></path>
-        <path d="M261.5 61a10 10 0 0 1 10 10v10a10 10 0 0 0 10 10"></path>
-        <g class="non-terminal ">
-         <path d="M281.5 91h0.0"></path>
-         <path d="M361.0 91h0.0"></path>
-         <rect height="22" width="79.5" x="281.5" y="80"></rect>
-         <text x="321.25" y="95"><a data-link-type="dfn" href="#cid" id="ref-for-cid">cid</a></text>
-        </g>
-        <path d="M361.0 91a10 10 0 0 0 10 -10v-10a10 10 0 0 1 10 -10"></path>
-        <path d="M261.5 61a10 10 0 0 1 10 10v40a10 10 0 0 0 10 10"></path>
-        <g class="non-terminal ">
-         <path d="M281.5 121h0.0"></path>
-         <path d="M361.0 121h0.0"></path>
-         <rect height="22" width="79.5" x="281.5" y="110"></rect>
-         <text x="321.25" y="125"><a data-link-type="dfn" href="#kdf" id="ref-for-kdf">kdf</a></text>
-        </g>
-        <path d="M361.0 121a10 10 0 0 0 10 -10v-40a10 10 0 0 1 10 -10"></path>
-        <path d="M261.5 61a10 10 0 0 1 10 10v70a10 10 0 0 0 10 10"></path>
-        <g class="non-terminal ">
-         <path d="M281.5 151h0.0"></path>
-         <path d="M361.0 151h0.0"></path>
-         <rect height="22" width="79.5" x="281.5" y="140"></rect>
-         <text x="321.25" y="155"><a data-link-type="dfn" href="#ext" id="ref-for-ext">ext</a></text>
-        </g>
-        <path d="M361.0 151a10 10 0 0 0 10 -10v-70a10 10 0 0 1 10 -10"></path>
-       </g>
-       <path d="M381.0 61a10 10 0 0 0 10 -10v-10a10 10 0 0 0 -10 -10"></path>
-      </g>
-      <path d="M391.0 31h10"></path>
-      <path d="M401.0 31h10"></path>
-      <g class="non-terminal ">
-       <path d="M411.0 31h0.0"></path>
-       <path d="M643.5 31h0.0"></path>
-       <rect height="22" width="232.5" x="411" y="20"></rect>
-       <text x="527.25" y="35">Master Secret Length (u8)</text>
-      </g>
-      <path d="M643.5 31h10"></path>
-      <path d="M653.5 31h10"></path>
-      <g class="non-terminal ">
-       <path d="M663.5 31h0.0"></path>
-       <path d="M794.0 31h0.0"></path>
-       <rect height="22" width="130.5" x="663.5" y="20"></rect>
-       <text x="728.75" y="35">Master Secret</text>
-      </g>
-      <path d="M794.0 31h10"></path>
-      <path d="M804.0 31h10"></path>
-      <g class="non-terminal ">
-       <path d="M814.0 31h0.0"></path>
-       <path d="M961.5 31h0.0"></path>
-       <rect height="22" width="147.5" x="814" y="20"></rect>
-       <text x="887.75" y="35">Tag Length (u8)</text>
-      </g>
-      <path d="M961.5 31h10"></path>
-      <path d="M971.5 31h10"></path>
-      <g class="non-terminal ">
-       <path d="M981.5 31h0.0"></path>
-       <path d="M1027.0 31h0.0"></path>
-       <rect height="22" width="45.5" x="981.5" y="20"></rect>
-       <text x="1004.25" y="35">Tag</text>
-      </g>
-      <path d="M1027.0 31h10"></path>
-      <path d="M 1037.0 31 h 20 m -10 -10 v 20 m 10 -20 v 20"></path>
-     </g>
-    </svg>
-   </div>
-   <p>The trailer begins with one or more CBOR encoded fields, followed by the master secret and a tag used to verify the entegrity of the overall
-data structure.</p>
-   <p>The master secret is encrypted using the AEAD cipher specified by <a data-link-type="dfn" href="#cid" id="ref-for-cid①">cid</a>. The associated data includes all data that comes before the
-length of the master secret.</p>
-<pre class="example" id="example-1a1cf37e"><a class="self-link" href="#example-1a1cf37e"></a>43 43 44 42 01 00 00 00
-|_________| |___| |___|
-  "CCDB"      1  .  0
-
-66 00 00 00
-|_________|
-Header Field Length
-
-A463636964036269764C010203040102030401020304636B6466A5652455554944509E298B1
-956DB4773B23DFC3EC6F0A1E6614902614D1910006150086153582001020304010203040102
-030401020304010203040102030401020304010203046365787480
-|_________________________________________________________________________|
-                         Header Fields
+   <p>The trailer encodes information required to decrypt individual entries of the database.</p>
+<pre>                       1                   2                   3
+   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+0 |                        Fields Length                          |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+4 /                            Fields                             /
+  /                      (variable length N)                      /
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                        Fields Length                          |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                  Master Secret Length                         |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  /                       Master Secret                           /
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                  Master Secret Length                         |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                         Tag Length                            |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  /                            Tag                                /
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                         Tag Length                            |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
+   <p>The trailer begins with one or more CBOR encoded fields, followed by the master secret and a
+tag used to verify the entegrity of the overall data structure. Fields, master secret, and tag
+are all 32 bit alligned, e.g., if the fields CBOR map is 118 bytes long, the fields length
+is also 118 but two zero bytes are appended to the map during serialization.</p>
+   <p>The master secret is encrypted using the AEAD cipher specified by <a data-link-type="dfn" href="#cid" id="ref-for-cid">cid</a>. The associated
+data includes all data that comes before the length of the master secret.</p>
+   <p>The length of the fields is encoded as a unsigned 32 bit integer in little-endian format. It
+comes right before and after the CBOR map to allow the traversal of the data structure both
+forwards and backwards. The length of the master secret is encoded as a unsigned 32 bit 
+integer in little-endian format. It comes right before and after the master secret to allow 
+the traversal of the data structure both forwards and backwards. The length of the tag is 
+encoded as a unsigned 32 bit integer. It comes right before and after the tag to allow 
+the traversal of the data structure both forwards and backwards.</p>
    <h4 class="heading settled" data-level="2.2.1" id="trailer-fields"><span class="secno">2.2.1. </span><span class="content">Trailer Fields</span><a class="self-link" href="#trailer-fields"></a></h4>
    <p>The fields of the trailer are encoded using a CBOR map (major type 5).  The keys are encoded
 as text strings (major type 3) whereas the value types vary. All listed fields are mandatory
@@ -2746,9 +2611,9 @@ suggestion of randomized passwords.</p>
 extensions independent of this document.</p>
    <h5 class="heading settled" data-level="2.2.2.4" id="final-keys"><span class="secno">2.2.2.4. </span><span class="content">Symmetric Keys</span><a class="self-link" href="#final-keys"></a></h5>
    <p>To minimize the exposure of sensitive information in memory, all database entries and related information are encrypted independently using the selected
-cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid②">cid</a>). For each entry, a symmetric key is derived from the master secret using the HKDF key derivation function.</p>
+cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid①">cid</a>). For each entry, a symmetric key is derived from the master secret using the HKDF key derivation function.</p>
    <h6 class="heading settled" data-level="2.2.2.4.1" id="decrypting-the-master-secret"><span class="secno">2.2.2.4.1. </span><span class="content">Decrypting the master secret</span><a class="self-link" href="#decrypting-the-master-secret"></a></h6>
-   <p>Before the master secret can be used it must be decrypted using a key derived from the selected password key derivation function (<a data-link-type="dfn" href="#kdf" id="ref-for-kdf①">kdf</a>).
+   <p>Before the master secret can be used it must be decrypted using a key derived from the selected password key derivation function (<a data-link-type="dfn" href="#kdf" id="ref-for-kdf">kdf</a>).
 The input into this selected key derivation function is as follows, with its remaining arguments defined by <a href="#kdf-map">§ 2.2.1.1 KDF Parameters</a>:</p>
 <pre class="highlight">password <c- o>||</c-> keyFileContent <c- o>||</c-> keyProviderContent
 </pre>
@@ -2772,26 +2637,11 @@ masterSecret <c- o>=</c-> HKDF<c- p>.</c->extract<c- p>(</c-><c- u>"CCDB"</c-><c
 <pre class="example highlight" id="example-c2222a39"><a class="self-link" href="#example-c2222a39"></a>k <c- o>=</c-> HKDF<c- p>.</c->expand<c- p>(</c->masterSecret<c- p>,</c-> <c- u>"\x01\x00\x00\x00"</c-><c- p>)</c->
 </pre>
    <h3 class="heading settled" data-level="2.3" id="body"><span class="secno">2.3. </span><span class="content">Body</span><a class="self-link" href="#body"></a></h3>
-   <p>Directly after the <a href="#trailer">§ 2.2 Trailer</a> follows the body, consisting of the body length (<code>u64</code>) and the body data.</p>
-   <figure class="table" id="body①">
-    <table class="complex data longlastcol">
-     <tbody>
-      <tr>
-       <th>Name
-       <th>Data Type
-       <th>Description
-      <tr>
-       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="body-length">Body Length</dfn>
-       <td>u64
-       <td> The length of the <a data-link-type="dfn" href="#body-data" id="ref-for-body-data">Body Data</a> in bytes. 
-      <tr>
-       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="body-data">Body Data</dfn>
-       <td>Map
-       <td> The <a href="#body-structure">§ 2.3.1 Body Data Structure</a>. 
-    </table>
-   </figure>
-   <h4 class="heading settled" data-level="2.3.1" id="body-structure"><span class="secno">2.3.1. </span><span class="content">Body Data Structure</span><a class="self-link" href="#body-structure"></a></h4>
-   <p>The body data is a nested CBOR map (major type 5) consisting of <a href="#body-meta">§ 2.3.1.1 Meta</a>, <a href="#body-group">§ 2.3.1.2 Group</a>, and <a href="#body-entry">§ 2.3.1.4 Entry</a> data items.</p>
+   <p>The body starts with meta data that contains information about the database itself,
+followed by one or more groups. Within a group there can occur an arbitrary amount
+of entries and further (nested) groups. The body MUST start with a meta data struct
+and there MUST NOT be any further meta data be encoded within the body.</p>
+   <p>The body data is a nested CBOR map (major type 5) consisting of <a href="#body-meta">§ 2.3.1 Meta</a>, <a href="#body-group">§ 2.3.2 Group</a>, and <a href="#body-entry">§ 2.3.3.1 Entry</a> data items.</p>
    <figure class="table" id="rootBodyContent">
     <table class="complex data longlastcol">
      <tbody>
@@ -2803,58 +2653,24 @@ masterSecret <c- o>=</c-> HKDF<c- p>.</c->extract<c- p>(</c-><c- u>"CCDB"</c-><c
       <tr>
        <td>meta (0x00)
        <td>map
-       <td> Properties describing the database itself (<a href="#body-meta">§ 2.3.1.1 Meta</a>). 
+       <td> Properties describing the database itself (<a href="#body-meta">§ 2.3.1 Meta</a>). 
        <td>
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="entries">entries</dfn> (0x01)
-       <td>[+ <a href="#body-entry">§ 2.3.1.4 Entry</a>]
+       <td>[+ <a href="#body-entry">§ 2.3.3.1 Entry</a>]
        <td> All entries of this database. 
        <td>
       <tr>
        <td>groups (0x02)
-       <td><a href="#body-group">§ 2.3.1.2 Group</a>
+       <td><a href="#body-group">§ 2.3.2 Group</a>
        <td> The root of an arbitrary number of (nested) groups. Groups only hold references
                 to entries within <a data-link-type="dfn" href="#entries" id="ref-for-entries">entries</a>. 
        <td>
     </table>
    </figure>
-<pre class="example" id="example-4e788530"><a class="self-link" href="#example-4e788530"></a>{
-  0x00: {
-    0x00: "PassKeeZ",
-    0x01: "My Secrets",
-    0x02: {0x00: 1714585008, 0x01: 1714585008}
-  },
-  0x01: [
-    {
-      0x00: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
-      0x01: "Github", 
-      0x02: {0x00: 1714585008, 0x01: 1714585008}, 
-      0x03: "I should probably change my password.", 
-      0x04: "supersecret"
-    },
-    {
-      0: "bac9df65-75e4-485f-847c-23a243d93ef2", 
-      1: "Github", 
-      2: {0: 1714585008, 1: 1714585008}, 
-      5: {1: 2, 3: -7, -1: 1, -4: h’299BA40F6547F9A591636BA3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D'}, 
-      6: "github.com", 
-      7: "r4gus", 
-      8: h’B5E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8'
-    }
-  ]
-}
-
-A200A30068506173734B65655A016A4D79205365637265747302A2001A66327DB0011A66327DB00182A5007824306536
-39356332382D343266392D343365342D396163612D336637316364373031646330016647697468756202A2001A66327D
-B0011A66327DB0037825492073686F756C642070726F6261626C79206368616E6765206D792070617373776F72642E04
-6B7375706572736563726574A700782462616339646636352D373565342D343835662D383437632D3233613234336439
-33656632016647697468756202A2001A66327DB0011A66327DB005A4010203262001235820299BA40F6547F9A591636B
-A3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D066A6769746875622E636F6D07657234677573085820B5E36834A0
-DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
-</pre>
-   <h5 class="heading settled" data-level="2.3.1.1" id="body-meta"><span class="secno">2.3.1.1. </span><span class="content">Meta</span><a class="self-link" href="#body-meta"></a></h5>
-   <p>The meta data structure contains information about the database itself, like its name and the time it was created.
-The values of all fields, except for the <code>iv</code>, are encrypted using the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid③">cid</a>). The
+   <h4 class="heading settled" data-level="2.3.1" id="body-meta"><span class="secno">2.3.1. </span><span class="content">Meta</span><a class="self-link" href="#body-meta"></a></h4>
+   <p>The meta data structure contains information about the database itself, like its name and the time it was created.</p>
+   <p>The values of all fields, except for the <code>iv</code>, are encrypted using the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid②">cid</a>). The
 individual fields decrypted by concatenating them:</p>
 <pre class="example highlight" id="example-053d7198"><a class="self-link" href="#example-053d7198"></a>k <c- o>=</c-> HKDF<c- p>.</c->expand<c- p>(</c->masterSecret<c- p>,</c-> <c- u>"meta"</c-><c- p>)</c->
 s <c- o>=</c-> dec<c- p>(</c->gen <c- o>||</c-> name <c- o>||</c-> times<c- p>,</c-> k<c- p>,</c-> iv<c- p>)</c->
@@ -2886,7 +2702,7 @@ s <c- o>=</c-> dec<c- p>(</c->gen <c- o>||</c-> name <c- o>||</c-> times<c- p>,<
        <td>
       <tr>
        <td>times (0x03)
-       <td><a href="#body-times">§ 2.3.1.3 Times</a>
+       <td><a href="#body-times">§ 2.3.3 Times</a>
        <td> Time stamps. This field has to be updated each time the database content is changed. 
        <td>
     </table>
@@ -2900,12 +2716,12 @@ s <c- o>=</c-> dec<c- p>(</c->gen <c- o>||</c-> name <c- o>||</c-> times<c- p>,<
 A30068506173734B65655A016A4D79205365637265747302A2001A66327DB001
 1A66327DB0
 </pre>
-   <h5 class="heading settled" data-level="2.3.1.2" id="body-group"><span class="secno">2.3.1.2. </span><span class="content">Group</span><a class="self-link" href="#body-group"></a></h5>
+   <h4 class="heading settled" data-level="2.3.2" id="body-group"><span class="secno">2.3.2. </span><span class="content">Group</span><a class="self-link" href="#body-group"></a></h4>
    <p>A group represents a way to set entries into context and into relation to each other, e.g., one can
 group multiple entries that belong to the same (online) service represented by its relying party id.
 Groups are represented as (imbalanced) tree, with a root group and a arbitrary number of nested groups.
 Each group has zero or more references to entries.</p>
-   <p>The values of all fields, except for the <code>iv</code> and groups, are encrypted using the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid④">cid</a>). The
+   <p>The values of all fields, except for the <code>iv</code> and groups, are encrypted using the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid③">cid</a>). The
 individual fields are decrypted by concatenating them. The context for the key expansion is the word <code>group</code> followed
 by (nested) group indices separated by colones (<code>:</code>), e.g., <code>"group:0:1"</code> refers to the second entry (1) under the root entry
 (0).</p>
@@ -2944,7 +2760,7 @@ s <c- o>=</c-> dec<c- p>(</c->uuid <c- o>||</c-> name <c- o>||</c-> times <c- o>
       <tr>
        <td>times (0x03)
        <td>map
-       <td> Counters and time values (see <a href="#body-times">§ 2.3.1.3 Times</a>). 
+       <td> Counters and time values (see <a href="#body-times">§ 2.3.3 Times</a>). 
        <td>
       <tr>
        <td>entries (0x04)
@@ -2955,12 +2771,12 @@ s <c- o>=</c-> dec<c- p>(</c->uuid <c- o>||</c-> name <c- o>||</c-> times <c- o>
        <td>
       <tr>
        <td>groups (0x05)
-       <td>[+ <a href="#body-group">§ 2.3.1.2 Group</a> ]
-       <td> An array of <a href="#body-group">§ 2.3.1.2 Group</a>s. 
+       <td>[+ <a href="#body-group">§ 2.3.2 Group</a> ]
+       <td> An array of <a href="#body-group">§ 2.3.2 Group</a>s. 
        <td>Optional
     </table>
    </figure>
-   <h5 class="heading settled" data-level="2.3.1.3" id="body-times"><span class="secno">2.3.1.3. </span><span class="content">Times</span><a class="self-link" href="#body-times"></a></h5>
+   <h4 class="heading settled" data-level="2.3.3" id="body-times"><span class="secno">2.3.3. </span><span class="content">Times</span><a class="self-link" href="#body-times"></a></h4>
    <figure class="table" id="timeContent">
     <table class="complex data longlastcol">
      <tbody>
@@ -2995,9 +2811,9 @@ s <c- o>=</c-> dec<c- p>(</c->uuid <c- o>||</c-> name <c- o>||</c-> times <c- o>
 
 A2001A66327DB0011A66327DB0
 </pre>
-   <h5 class="heading settled" data-level="2.3.1.4" id="body-entry"><span class="secno">2.3.1.4. </span><span class="content">Entry</span><a class="self-link" href="#body-entry"></a></h5>
+   <h5 class="heading settled" data-level="2.3.3.1" id="body-entry"><span class="secno">2.3.3.1. </span><span class="content">Entry</span><a class="self-link" href="#body-entry"></a></h5>
    <p>A entry usually represents a set of credentials for a specific service and user. Each entry has a unique id.</p>
-   <p>The values of all fields, except for the <code>iv</code>, are encrypted using the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid⑤">cid</a>). The
+   <p>The values of all fields, except for the <code>iv</code>, are encrypted using the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid④">cid</a>). The
 individual fields are decrypted by concatenating them. Missing fields are skipped. The context for the 
 key expansion is the index of the entry as little-endian <code>u32</code>, starting from 0.</p>
 <pre class="example highlight" id="example-1f3031ce"><a class="self-link" href="#example-1f3031ce"></a><c- c1>// Decrypt the second entry consisting only of the uuid, times, and pw.</c->
@@ -3039,7 +2855,7 @@ s <c- o>=</c-> dec<c- p>(</c->uuid <c- o>||</c-> times <c- o>||</c-> pw<c- p>,</
        <td>times (0x03)
        <td>map
        <td>
-         Counters and time values (see <a href="#body-times">§ 2.3.1.3 Times</a>). 
+         Counters and time values (see <a href="#body-times">§ 2.3.3 Times</a>). 
         <p class="note" role="note"><span class="marker">Note:</span> For applications supporting passkeys, the UsageCount field might be of particular relevance
                 but please be aware that counters make the synchronization between devices difficult and may lead
                 to scenarios where the user locks himself out of his accounts.</p>
@@ -3098,18 +2914,18 @@ A4            # map(4)
       <tr>
        <td>group (0x0a)
        <td>tstr
-       <td> A UUID (URN) referencing a <a href="#body-group">§ 2.3.1.2 Group</a>. If not present, the given entry is implicitly
+       <td> A UUID (URN) referencing a <a href="#body-group">§ 2.3.2 Group</a>. If not present, the given entry is implicitly
                 associated to the group directly under the document root. 
        <td>Optional
       <tr>
        <td>attach (0x0b)
-       <td>[+ <a href="#attachment">§ 2.3.1.5 Attachment</a> ]
+       <td>[+ <a href="#attachment">§ 2.3.3.2 Attachment</a> ]
        <td> One or more attachments associated with the given entry. This can for example be a file
                 containing recovery keys. 
        <td>Optional
     </table>
    </figure>
-   <h6 class="heading settled" data-level="2.3.1.4.1" id="example-password-entry"><span class="secno">2.3.1.4.1. </span><span class="content">Example: Password Entry</span><a class="self-link" href="#example-password-entry"></a></h6>
+   <h6 class="heading settled" data-level="2.3.3.1.1" id="example-password-entry"><span class="secno">2.3.3.1.1. </span><span class="content">Example: Password Entry</span><a class="self-link" href="#example-password-entry"></a></h6>
 <pre class="example" id="example-24fe29e3"><a class="self-link" href="#example-24fe29e3"></a>{
   0x00: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
   0x01: "Github", 
@@ -3123,7 +2939,7 @@ A500782430653639356332382D343266392D343365342D396163612D33663731
 25492073686F756C642070726F6261626C79206368616E6765206D7920706173
 73776F72642E046B7375706572736563726574
 </pre>
-   <h6 class="heading settled" data-level="2.3.1.4.2" id="example-passkey-entry"><span class="secno">2.3.1.4.2. </span><span class="content">Example: Passkey Entry</span><a class="self-link" href="#example-passkey-entry"></a></h6>
+   <h6 class="heading settled" data-level="2.3.3.1.2" id="example-passkey-entry"><span class="secno">2.3.3.1.2. </span><span class="content">Example: Passkey Entry</span><a class="self-link" href="#example-passkey-entry"></a></h6>
    <p>The given example shows a passkey entry. The passkey properties map to the <code>Entry</code> fields as follows:</p>
    <ul>
     <li data-md>
@@ -3154,7 +2970,7 @@ A700782430653639356332382D343266392D343365342D396163612D33663731
 81C8302D5199DE9D0D066A6769746875622E636F6D07657234677573085820B5
 E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
 </pre>
-   <h5 class="heading settled" data-level="2.3.1.5" id="attachment"><span class="secno">2.3.1.5. </span><span class="content">Attachment</span><a class="self-link" href="#attachment"></a></h5>
+   <h5 class="heading settled" data-level="2.3.3.2" id="attachment"><span class="secno">2.3.3.2. </span><span class="content">Attachment</span><a class="self-link" href="#attachment"></a></h5>
    <figure class="table" id="attachmentEntry">
     <table class="complex data longlastcol">
      <tbody>
@@ -3216,9 +3032,9 @@ Before persisting it to disk, the database must undergo serialization according 
     <li data-md>
      <p><strong>Header Field Length</strong>: Allocate 4 bytes to reserve space for the length of the header fields.</p>
     <li data-md>
-     <p><strong>Generate Initialization Vector (IV)</strong>: Create a new and unique initialization vector (<a data-link-type="dfn" href="#iv" id="ref-for-iv①">iv</a>), ensuring it is not reused.</p>
+     <p><strong>Generate Initialization Vector (IV)</strong>: Create a new and unique initialization vector (<a data-link-type="dfn" href="#iv" id="ref-for-iv">iv</a>), ensuring it is not reused.</p>
     <li data-md>
-     <p>Serialize the header fields, incorporating the <a data-link-type="dfn" href="#iv" id="ref-for-iv②">iv</a>.</p>
+     <p>Serialize the header fields, incorporating the <a data-link-type="dfn" href="#iv" id="ref-for-iv①">iv</a>.</p>
     <li data-md>
      <p><strong>Write Serialized Header Length</strong>: Record the size of the serialized header fields within the 4 bytes reserved in the previous step.</p>
     <li data-md>
@@ -3229,7 +3045,7 @@ Before persisting it to disk, the database must undergo serialization according 
       <li data-md>
        <p>key: The symmetric key specified in <a href="#final-keys">§ 2.2.2.4 Symmetric Keys</a></p>
       <li data-md>
-       <p>Initialization Vector (IV): <a data-link-type="dfn" href="#iv" id="ref-for-iv③">iv</a></p>
+       <p>Initialization Vector (IV): <a data-link-type="dfn" href="#iv" id="ref-for-iv②">iv</a></p>
       <li data-md>
        <p>Associated Data (AD): All data following the Tag (i.e., <code>Header Length || Header || Body Length || Body</code>)</p>
      </ul>
@@ -3256,7 +3072,7 @@ according to the following steps:</p>
       <li data-md>
        <p>key: The symmetric key specified in <a href="#final-keys">§ 2.2.2.4 Symmetric Keys</a>.</p>
       <li data-md>
-       <p>Initialization Vector (IV): <a data-link-type="dfn" href="#iv" id="ref-for-iv④">iv</a></p>
+       <p>Initialization Vector (IV): <a data-link-type="dfn" href="#iv" id="ref-for-iv③">iv</a></p>
       <li data-md>
        <p>Associated Data (AD): <code>Header Length || Header || Body Length || Body</code></p>
      </ul>
@@ -3429,10 +3245,8 @@ for a small message size making compression less relevant. This is why CCDB spec
   <h2 class="no-num no-ref heading settled" id="index"><span class="content">Index</span><a class="self-link" href="#index"></a></h2>
   <h3 class="no-num no-ref heading settled" id="index-defined-here"><span class="content">Terms defined by this specification</span><a class="self-link" href="#index-defined-here"></a></h3>
   <ul class="index">
-   <li><a href="#body-data">Body Data</a><span>, in § 2.3</span>
-   <li><a href="#body-length">Body Length</a><span>, in § 2.3</span>
    <li><a href="#cid">cid</a><span>, in § 2.2.1</span>
-   <li><a href="#entries">entries</a><span>, in § 2.3.1</span>
+   <li><a href="#entries">entries</a><span>, in § 2.3</span>
    <li><a href="#ext">ext</a><span>, in § 2.2.1</span>
    <li><a href="#i">I</a><span>, in § 2.2.1.1</span>
    <li><a href="#iv">iv</a><span>, in § 2.2.1</span>
@@ -3664,14 +3478,12 @@ function parseHTML(markup) {
 "use strict";
 {
 let dfnPanelData = {
-"body-data": {"dfnID":"body-data","dfnText":"Body Data","external":false,"refSections":[{"refs":[{"id":"ref-for-body-data"}],"title":"2.3. Body"}],"url":"#body-data"},
-"body-length": {"dfnID":"body-length","dfnText":"Body Length","external":false,"refSections":[],"url":"#body-length"},
-"cid": {"dfnID":"cid","dfnText":"cid","external":false,"refSections":[{"refs":[{"id":"ref-for-cid"},{"id":"ref-for-cid\u2460"}],"title":"2.2. Trailer"},{"refs":[{"id":"ref-for-cid\u2461"}],"title":"2.2.2.4. Symmetric Keys"},{"refs":[{"id":"ref-for-cid\u2462"}],"title":"2.3.1.1. Meta"},{"refs":[{"id":"ref-for-cid\u2463"}],"title":"2.3.1.2. Group"},{"refs":[{"id":"ref-for-cid\u2464"}],"title":"2.3.1.4. Entry"}],"url":"#cid"},
-"entries": {"dfnID":"entries","dfnText":"entries","external":false,"refSections":[{"refs":[{"id":"ref-for-entries"}],"title":"2.3.1. Body Data Structure"}],"url":"#entries"},
-"ext": {"dfnID":"ext","dfnText":"ext","external":false,"refSections":[{"refs":[{"id":"ref-for-ext"}],"title":"2.2. Trailer"}],"url":"#ext"},
+"cid": {"dfnID":"cid","dfnText":"cid","external":false,"refSections":[{"refs":[{"id":"ref-for-cid"}],"title":"2.2. Trailer"},{"refs":[{"id":"ref-for-cid\u2460"}],"title":"2.2.2.4. Symmetric Keys"},{"refs":[{"id":"ref-for-cid\u2461"}],"title":"2.3.1. Meta"},{"refs":[{"id":"ref-for-cid\u2462"}],"title":"2.3.2. Group"},{"refs":[{"id":"ref-for-cid\u2463"}],"title":"2.3.3.1. Entry"}],"url":"#cid"},
+"entries": {"dfnID":"entries","dfnText":"entries","external":false,"refSections":[{"refs":[{"id":"ref-for-entries"}],"title":"2.3. Body"}],"url":"#entries"},
+"ext": {"dfnID":"ext","dfnText":"ext","external":false,"refSections":[],"url":"#ext"},
 "i": {"dfnID":"i","dfnText":"I","external":false,"refSections":[],"url":"#i"},
-"iv": {"dfnID":"iv","dfnText":"iv","external":false,"refSections":[{"refs":[{"id":"ref-for-iv"}],"title":"2.2. Trailer"},{"refs":[{"id":"ref-for-iv\u2460"},{"id":"ref-for-iv\u2461"},{"id":"ref-for-iv\u2462"}],"title":"2.5. Serialization"},{"refs":[{"id":"ref-for-iv\u2463"}],"title":"2.6. Deserialization"}],"url":"#iv"},
-"kdf": {"dfnID":"kdf","dfnText":"kdf","external":false,"refSections":[{"refs":[{"id":"ref-for-kdf"}],"title":"2.2. Trailer"},{"refs":[{"id":"ref-for-kdf\u2460"}],"title":"2.2.2.4.1. Decrypting the master secret"}],"url":"#kdf"},
+"iv": {"dfnID":"iv","dfnText":"iv","external":false,"refSections":[{"refs":[{"id":"ref-for-iv"},{"id":"ref-for-iv\u2460"},{"id":"ref-for-iv\u2461"}],"title":"2.5. Serialization"},{"refs":[{"id":"ref-for-iv\u2462"}],"title":"2.6. Deserialization"}],"url":"#iv"},
+"kdf": {"dfnID":"kdf","dfnText":"kdf","external":false,"refSections":[{"refs":[{"id":"ref-for-kdf"}],"title":"2.2.2.4.1. Decrypting the master secret"}],"url":"#kdf"},
 "m": {"dfnID":"m","dfnText":"M","external":false,"refSections":[],"url":"#m"},
 "major-version": {"dfnID":"major-version","dfnText":"major version","external":false,"refSections":[],"url":"#major-version"},
 "minor-version": {"dfnID":"minor-version","dfnText":"minor version","external":false,"refSections":[],"url":"#minor-version"},
@@ -4067,10 +3879,8 @@ function genLinkingSyntaxes(dfn) {
 "use strict";
 {
 let refsData = {
-"#body-data": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"body data","type":"dfn","url":"#body-data"},
 "#cid": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"cid","type":"dfn","url":"#cid"},
 "#entries": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"entries","type":"dfn","url":"#entries"},
-"#ext": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"ext","type":"dfn","url":"#ext"},
 "#iv": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"iv","type":"dfn","url":"#iv"},
 "#kdf": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"kdf","type":"dfn","url":"#kdf"},
 "#sig": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"sig","type":"dfn","url":"#sig"},

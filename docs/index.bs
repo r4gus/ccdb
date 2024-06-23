@@ -90,20 +90,49 @@ This document uses the same grammar as used by [[!RFC8152]]. The CBOR structures
 Database Format {#db-format}
 =====================
 
-The CCDB data consists of a CBOR encoded body followed by a trailer. To insure the integrity of the data, the whole data structure
-is protected using a message authentication code (MAC).
+The CCDB data consists of a CBOR encoded body followed by a trailer. To insure the integrity 
+of the data, the whole data structure is protected using a message authentication code (MAC),
+stored alongside the encrpyted master secret within the trailer.
 
-<pre class='railroad'>
-N: Version
-N: Body Length (u64)
-N: Body
-N: Trailer
+The body length is encoded as unsigned 64 bit integer in little endian format and comes before
+and after body, making it easy to traverse the data structure both forwards and backwards. 
+The body is indirectly 32 bit alligned because all elements of the body are also alligned
+by 32 bits.
+
+<pre>
+                            1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     0 |                           Version                             |
+     4 |                                                               |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     8 |                         Body Length                           |
+    12 |                                                               |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    16 /                            Body                               /
+       /                      (variable length N)                      /
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+N + 16 |                         Body Length                           |
+N + 20 |                                                               |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+N + 24 /                           Trailer                             /
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 
 ## Version ## {#version}
 
 The version information together with the magic string "CCDB" marks the beginning
 of a CCDB credential database and is structured as follows:
+
+<pre>
+                        1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 0 |                            "CCDB"                             |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 4 |    major version             |     minor version              |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
 
 <figure id="version" class="table">
     <table class="complex data longlastcol">
@@ -160,44 +189,48 @@ is not neccessarily capable of reading the new format.
 
 ## Trailer ## {#trailer}
 
-The trailer encodes information required to decrypt individual fields of the database. The overall structure of the trailer can be described as follows:
+The trailer encodes information required to decrypt individual entries of the database. 
 
-<pre class='railroad'>
-N: Fields Length (u64)
-OneOrMore:
-    N: Fields
-    Choice:
-        N: [=iv=]
-        N: [=cid=]
-        N: [=kdf=]
-        N: [=ext=]
-N: Master Secret Length (u8)
-N: Master Secret
-N: Tag Length (u8)
-N: Tag
+<pre>
+                            1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     0 |                        Fields Length                          |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     4 /                            Fields                             /
+       /                      (variable length N)                      /
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                        Fields Length                          |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                  Master Secret Length                         |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       /                       Master Secret                           /
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                  Master Secret Length                         |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                         Tag Length                            |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       /                            Tag                                /
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                         Tag Length                            |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 
-The trailer begins with one or more CBOR encoded fields, followed by the master secret and a tag used to verify the entegrity of the overall
-data structure.
+The trailer begins with one or more CBOR encoded fields, followed by the master secret and a 
+tag used to verify the entegrity of the overall data structure. Fields, master secret, and tag
+are all 32 bit alligned, e.g., if the fields CBOR map is 118 bytes long, the fields length
+is also 118 but two zero bytes are appended to the map during serialization.
 
-The master secret is encrypted using the AEAD cipher specified by [=cid=]. The associated data includes all data that comes before the
-length of the master secret. 
+The master secret is encrypted using the AEAD cipher specified by [=cid=]. The associated 
+data includes all data that comes before the length of the master secret. 
 
-<pre class="example">
-43 43 44 42 01 00 00 00
-|_________| |___| |___|
-  "CCDB"      1  .  0
-
-66 00 00 00
-|_________|
-Header Field Length
-
-A463636964036269764C010203040102030401020304636B6466A5652455554944509E298B1
-956DB4773B23DFC3EC6F0A1E6614902614D1910006150086153582001020304010203040102
-030401020304010203040102030401020304010203046365787480
-|_________________________________________________________________________|
-                         Header Fields
-</pre>
+The length of the fields is encoded as a unsigned 32 bit integer in little-endian format. It 
+comes right before and after the CBOR map to allow the traversal of the data structure both
+forwards and backwards. The length of the master secret is encoded as a unsigned 32 bit 
+integer in little-endian format. It comes right before and after the master secret to allow 
+the traversal of the data structure both forwards and backwards. The length of the tag is 
+encoded as a unsigned 32 bit integer. It comes right before and after the tag to allow 
+the traversal of the data structure both forwards and backwards.
 
 ### Trailer Fields ### {#trailer-fields}
 
@@ -425,33 +458,10 @@ k = HKDF.expand(masterSecret, "\x01\x00\x00\x00")
 
 ## Body ## {#body}
 
-Directly after the [[#trailer]] follows the body, consisting of the body length (`u64`) and the body data.
-
-<figure id="body" class="table">
-    <table class="complex data longlastcol">
-        <tr>
-            <th>Name</th>
-            <th>Data Type</th>
-            <th>Description</th>
-        </tr>
-        <tr>
-            <td><dfn>Body Length</dfn></td>
-            <td>u64</td>
-            <td>
-                The length of the [=Body Data=] in bytes.
-            </td>
-        </tr>
-        <tr>
-            <td><dfn>Body Data</dfn></td>
-            <td>Map</td>
-            <td>
-                The [[#body-structure]].
-            </td>
-        </tr>
-    </table>
-</figure>
-
-### Body Data Structure ### {#body-structure}
+The body starts with meta data that contains information about the database itself,
+followed by one or more groups. Within a group there can occur an arbitrary amount
+of entries and further (nested) groups. The body MUST start with a meta data struct
+and there MUST NOT be any further meta data be encoded within the body.
 
 The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], [[#body-group]], and [[#body-entry]] data items.
 
@@ -491,45 +501,10 @@ The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], 
     </table>
 </figure>
 
-<pre class="example">
-{
-  0x00: {
-    0x00: "PassKeeZ",
-    0x01: "My Secrets",
-    0x02: {0x00: 1714585008, 0x01: 1714585008}
-  },
-  0x01: [
-    {
-      0x00: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
-      0x01: "Github", 
-      0x02: {0x00: 1714585008, 0x01: 1714585008}, 
-      0x03: "I should probably change my password.", 
-      0x04: "supersecret"
-    },
-    {
-      0: "bac9df65-75e4-485f-847c-23a243d93ef2", 
-      1: "Github", 
-      2: {0: 1714585008, 1: 1714585008}, 
-      5: {1: 2, 3: -7, -1: 1, -4: h'299BA40F6547F9A591636BA3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D'}, 
-      6: "github.com", 
-      7: "r4gus", 
-      8: h'B5E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8'
-    }
-  ]
-}
-
-A200A30068506173734B65655A016A4D79205365637265747302A2001A66327DB0011A66327DB00182A5007824306536
-39356332382D343266392D343365342D396163612D336637316364373031646330016647697468756202A2001A66327D
-B0011A66327DB0037825492073686F756C642070726F6261626C79206368616E6765206D792070617373776F72642E04
-6B7375706572736563726574A700782462616339646636352D373565342D343835662D383437632D3233613234336439
-33656632016647697468756202A2001A66327DB0011A66327DB005A4010203262001235820299BA40F6547F9A591636B
-A3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D066A6769746875622E636F6D07657234677573085820B5E36834A0
-DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
-</pre>
-
-#### Meta #### {#body-meta}
+### Meta ### {#body-meta}
 
 The meta data structure contains information about the database itself, like its name and the time it was created.
+
 The values of all fields, except for the `iv`, are encrypted using the selected cipher ([=cid=]). The
 individual fields decrypted by concatenating them:
 
@@ -594,7 +569,7 @@ A30068506173734B65655A016A4D79205365637265747302A2001A66327DB001
 1A66327DB0
 </pre>
 
-#### Group #### {#body-group}
+### Group ### {#body-group}
 
 A group represents a way to set entries into context and into relation to each other, e.g., one can
 group multiple entries that belong to the same (online) service represented by its relying party id.
@@ -675,7 +650,7 @@ s = dec(uuid || name || times || entries, k, iv)
     </table>
 </figure>
 
-#### Times #### {#body-times}
+### Times ### {#body-times}
 
 <figure id="timeContent" class="table">
     <table class="complex data longlastcol">
