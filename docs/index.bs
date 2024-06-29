@@ -3,9 +3,9 @@ Title: KDBX Next Generation (kdbxng) Credential Database Format
 Shortname: KDBXNG
 Level: 1
 Status: DREAM
-Work Status: exploring
-Repository: https://github.com/r4gus/ccdb
-URL: https://r4gus.github.io/ccdb/index.html
+Work Status: exploring 
+Repository: https://github.com/r4gus/kdbxng
+URL: https://r4gus.github.io/kdbxng/docs/index.html
 Editor: David P. Sugar, david@thesugar.de
 Abstract: foo bar
 Warning: Not Ready
