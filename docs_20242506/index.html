@@ -1,7 +1,7 @@
 <!doctype html><html lang="en">
  <head>
   <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
-  <title>KDBX Next Generation (kdbxng) Credential Database Format</title>
+  <title>CBOR Credential Database Format</title>
   <meta content="width=device-width, initial-scale=1, shrink-to-fit=no" name="viewport">
 <style data-fill-with="stylesheet">/******************************************************************************
  *                   Style sheet for the W3C specifications                   *
@@ -2047,11 +2047,132 @@ a.self-link::before            { content: "¶"; }
 .heading > a.self-link::before { content: "§"; }
 dfn > a.self-link::before      { content: "#"; }
 </style>
+<style>/* Boilerplate: style-syntax-highlighting */
+code.highlight { padding: .1em; border-radius: .3em; }
+pre.highlight, pre > code.highlight { display: block; padding: 1em; margin: .5em 0; overflow: auto; border-radius: 0; }
+
+.highlight:not(.idl) { background: rgba(0, 0, 0, .03); }
+c-[a] { color: #990055 } /* Keyword.Declaration */
+c-[b] { color: #990055 } /* Keyword.Type */
+c-[c] { color: #708090 } /* Comment */
+c-[d] { color: #708090 } /* Comment.Multiline */
+c-[e] { color: #0077aa } /* Name.Attribute */
+c-[f] { color: #669900 } /* Name.Tag */
+c-[g] { color: #222222 } /* Name.Variable */
+c-[k] { color: #990055 } /* Keyword */
+c-[l] { color: #000000 } /* Literal */
+c-[m] { color: #000000 } /* Literal.Number */
+c-[n] { color: #0077aa } /* Name */
+c-[o] { color: #999999 } /* Operator */
+c-[p] { color: #999999 } /* Punctuation */
+c-[s] { color: #a67f59 } /* Literal.String */
+c-[t] { color: #a67f59 } /* Literal.String.Single */
+c-[u] { color: #a67f59 } /* Literal.String.Double */
+c-[cp] { color: #708090 } /* Comment.Preproc */
+c-[c1] { color: #708090 } /* Comment.Single */
+c-[cs] { color: #708090 } /* Comment.Special */
+c-[kc] { color: #990055 } /* Keyword.Constant */
+c-[kn] { color: #990055 } /* Keyword.Namespace */
+c-[kp] { color: #990055 } /* Keyword.Pseudo */
+c-[kr] { color: #990055 } /* Keyword.Reserved */
+c-[ld] { color: #000000 } /* Literal.Date */
+c-[nc] { color: #0077aa } /* Name.Class */
+c-[no] { color: #0077aa } /* Name.Constant */
+c-[nd] { color: #0077aa } /* Name.Decorator */
+c-[ni] { color: #0077aa } /* Name.Entity */
+c-[ne] { color: #0077aa } /* Name.Exception */
+c-[nf] { color: #0077aa } /* Name.Function */
+c-[nl] { color: #0077aa } /* Name.Label */
+c-[nn] { color: #0077aa } /* Name.Namespace */
+c-[py] { color: #0077aa } /* Name.Property */
+c-[ow] { color: #999999 } /* Operator.Word */
+c-[mb] { color: #000000 } /* Literal.Number.Bin */
+c-[mf] { color: #000000 } /* Literal.Number.Float */
+c-[mh] { color: #000000 } /* Literal.Number.Hex */
+c-[mi] { color: #000000 } /* Literal.Number.Integer */
+c-[mo] { color: #000000 } /* Literal.Number.Oct */
+c-[sb] { color: #a67f59 } /* Literal.String.Backtick */
+c-[sc] { color: #a67f59 } /* Literal.String.Char */
+c-[sd] { color: #a67f59 } /* Literal.String.Doc */
+c-[se] { color: #a67f59 } /* Literal.String.Escape */
+c-[sh] { color: #a67f59 } /* Literal.String.Heredoc */
+c-[si] { color: #a67f59 } /* Literal.String.Interpol */
+c-[sx] { color: #a67f59 } /* Literal.String.Other */
+c-[sr] { color: #a67f59 } /* Literal.String.Regex */
+c-[ss] { color: #a67f59 } /* Literal.String.Symbol */
+c-[vc] { color: #0077aa } /* Name.Variable.Class */
+c-[vg] { color: #0077aa } /* Name.Variable.Global */
+c-[vi] { color: #0077aa } /* Name.Variable.Instance */
+c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
+
+@media (prefers-color-scheme: dark) {
+    .highlight:not(.idl) { background: rgba(255, 255, 255, .05); }
+
+    c-[a] { color: #d33682 } /* Keyword.Declaration */
+    c-[b] { color: #d33682 } /* Keyword.Type */
+    c-[c] { color: #2aa198 } /* Comment */
+    c-[d] { color: #2aa198 } /* Comment.Multiline */
+    c-[e] { color: #268bd2 } /* Name.Attribute */
+    c-[f] { color: #b58900 } /* Name.Tag */
+    c-[g] { color: #cb4b16 } /* Name.Variable */
+    c-[k] { color: #d33682 } /* Keyword */
+    c-[l] { color: #657b83 } /* Literal */
+    c-[m] { color: #657b83 } /* Literal.Number */
+    c-[n] { color: #268bd2 } /* Name */
+    c-[o] { color: #657b83 } /* Operator */
+    c-[p] { color: #657b83 } /* Punctuation */
+    c-[s] { color: #6c71c4 } /* Literal.String */
+    c-[t] { color: #6c71c4 } /* Literal.String.Single */
+    c-[u] { color: #6c71c4 } /* Literal.String.Double */
+    c-[ch] { color: #2aa198 } /* Comment.Hashbang */
+    c-[cp] { color: #2aa198 } /* Comment.Preproc */
+    c-[cpf] { color: #2aa198 } /* Comment.PreprocFile */
+    c-[c1] { color: #2aa198 } /* Comment.Single */
+    c-[cs] { color: #2aa198 } /* Comment.Special */
+    c-[kc] { color: #d33682 } /* Keyword.Constant */
+    c-[kn] { color: #d33682 } /* Keyword.Namespace */
+    c-[kp] { color: #d33682 } /* Keyword.Pseudo */
+    c-[kr] { color: #d33682 } /* Keyword.Reserved */
+    c-[ld] { color: #657b83 } /* Literal.Date */
+    c-[nc] { color: #268bd2 } /* Name.Class */
+    c-[no] { color: #268bd2 } /* Name.Constant */
+    c-[nd] { color: #268bd2 } /* Name.Decorator */
+    c-[ni] { color: #268bd2 } /* Name.Entity */
+    c-[ne] { color: #268bd2 } /* Name.Exception */
+    c-[nf] { color: #268bd2 } /* Name.Function */
+    c-[nl] { color: #268bd2 } /* Name.Label */
+    c-[nn] { color: #268bd2 } /* Name.Namespace */
+    c-[py] { color: #268bd2 } /* Name.Property */
+    c-[ow] { color: #657b83 } /* Operator.Word */
+    c-[mb] { color: #657b83 } /* Literal.Number.Bin */
+    c-[mf] { color: #657b83 } /* Literal.Number.Float */
+    c-[mh] { color: #657b83 } /* Literal.Number.Hex */
+    c-[mi] { color: #657b83 } /* Literal.Number.Integer */
+    c-[mo] { color: #657b83 } /* Literal.Number.Oct */
+    c-[sa] { color: #6c71c4 } /* Literal.String.Affix */
+    c-[sb] { color: #6c71c4 } /* Literal.String.Backtick */
+    c-[sc] { color: #6c71c4 } /* Literal.String.Char */
+    c-[dl] { color: #6c71c4 } /* Literal.String.Delimiter */
+    c-[sd] { color: #6c71c4 } /* Literal.String.Doc */
+    c-[se] { color: #6c71c4 } /* Literal.String.Escape */
+    c-[sh] { color: #6c71c4 } /* Literal.String.Heredoc */
+    c-[si] { color: #6c71c4 } /* Literal.String.Interpol */
+    c-[sx] { color: #6c71c4 } /* Literal.String.Other */
+    c-[sr] { color: #6c71c4 } /* Literal.String.Regex */
+    c-[ss] { color: #6c71c4 } /* Literal.String.Symbol */
+    c-[fm] { color: #268bd2 } /* Name.Function.Magic */
+    c-[vc] { color: #cb4b16 } /* Name.Variable.Class */
+    c-[vg] { color: #cb4b16 } /* Name.Variable.Global */
+    c-[vi] { color: #cb4b16 } /* Name.Variable.Instance */
+    c-[vm] { color: #cb4b16 } /* Name.Variable.Magic */
+    c-[il] { color: #657b83 } /* Literal.Number.Integer.Long */
+}
+</style>
  <body class="h-entry">
   <div class="head">
    <p data-fill-with="logo"></p>
-   <h1 class="p-name no-ref" id="title">KDBX Next Generation (kdbxng) Credential Database Format</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">A Collection of Interesting Ideas, <time class="dt-updated" datetime="2024-06-29">29 June 2024</time></span></h2>
+   <h1 class="p-name no-ref" id="title">CBOR Credential Database Format</h1>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-06-24">24 June 2024</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2062,18 +2183,10 @@ dfn > a.self-link::before      { content: "#"; }
      <dd class="editor p-author h-card vcard"><a class="p-name fn u-email email" href="mailto:david@thesugar.de">David P. Sugar</a>
     </dl>
    </div>
-   <div data-fill-with="warning">
-    <details class="annoying-warning" open>
-     <summary>Not Ready For Implementation</summary>
-     <p> This spec is not yet ready for implementation.
-		It exists in this repository to record the ideas and promote discussion. </p>
-     <p> Before attempting to implement this spec,
-		please contact the editors. </p>
-    </details>
-   </div>
+   <div data-fill-with="warning"></div>
    <p class="copyright" data-fill-with="copyright"><a href="http://creativecommons.org/publicdomain/zero/1.0/" rel="license"><img alt="CC0" height="15" src="https://licensebuttons.net/p/zero/1.0/80x15.png" width="80"></a> To the extent possible under law, the editors have waived all copyright
 and related or neighboring rights to this work.
-In addition, as of 29 June 2024,
+In addition, as of 24 June 2024,
 the editors have made this specification available under the <a href="https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0" rel="license">Open Web Foundation Agreement Version 1.0</a>,
 which is available at https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0.
 Parts of this work may be from another specification document.  If so, those parts are instead covered by the license of that specification document. </p>
@@ -2081,68 +2194,70 @@ Parts of this work may be from another specification document.  If so, those par
   </div>
   <div class="p-summary" data-fill-with="abstract">
    <h2 class="no-num no-toc no-ref heading settled" id="abstract"><span class="content">Abstract</span></h2>
-   <p>foo bar</p>
+   <p>Specification for the CBOR Credential Database Format (CCDB) providing confidentiality and integrity for credentials and other sensitive data at rest.</p>
   </div>
   <div data-fill-with="at-risk"></div>
   <nav data-fill-with="table-of-contents" id="toc">
    <h2 class="no-num no-toc no-ref" id="contents">Table of Contents</h2>
    <ol class="toc" role="directory">
-    <li><a href="#intro"><span class="secno">1</span> <span class="content">Introduction</span></a>
     <li>
-     <a href="#structure"><span class="secno">2</span> <span class="content">General File Structure</span></a>
+     <a href="#intro"><span class="secno">1</span> <span class="content">Introduction</span></a>
      <ol class="toc">
-      <li><a href="#general-block-structure"><span class="secno">2.1</span> <span class="content">General Block Structure</span></a>
-      <li><a href="#block-types"><span class="secno">2.2</span> <span class="content">Block Types</span></a>
-      <li><a href="#logical-block-hierarchy"><span class="secno">2.3</span> <span class="content">Logical Block Hierarchy</span></a>
-      <li><a href="#physical-file-layout"><span class="secno">2.4</span> <span class="content">Physical File Layout</span></a>
-      <li>
-       <a href="#options"><span class="secno">2.5</span> <span class="content">Options</span></a>
-       <ol class="toc">
-        <li><a href="#custom-options"><span class="secno">2.5.1</span> <span class="content">Custom Options</span></a>
-       </ol>
-      <li>
-       <a href="#data-format"><span class="secno">2.6</span> <span class="content">Data Format</span></a>
-       <ol class="toc">
-        <li><a href="#endianness"><span class="secno">2.6.1</span> <span class="content">Endianness</span></a>
-        <li><a href="#allignment"><span class="secno">2.6.2</span> <span class="content">Allignment</span></a>
-        <li><a href="#strings"><span class="secno">2.6.3</span> <span class="content">Strings</span></a>
-       </ol>
+      <li><a href="#conventions"><span class="secno">1.1</span> <span class="content">Conventions</span></a>
+      <li><a href="#cbor-grammar"><span class="secno">1.2</span> <span class="content">CBOR Grammar</span></a>
      </ol>
     <li>
-     <a href="#block-definition"><span class="secno">3</span> <span class="content">Block Definition</span></a>
+     <a href="#db-format"><span class="secno">2</span> <span class="content">Database Format</span></a>
      <ol class="toc">
+      <li><a href="#version"><span class="secno">2.1</span> <span class="content">Version</span></a>
       <li>
-       <a href="#header-block"><span class="secno">3.1</span> <span class="content">Database Header Block</span></a>
+       <a href="#trailer"><span class="secno">2.2</span> <span class="content">Trailer</span></a>
        <ol class="toc">
-        <li><a href="#cipher-suites"><span class="secno">3.1.1</span> <span class="content">Cipher Suites</span></a>
-        <li><a href="#kdf-field"><span class="secno">3.1.2</span> <span class="content">KDF Field</span></a>
+        <li>
+         <a href="#trailer-fields"><span class="secno">2.2.1</span> <span class="content">Trailer Fields</span></a>
+         <ol class="toc">
+          <li><a href="#kdf-map"><span class="secno">2.2.1.1</span> <span class="content">KDF Parameters</span></a>
+         </ol>
+        <li>
+         <a href="#key-derivation"><span class="secno">2.2.2</span> <span class="content">Key Derivation</span></a>
+         <ol class="toc">
+          <li><a href="#password"><span class="secno">2.2.2.1</span> <span class="content">Password</span></a>
+          <li><a href="#key-file"><span class="secno">2.2.2.2</span> <span class="content">Key File</span></a>
+          <li><a href="#key-provider"><span class="secno">2.2.2.3</span> <span class="content">Key Provider</span></a>
+          <li>
+           <a href="#final-keys"><span class="secno">2.2.2.4</span> <span class="content">Symmetric Keys</span></a>
+           <ol class="toc">
+            <li><a href="#decrypting-the-master-secret"><span class="secno">2.2.2.4.1</span> <span class="content">Decrypting the master secret</span></a>
+            <li><a href="#deriving-symmetric-keys"><span class="secno">2.2.2.4.2</span> <span class="content">Deriving symmetric keys</span></a>
+           </ol>
+         </ol>
        </ol>
-      <li><a href="#secrets-block"><span class="secno">3.2</span> <span class="content">Secrets Block</span></a>
-     </ol>
-    <li><a href="#block-type-codes"><span class="secno">4</span> <span class="content">Standardized Block Type Codes</span></a>
-    <li>
-     <a href="#thread-modell"><span class="secno">5</span> <span class="content">Thread Model</span></a>
-     <ol class="toc">
-      <li><a href="#assumptions"><span class="secno">5.1</span> <span class="content">Assumptions</span></a>
-      <li><a href="#threads"><span class="secno">5.2</span> <span class="content">Threads</span></a>
-      <li><a href="#mitigations"><span class="secno">5.3</span> <span class="content">Mitigations</span></a>
-      <li><a href="#policies"><span class="secno">5.4</span> <span class="content">Policies</span></a>
-     </ol>
-    <li>
-     <a href="#file-encryption"><span class="secno">6</span> <span class="content">File Encryption</span></a>
-     <ol class="toc">
       <li>
-       <a href="#key-derivation"><span class="secno">6.1</span> <span class="content">Key Derivation</span></a>
+       <a href="#body"><span class="secno">2.3</span> <span class="content">Body</span></a>
        <ol class="toc">
-        <li><a href="#password"><span class="secno">6.1.1</span> <span class="content">Password</span></a>
-        <li><a href="#key-file"><span class="secno">6.1.2</span> <span class="content">Key File</span></a>
-        <li><a href="#key-provider"><span class="secno">6.1.3</span> <span class="content">Key Provider</span></a>
-        <li><a href="#symmetic-key-derivation"><span class="secno">6.1.4</span> <span class="content">Symmetic Key Derivation</span></a>
+        <li><a href="#body-meta"><span class="secno">2.3.1</span> <span class="content">Meta</span></a>
+        <li><a href="#body-group"><span class="secno">2.3.2</span> <span class="content">Group</span></a>
+        <li>
+         <a href="#body-times"><span class="secno">2.3.3</span> <span class="content">Times</span></a>
+         <ol class="toc">
+          <li>
+           <a href="#body-entry"><span class="secno">2.3.3.1</span> <span class="content">Entry</span></a>
+           <ol class="toc">
+            <li><a href="#example-password-entry"><span class="secno">2.3.3.1.1</span> <span class="content">Example: Password Entry</span></a>
+            <li><a href="#example-passkey-entry"><span class="secno">2.3.3.1.2</span> <span class="content">Example: Passkey Entry</span></a>
+           </ol>
+          <li><a href="#attachment"><span class="secno">2.3.3.2</span> <span class="content">Attachment</span></a>
+         </ol>
        </ol>
-      <li><a href="#file-en--decryption"><span class="secno">6.2</span> <span class="content">File En-/Decryption</span></a>
-      <li><a href="#integrity-check"><span class="secno">6.3</span> <span class="content">Integrity Check</span></a>
+      <li>
+       <a href="#extensions"><span class="secno">2.4</span> <span class="content">Extensions</span></a>
+       <ol class="toc">
+        <li><a href="#passkey"><span class="secno">2.4.1</span> <span class="content">Passkey</span></a>
+       </ol>
+      <li><a href="#serialization"><span class="secno">2.5</span> <span class="content">Serialization</span></a>
+      <li><a href="#deserialization"><span class="secno">2.6</span> <span class="content">Deserialization</span></a>
      </ol>
-    <li><a href="#recommendet-extension"><span class="secno">7</span> <span class="content">Recommended File Name Extension: .kdbxng</span></a>
+    <li><a href="#security"><span class="secno">3</span> <span class="content">Security Considerations</span></a>
     <li><a href="#conformance"><span class="secno"></span> <span class="content"> Conformance</span></a>
     <li>
      <a href="#index"><span class="secno"></span> <span class="content">Index</span></a>
@@ -2153,583 +2268,834 @@ Parts of this work may be from another specification document.  If so, those par
      <a href="#references"><span class="secno"></span> <span class="content">References</span></a>
      <ol class="toc">
       <li><a href="#normative"><span class="secno"></span> <span class="content">Normative References</span></a>
+      <li><a href="#informative"><span class="secno"></span> <span class="content">Informative References</span></a>
      </ol>
    </ol>
   </nav>
   <main>
    <h2 class="heading settled" data-level="1" id="intro"><span class="secno">1. </span><span class="content">Introduction</span><a class="self-link" href="#intro"></a></h2>
-   <p>The problem of storing secrets securely is an important part of credential management;
-unfortunately, most password managers and other applications managing secrets implement
-their own, and some times proprietary, credential database scheme. One of the most
-used database formats, used by many open source applications, is KDBX, defined by
-KeePass, which is rather old and has some legacy issues.</p>
-   <p>This document proposes a new format for storing credentials at rest. The following goals are
-being pursued:</p>
-   <p>Extensibility: The format allows to add new capabilities to the file format over time, and third parties should be able to enrich the information embedded in the file with proprietary extensions, with tools unaware of newer extensions being able to ignore them.</p>
-   <p>Resilience: The format protects the data using state-of-the-art cryptographic algorithms to ensure the confidentiality and integrity of the protected data.</p>
-   <h2 class="heading settled" data-level="2" id="structure"><span class="secno">2. </span><span class="content">General File Structure</span><a class="self-link" href="#structure"></a></h2>
-   <h3 class="heading settled" data-level="2.1" id="general-block-structure"><span class="secno">2.1. </span><span class="content">General Block Structure</span><a class="self-link" href="#general-block-structure"></a></h3>
-   <p>The format builds upon the <a href="https://www.ietf.org/archive/id/draft-ietf-opsawg-pcapng-01.html">pcapng</a> file format, sharing many of general data structures. Readers familiar with the mentioned RFC draft should
-recognize overlaping sections. The format has been chosen for its extensibility and linear structure with well defined
-boundaries for every block.</p>
-   <p>A database file is organized in blocks, that are appended one to another to form the file. All the blocks share a common format, which is shown below.</p>
+   <p>This document defines a database format enabling the secure storage of credentials.
+At its core, this format encapsulates a robust encryption mechanism, housing all data within a single encrypted file securely stored on users' devices. Encryption is fortified by a secret derived from a source previously designated by the user, typically a password, ensuring that the database remains inaccessible to unauthorized entities. Access to the database content is only granted upon decryption with the corresponding key, guaranteeing the confidentiality and integrity of stored information.</p>
+   <p>Crafted with security and usability in mind, this format can be of use for applications that require secure storage at rest. Whether it’s password managers, FIDO-capable authenticators, or other credential management systems.</p>
+   <p>The format was designed to fulfill following requirements (see also <a href="#security">§ 3 Security Considerations</a>):</p>
+   <ul>
+    <li data-md>
+     <p><strong>Small Memory Footprint at Rest</strong>: The format minimizes storage requirements while maintaining robust encryption standards.</p>
+    <li data-md>
+     <p><strong>Resilience Against Diverse Threats</strong>: This format uses state-of-the-art AEAD ciphers to ensure confidentiality and integrity.</p>
+    <li data-md>
+     <p><strong>Ease of Implementation</strong>: With a focus on simplicity and accessibility, developers can seamlessly integrate this format into their applications.</p>
+    <li data-md>
+     <p><strong>Scalability and Extensibility</strong>: This format is designed with extensibility in mind, accommodating future enhancements and adaptations.</p>
+   </ul>
+   <p>The format builds upon the proven foundation of the Concise Binary Object Representation (CBOR) <a data-link-type="biblio" href="#biblio-rfc8949" title="Concise Binary Object Representation (CBOR)">[RFC8949]</a>. By leveraging CBOR’s compact structure and extensibility, the database size is optimized, surpassing conventional formats like <a data-link-type="biblio" href="#biblio-xml" title="Extensible Markup Language (XML) 1.0 (Fifth Edition)">[XML]</a> in both size and flexibility.</p>
+   <p>Moreover, the architecture of this format is characterized by its reliance on universally available data types and algorithms. From CBOR de-/serializer libraries boasting minimal code footprint to Authenticated Encryption with Associated Data (AEAD) ciphers widely supported across cryptographic libraries and hardware.</p>
+   <p>The culmination of these design choices manifests in a format tailor-made for a spectrum of systems, including those with limited resources such as embedded systems. The synergy of compact data size, minimal program overhead, and potential hardware acceleration for supported ciphers positions this format as a versatile solution capable of meeting the stringent security demands of modern applications.</p>
+   <p class="note" role="note"><span class="marker">Note:</span> This format focuses on storing secrets and other data directly related to those secrets like the service the secret is associated with, a user name, or recovery keys (e.g., as attachment).
+It is a non-goal to store data that may be used to customize the representation of the data like colors, icons, and other things. One exception are groups as they may be usefull to group and
+later query related sets of data.</p>
+   <h3 class="heading settled" data-level="1.1" id="conventions"><span class="secno">1.1. </span><span class="content">Conventions</span><a class="self-link" href="#conventions"></a></h3>
+   <dl>
+    <dt data-md>Byte
+    <dd data-md>
+     <p>A byte is a value in the range <code>[0, 255]</code> that can be represented with 8 bits.</p>
+    <dt data-md>Unsigned numbers
+    <dd data-md>
+     <p>Unsigned numbers are represented as <code>uN</code>, a number in the range <code>[0, 2^n - 1]</code>, e.g., <code>u32</code> is a number between 0 and 4294967295.</p>
+    <dt data-md>Signed numbers
+    <dd data-md>
+     <p>Signed numbers are represented as <code>iN</code>, a number in the range <code>[-2^(N - 1), 2^(n - 1) - 1]</code>, e.g., <code>i32</code> is a number between 2147483648 and 2147483647.</p>
+    <dt data-md>Endianness
+    <dd data-md>
+     <p>All numbers are stored in the little-endian format, e.g., the <code>u32</code> number 0x12345678 is stored as <code>78 56 34 12</code> consecutively in memory.</p>
+    <dt data-md>Byte sequence
+    <dd data-md>
+     <p>A byte sequence is denoted as <code>byte[N]</code> where <code>N</code> is the number of consecutive bytes in memory.</p>
+    <dt data-md>UUID
+    <dd data-md>
+     <p>Certain elements like ciphers and key derivation functions are encoded as Universally Unique IDentifiers <a data-link-type="biblio" href="#biblio-rfc4122" title="Universally Unique IDentifiers (UUIDs)">[RFC4122]</a> with the version 4 (random data).</p>
+    <dt data-md>String
+    <dd data-md>
+     <p>A UTF-8 string.</p>
+   </dl>
+   <h3 class="heading settled" data-level="1.2" id="cbor-grammar"><span class="secno">1.2. </span><span class="content">CBOR Grammar</span><a class="self-link" href="#cbor-grammar"></a></h3>
+   <p>This document uses the same grammar as used by <a data-link-type="biblio" href="#biblio-rfc8152" title="CBOR Object Signing and Encryption (COSE): Initial Algorithms">[RFC8152]</a>. The CBOR structures are described in prose.</p>
+   <dl>
+    <dt data-md>bool
+    <dd data-md>
+     <p>A boolean value (true: major type 7, value 21; false: major type 7, value 20)</p>
+    <dt data-md>int
+    <dd data-md>
+     <p>An unsigned integer or a negative integer.</p>
+    <dt data-md>uint
+    <dd data-md>
+     <p>An unsigned integer (major type 0)</p>
+    <dt data-md>nint
+    <dd data-md>
+     <p>A negative integer (major type 1)</p>
+    <dt data-md>bstr
+    <dd data-md>
+     <p>Byte string (major type 2)</p>
+    <dt data-md>tstr
+    <dd data-md>
+     <p>Text string (major type 3)</p>
+    <dt data-md>map
+    <dd data-md>
+     <p>A CBOR map (major type 5)</p>
+    <dt data-md>[+ FOO]
+    <dd data-md>
+     <p>Indicates that the type FOO appears one or more times in an array.</p>
+   </dl>
+   <h2 class="heading settled" data-level="2" id="db-format"><span class="secno">2. </span><span class="content">Database Format</span><a class="self-link" href="#db-format"></a></h2>
+   <p>The CCDB data consists of a CBOR encoded body followed by a trailer. To insure the integrity
+of the data, the whole data structure is protected using a message authentication code (MAC),
+stored alongside the encrpyted master secret within the trailer.</p>
+   <p>The body length is encoded as unsigned 64 bit integer in little endian format and comes before
+and after body, making it easy to traverse the data structure both forwards and backwards. 
+The body is indirectly 32 bit alligned because all elements of the body are also alligned
+by 32 bits.</p>
+<pre>                            1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     0 |                           Version                             |
+     4 |                                                               |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     8 |                         Body Length                           |
+    12 |                                                               |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    16 /                            Body                               /
+       /                      (variable length N)                      /
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+N + 16 |                         Body Length                           |
+N + 20 |                                                               |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+N + 24 /                           Trailer                             /
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
+   <h3 class="heading settled" data-level="2.1" id="version"><span class="secno">2.1. </span><span class="content">Version</span><a class="self-link" href="#version"></a></h3>
+   <p>The version information together with the magic string "CCDB" marks the beginning
+of a CCDB credential database and is structured as follows:</p>
 <pre>                       1                   2                   3
    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-0 |                          Block Type                           |
+0 |                            "CCDB"                             |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-4 |                      Block Total Length                       |
-  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-8 /                          Block Body                           /
-  /              variable length, padded to 32 bits               /
-  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |                      Block Total Length                       |
+4 |    major version             |     minor version              |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
-   <p>The fields have the following meaning:</p>
-   <ul>
-    <li data-md>
-     <p>Block Type (32 bits): a unique unsigned value that identifies the block. Values whose Most Significant Bit (MSB) is equal to 1 are reserved for local use. They can be used to make extensions to the file format to save private data to the file. The list of currently defined types can be found in <a href="#block-type-codes">§ 4 Standardized Block Type Codes</a>.</p>
-    <li data-md>
-     <p>Block Total Length (32 bits): an unsigned value giving the total size of this block, in octets. For instance, the length of a block that does not have a body is 12 octets: 4 octets for the Block Type, 4 octets for the initial Block Total Length and 4 octets for the trailing Block Total Length. This value MUST be a multiple of 4.</p>
-    <li data-md>
-     <p>Block Body: content of the block.</p>
-    <li data-md>
-     <p>Block Total Length: total size of this block, in octets. This field is duplicated to permit backward file navigation.</p>
-   </ul>
-   <p>This structure, shared among all blocks, makes it easy to process a file and to skip unneeded or unknown blocks. Some blocks can contain other blocks inside (nested blocks). Some of the blocks are mandatory, i.e. a capture file is not valid if they are not present, other are optional.</p>
-   <p>The General Block Structure allows defining other blocks if needed. A parser that does not understand them can simply ignore their content.</p>
-   <h3 class="heading settled" data-level="2.2" id="block-types"><span class="secno">2.2. </span><span class="content">Block Types</span><a class="self-link" href="#block-types"></a></h3>
-   <p>The currently standardized Block Type codes are specified in <a href="#block-type-codes">§ 4 Standardized Block Type Codes</a>; they have been grouped in the following two categories:</p>
-   <p>(1) Mandatory: The following block MUST appear at least once in each file:</p>
-   <ul>
-    <li data-md>
-     <p><a href="#header-block">§ 3.1 Database Header Block</a>: It defines the most important characteristics of the database file.</p>
-   </ul>
-   <p>(2) Optional: The following blocks MAY appear in a file:</p>
-   <p>Requests for new standardized Block Type codes should be made by creating a pull request to update this document.</p>
-   <h3 class="heading settled" data-level="2.3" id="logical-block-hierarchy"><span class="secno">2.3. </span><span class="content">Logical Block Hierarchy</span><a class="self-link" href="#logical-block-hierarchy"></a></h3>
-   <p>The blocks build a logical hierarchy as they refer to each other. The image below shows the logical hierarchy
-of the currently defined blocks in the form of a "tree view":</p>
-<pre>Database Header
- |
- +- Database Description
-    +- Secrets 
-    +- Group
-       +- Secrets
-       +- Group
-          +- Secrets
-</pre>
-   <p>For example: each entry representing a credential refers to a specific database and optionally a group and the group also refers to a database or (nested) group.</p>
-   <h3 class="heading settled" data-level="2.4" id="physical-file-layout"><span class="secno">2.4. </span><span class="content">Physical File Layout</span><a class="self-link" href="#physical-file-layout"></a></h3>
-   <p>The file MUST begin with a Database Header Block. However, more than one Database Header Block can be present in the capture file, each
-one covering the data following it until the next one (or the end of file). A Database includes the data delimited by two Database Header 
-Blocks (or by a Database Header Block and the end of the file), including the first Database Header Block.</p>
-   <p>In case an application cannot read a Database because of different version number, it MUST skip everything until the next Database Header Block. Note that, in order to properly skip the blocks until the next section, all blocks MUST have the fields Type and Length at the beginning. In order to properly skip blocks in the backward direction, all blocks MUST have the Length repeated at the end of the block. These are mandatory requirements that MUST be maintained in future versions of the block format.</p>
-   <p>The image below shows a typical file layout, with a single Database Header that covers the whole file.</p>
-<pre>+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-| DHB v1.0  |                      Data                         |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-</pre>
-   <h3 class="heading settled" data-level="2.5" id="options"><span class="secno">2.5. </span><span class="content">Options</span><a class="self-link" href="#options"></a></h3>
-   <p>All the block bodies MAY embed optional fields. Optional fields can be used to insert some information
-that may be useful in the context of the given block. Therefore, each tool can either read the content of 
-the optional fields (if any), or skip some of them.</p>
-   <p>A block that may contain options must be structured so that the number of octets of data in the Block Body that precede the options can be determined from that data; that allows the beginning of the options to be found. That is true for all standard blocks that support options; for Custom Blocks that support options, the Custom Data must be structured in such a fashion. This means that the Block Length field (present in <a href="#structure">§ 2 General File Structure</a>) can be used to determine how many octets of optional fields, if any, are present in the block. That number can be used to determine whether the block has optional fields (if it is zero, there are no optional fields), to check, when processing optional fields, whether any optional fields remain, and to skip all the optional fields at once.</p>
-   <p>Options are a list of Type - Length - Value fields, each one containing a single value:</p>
-   <ul>
-    <li data-md>
-     <p>Option Type (16 bits): an unsigned value that contains the code that specifies the type of the current option. Option types whose Most Significant Bit is equal to one are reserved for local use; therefore, there is no guarantee that the code used is unique among all database files (generated by other applications), and is most certainly not portable.</p>
-    <li data-md>
-     <p>Option Length (16 bits): an unsigned value that contains the actual length of the following 'Option Value' field without the padding octets.</p>
-    <li data-md>
-     <p>Option Value (variable length): the value of the given option, padded to a 32-bit boundary. The actual length of this field (i.e. without the padding octets) is specified by the Option Length field.</p>
-   </ul>
-   <p>Requests for new standardized option codes for a given block should be made by creating a pull request to update this document.</p>
-   <p>If an option’s value is a string, the value is not necessarily zero-terminated. Software that reads these files MUST NOT assume that strings are zero-terminated, and MUST NOT treat a zero-value octet as a string terminator. The length of the value is always given by the Option Length.</p>
-   <p>Some options may be repeated several times; for example, a block can have multiple comments. Other options may appear at most once in a given block.</p>
-   <p>The option list is terminated by an option which uses the special 'End of Option' code (opt_endofopt). Code that writes kdbxng files MUST put an opt_endofopt option at the end of an option list. Code that reads kdbxng files MUST NOT assume an option list will have an opt_endofopt option at the end; it MUST also check for the end of the block, and SHOULD treat blocks where the option list has no opt_endofopt option as if the option list had an opt_endofopt option at the end.</p>
-   <p>The format of the optional fields is shown below.</p>
-<pre>                     1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|      Option Type              |         Option Length         |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-/                       Option Value                            /
-/              variable length, padded to 32 bits               /
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-/                                                               /
-/                 . . . other options . . .                     /
-/                                                               /
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|   Option Type == opt_endofopt |   Option Length == 0          |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-</pre>
-   <p>The following codes can always be present in any optional field:</p>
-   <figure class="table" id="common-options">
+   <figure class="table" id="version①">
     <table class="complex data longlastcol">
      <tbody>
       <tr>
        <th>Name
-       <th>Type
-       <th>Length
-       <th>Multiple allowed?
+       <th>Data Type
+       <th>Description
       <tr>
-       <td><code>opt_endofopt</code>
-       <td>0
-       <td>0
-       <td>no
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="sig">sig</dfn>
+       <td>u32
+       <td> CCDB 
       <tr>
-       <td><code>opt_comment</code>
-       <td>1
-       <td>variable
-       <td>yes
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="major-version">major version</dfn>
+       <td>u16
+       <td> An unsigned value, giving the number of the current major version
+                of the format. The value for the current version of the format is 1. 
       <tr>
-       <td><code>opt_time</code>
-       <td>2
-       <td>40
-       <td>no
-      <tr>
-       <td><code>opt_tag</code>
-       <td>3
-       <td>variable
-       <td>yes
-      <tr>
-       <td><code>opt_custom</code>
-       <td>2988/2989
-       <td>variable
-       <td>yes
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="minor-version">minor version</dfn>
+       <td>u16
+       <td> An unsigned value, giving the number of the current minor version
+                of the format. The value for the current version of the format is 0. 
     </table>
    </figure>
-   <ul>
-    <li data-md>
-     <p><code>opt_endofopt</code>: The <code>opt_endofopt</code> option delimits the end of the optional fields. This option MUST NOT be repeated within a given list of options.</p>
-    <li data-md>
-     <p><code>opt_comment</code>: The opt_comment option is a UTF-8 string containing human-readable comment text that is associated to the current block. Line separators SHOULD be a carriage-return + linefeed ('\r\n') or just linefeed ('\n'); either form may appear and be considered a line separator. The string is not zero-terminated, e.g.:</p>
-     <ul>
-      <li data-md>
-       <p>"If I have problems with my account I can contact box@example.com"</p>
-     </ul>
-    <li data-md>
-     <p><code>opt_time</code>: Time values occuring in the following order:</p>
-     <ul>
-      <li data-md>
-       <p>Last Modification Time (64 bits): The time the block was modified the last time as (signed) epoch time value in ms.</p>
-      <li data-md>
-       <p>Creation Time (64 bits): The time the block was created the first time as (signed) epoch time value in ms.</p>
-      <li data-md>
-       <p>Last Access Time (64 bits): The time the block was accessed the last time as (signed) epoch time value in ms.</p>
-      <li data-md>
-       <p>Expiry Time (64 bits): The time the block will expire as (signed) epoch time value in ms. The meaning of this depends on the type of the block. A Expiry Time of 0 or less MUST be ignored.</p>
-      <li data-md>
-       <p>Usage Count (64 bits): The number of times the block or its content was used as unsigned integer. The meaning of this depends on the type of the block. The field MAY be ignored.</p>
-     </ul>
-    <li data-md>
-     <p><code>opt_tag</code>: A tag associated with the given block.</p>
-    <li data-md>
-     <p><code>opt_custom</code>: This option is described in detail in <a href="#custom-options">§ 2.5.1 Custom Options</a>.</p>
-   </ul>
-   <h4 class="heading settled" data-level="2.5.1" id="custom-options"><span class="secno">2.5.1. </span><span class="content">Custom Options</span><a class="self-link" href="#custom-options"></a></h4>
-   <p>Customs Options are used for portable, vendor-specific data related to the block they’re in. A Custom Option can be in any block type that can have options, can be repeated any number of times in a block, and may come before or after other option types - except the opt_endofopt option, which is always the last option. Different Custom Options, of different type codes and/or different Private Enterprise Numbers, may be used in the same kdbxng file.</p>
-<pre>                     1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|     Custom Option Type        |         Option Length         |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                Private Enterprise Number (PEN)                |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-/                        Custom Data                            /
-/              variable length, padded to 32 bits               /
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   <p>Writer of ccdb files MUST NOT write files with a major version other than 1 or a minor
+version other than 0. If they do so, they will create a file that many readers of ccdb
+files, such as password managers, will not be able to read.</p>
+   <p>The major version will only be changed with a new major releases of this specification.
+Such a version would introduce breaking changes, meaning the format is changed in a way
+that readers of the new format can not read the old format. Code to read both formats
+would have to check the version number and use different code paths for the two formats.</p>
+   <p>The minor version will only be changed with a new minor release of this specification.
+Such a release introduces changes that are backwards compatible, i.e. a reader of the
+new format is also capable of reading the old format but a reader of the old format
+is not neccessarily capable of reading the new format.</p>
+<pre class="example" id="example-0a44154b"><a class="self-link" href="#example-0a44154b"></a>43 43 44 42 01 00 00 00
+|_________| |___| |___|
+  "CCDB"      1  .  0
 </pre>
-   <p>The Custom Option has the following fields:</p>
-   <ul>
-    <li data-md>
-     <p>Custom Option Type: The type code number for the Custom Option, which can be one of the following decimal numbers:</p>
-     <ul>
-      <li data-md>
-       <p>2988: This option type code identifies a Custom Option containing a UTF-8 string in the Custom Data portion. The string is not zero-terminated.</p>
-      <li data-md>
-       <p>2989: This option type code identifies a Custom Option containing binary octets in the Custom Data portion.</p>
-     </ul>
-    <li data-md>
-     <p>Option Length: as described in <a href="#general-block-structure">§ 2.1 General Block Structure</a>, this contains the length of the option’s value, which includes the 4-octet Private Enterprise Number and variable-length Custom Data fields, without the padding octets.</p>
-    <li data-md>
-     <p>Private Enterprise Number: An IANA-assigned Private Enterprise Number identifying the organization which defined the Custom Option. The PEN MUST be encoded using the same endianness as the Database Header Block it is within the scope of, i.e., little endian.</p>
-    <li data-md>
-     <p>Custom Data: the custom data, padded to a 32 bit boundary.</p>
-   </ul>
-   <h3 class="heading settled" data-level="2.6" id="data-format"><span class="secno">2.6. </span><span class="content">Data Format</span><a class="self-link" href="#data-format"></a></h3>
-   <h4 class="heading settled" data-level="2.6.1" id="endianness"><span class="secno">2.6.1. </span><span class="content">Endianness</span><a class="self-link" href="#endianness"></a></h4>
-   <p>Data contained in each section MUST be encoded in little endian format. This refers to all the fields that are saved as numbers and that span over two or more octets.</p>
-   <h4 class="heading settled" data-level="2.6.2" id="allignment"><span class="secno">2.6.2. </span><span class="content">Allignment</span><a class="self-link" href="#allignment"></a></h4>
-   <p>All fields of this specification use proper alignment for 16- and 32-bit values. This makes it easier and faster to read/write file contents if using techniques like memory mapped files.</p>
-   <p>The alignment octets (marked in this document e.g. with "padded to 32 bits") MUST be filled with zeroes.</p>
-   <p>Please note: 64-bit values are not aligned to 64-bit boundaries. This is because the file is naturally aligned to 32-bit boundaries only. Special care MUST be taken when reading and writing such values.</p>
-   <h4 class="heading settled" data-level="2.6.3" id="strings"><span class="secno">2.6.3. </span><span class="content">Strings</span><a class="self-link" href="#strings"></a></h4>
-   <p>If a string is specified as being encoded as UTF-8, software that reads that string MUST NOT assume that the string’s value is valid UTF-8, and MAY discard a string that is not valid UTF-8 or MAY repair the string by replacing invalid octet sequences with valid sequences such as the sequence for a Unicode REPLACEMENT CHARACTER; software that writes that string fields MUST write only a valid UTF-8 string.</p>
-   <h2 class="heading settled" data-level="3" id="block-definition"><span class="secno">3. </span><span class="content">Block Definition</span><a class="self-link" href="#block-definition"></a></h2>
-   <h3 class="heading settled" data-level="3.1" id="header-block"><span class="secno">3.1. </span><span class="content">Database Header Block</span><a class="self-link" href="#header-block"></a></h3>
-   <p>The Database Header Block (DHB) is mandatory. It identifies the beginning of a section of the database file.
-The Database Header Block contains all data required to en-/decrypt the files content.</p>
-<pre>                    1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                   Block Type = 0x4b444258                     |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                      Block Total Length                       |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                           TAG Length                          |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-/                              TAG                              /
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|          Major Version        |         Minor Version         |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                                                               |
-|                         Database Length                       |
-|                                                               |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                           IV Length                           |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-/                               IV                              /
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                           CID Length                          |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-/                              CID                              /
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-/                                                               /
-/                      Options (variable)                       /
-/                                                               /
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                      Block Total Length                       |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   <h3 class="heading settled" data-level="2.2" id="trailer"><span class="secno">2.2. </span><span class="content">Trailer</span><a class="self-link" href="#trailer"></a></h3>
+   <p>The trailer encodes information required to decrypt individual entries of the database.</p>
+<pre>                       1                   2                   3
+   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+0 |                        Fields Length                          |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+4 /                            Fields                             /
+  /                      (variable length N)                      /
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                        Fields Length                          |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                  Master Secret Length                         |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  /                       Master Secret                           /
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                  Master Secret Length                         |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                         Tag Length                            |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  /                            Tag                                /
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                         Tag Length                            |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
-   <p>The meaning of the fields is:</p>
-   <ul>
-    <li data-md>
-     <p>Block Type: The block type of the Database Header Block is the integer corresponding to the 4-char string "KDBX" (0x4b444258).</p>
-    <li data-md>
-     <p>Block Total Length: total size of this block, as described in <a href="#general-block-structure">§ 2.1 General Block Structure</a>.</p>
-    <li data-md>
-     <p>TAG Length (32 bits): an unsigned value that contains the actual length of the following 'TAG' field without the padding octets.</p>
-    <li data-md>
-     <p>TAG (variable): a message authentication code (MAC) tag authenticating the given section, padded to 32 bits.</p>
-    <li data-md>
-     <p>Major Version (16 bits): an unsigned value, giving the number of the current major version of the format. The value for the current version of the format is 1.</p>
-    <li data-md>
-     <p>Minor Version (16 bits): an unsigned value, giving the number of the current minor version of the format. The value for the current version of the format is 0.</p>
-    <li data-md>
-     <p>Database Length (64 bits): a signed value specifying the length in octets of the following database, excluding the Database Header Block itself. This field can be used to skip the section, for faster navigation inside large files. If the Database Length is -1 (0xFFFFFFFFFFFFFFFF), this means that the size of the section is not specified, and the only way to skip the section is to parse the blocks that it contains. Please note that if this field is valid (i.e. not negative), its value is always a multiple of 4, as all the blocks are aligned to and padded to 32-bit (4 octet) boundaries.</p>
-    <li data-md>
-     <p>IV Length (32 bits): an unsigned value that contains the actual length of the following 'IV' field without the padding octets.</p>
-    <li data-md>
-     <p>IV (variable): The initialization vector, also called nonce, used for the cipher specified in 'CID', padded to 32 bits.</p>
-    <li data-md>
-     <p>CID Length (32 bits): an unsigned value that contains the actual length of the following 'CID' field without the padding octets.</p>
-    <li data-md>
-     <p>CID (variable): The cipher suite identifier as specified in <a href="#cipher-suites">§ 3.1.1 Cipher Suites</a>, padded to 32 bits.</p>
-    <li data-md>
-     <p>Options: optionally, a list of options (formatted according to the rules defined in <a href="#options">§ 2.5 Options</a>) can be present.</p>
-   </ul>
-   <p>Writers of kdbxng files MUST NOT write DHBs with a Major Version other than 1 or a Minor Version other than 0. If they do so, they will write a file that many readers of kdbxng files are not to be able to read.</p>
-   <p>The Major Version would be changed only if a new version of this specification, for a later major version of the file format, were created. Such a version would only be created if the format were to change in such a way that code that reads the new format could not read the old format (i.e., code to read both formats would have to check the version number and use different code paths for the two formats) and code that reads the old format could not read the new format. An incompatible change to the format of an existing block or an existing option would be such a change; the addition of a new block or a new option would not be such a change. An example of such an incompatible change would be the addition of an additional field to the Database Header Block, following the Minor Version field and before the Snaplen field; software expecting the new DHB format would not correctly read the old DHB format, and software expecting the old DHB format would not correctly read the new DHB format.</p>
-   <p>The Minor Version would be changed only if a new version of this specification, for a later minor version of the file format, were created. Such a version would only be created if the format were to change in such a way that code that reads the new format could read the old format without checking the version number but code that reads the old format could not read all files in the new format. A backward-compatible change to the format of an existing block or an existing option would be such a change; the addition of a new block or a new option would not be such a change.</p>
-   <p>In addition to the options defined in <a href="#options">§ 2.5 Options</a>, the following options are valid within this block and MAY be required depending on the selected cipher suite (see <a href="#cipher-suites">§ 3.1.1 Cipher Suites</a>):</p>
-   <figure class="table" id="common-options①">
+   <p>The trailer begins with one or more CBOR encoded fields, followed by the master secret and a
+tag used to verify the entegrity of the overall data structure. Fields, master secret, and tag
+are all 32 bit alligned, e.g., if the fields CBOR map is 118 bytes long, the fields length
+is also 118 but two zero bytes are appended to the map during serialization.</p>
+   <p>The master secret is encrypted using the AEAD cipher specified by <a data-link-type="dfn" href="#cid" id="ref-for-cid">cid</a>. The associated
+data includes all data that comes before the length of the master secret.</p>
+   <p>The length of the fields is encoded as a unsigned 32 bit integer in little-endian format. It
+comes right before and after the CBOR map to allow the traversal of the data structure both
+forwards and backwards. The length of the master secret is encoded as a unsigned 32 bit 
+integer in little-endian format. It comes right before and after the master secret to allow 
+the traversal of the data structure both forwards and backwards. The length of the tag is 
+encoded as a unsigned 32 bit integer. It comes right before and after the tag to allow 
+the traversal of the data structure both forwards and backwards.</p>
+   <h4 class="heading settled" data-level="2.2.1" id="trailer-fields"><span class="secno">2.2.1. </span><span class="content">Trailer Fields</span><a class="self-link" href="#trailer-fields"></a></h4>
+   <p>The fields of the trailer are encoded using a CBOR map (major type 5).  The keys are encoded
+as text strings (major type 3) whereas the value types vary. All listed fields are mandatory
+and MUST be encoded in the order listed below.</p>
+   <figure class="table" id="fieldTypes">
     <table class="complex data longlastcol">
      <tbody>
       <tr>
-       <th>Name
-       <th>Type
-       <th>Length
-       <th>Multiple allowed?
+       <th>Key
+       <th>Data Type
+       <th>Description
       <tr>
-       <td><code>kdf_iterations</code>
-       <td>32
-       <td>4
-       <td>no
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="iv">iv</dfn>
+       <td>bstr
+       <td>
+         Initialization vector (nonce) used for encrypting the master secret. 
+        <p class="note" role="note"><span class="marker">Note:</span> A new and unique IV MUST be used for every encryption. One MUST NOT use the same IV twice! This can be achieved by using a counter or by using a cryptographically secure (pseudo) random number generator (CSRNG) to generate the IV at random.</p>
+       <td>
       <tr>
-       <td><code>kdf_memory</code>
-       <td>33
-       <td>4
-       <td>no
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="cid">cid</dfn>
+       <td>tstr
+       <td>
+         The cipher suit used for en-/decryption, encoded as string. 
+        <p>The following cipher suits MUST be supported:</p>
+        <ul>
+         <li data-md>
+          <p><code>CCDB_XCHACHA20_POLY1305_SHA512</code></p>
+          <ul>
+           <li data-md>
+            <p><code>XChaCha20-Poly1305</code> for master secret encryption and integrity validation.</p>
+           <li data-md>
+            <p><code>XChaCha20</code> for en-/decryption of entries.</p>
+           <li data-md>
+            <p><code>SHA512</code> as hash function for HKDF.</p>
+          </ul>
+        </ul>
+        <p><code>CCDB_XCHACHA20_POLY1305_SHA512</code> is considered the default cipher suit.</p>
       <tr>
-       <td><code>kdf_parallelism</code>
-       <td>34
-       <td>4
-       <td>no
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="kdf">kdf</dfn>
+       <td><a href="#kdf-map">§ 2.2.1.1 KDF Parameters</a>
+       <td> Values specific for the <a href="#key-derivation">§ 2.2.2 Key Derivation</a> 
       <tr>
-       <td><code>kdf_salt</code>
-       <td>35
-       <td>variable
-       <td>no
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="ext">ext</dfn>
+       <td>[+ tstr]
+       <td> Extensions used with this database. Each extension used by this database
+                is specified using a extension string. Extensions extend the database format
+                and MAY be defined within documents independent of this one. 
     </table>
    </figure>
-   <ul>
-    <li data-md>
-     <p><code>kdf_iterations</code>: The number of iterations for the key derivation function specified by CID. This option MUST be present if one of the following cipher suites have been selected:</p>
-     <ul>
-      <li data-md>
-       <p><code>KDBXNG_XCHACHA20_POLY1305_ARGON2ID</code></p>
-     </ul>
-    <li data-md>
-     <p><code>kdf_memory</code>: The memory usage of the key derivation function in KiB. This option MUST be present if one of the following cipher suites have been selected:</p>
-     <ul>
-      <li data-md>
-       <p><code>KDBXNG_XCHACHA20_POLY1305_ARGON2ID</code></p>
-     </ul>
-    <li data-md>
-     <p><code>kdf_parallelism</code>: The parallelism of the key derivation function, i.e., the number of threads to use. This option MUST be present if one of the following cipher suites have been selected:</p>
-     <ul>
-      <li data-md>
-       <p><code>KDBXNG_XCHACHA20_POLY1305_ARGON2ID</code></p>
-     </ul>
-    <li data-md>
-     <p><code>kdf_salt</code>: A salt used as additional input into the key derivation function. This option MAY be present if one of the following cipher suites have been selected and MUST be used if present:</p>
-     <ul>
-      <li data-md>
-       <p><code>KDBXNG_XCHACHA20_POLY1305_ARGON2ID</code></p>
-     </ul>
-   </ul>
-   <h4 class="heading settled" data-level="3.1.1" id="cipher-suites"><span class="secno">3.1.1. </span><span class="content">Cipher Suites</span><a class="self-link" href="#cipher-suites"></a></h4>
-   <p>The cipher suite defines all algorithms required to correctly decrypt the given section. The following cipher suites MUST be supported by a implementation:</p>
-   <ul>
-    <li data-md>
-     <p><code>KDBXNG_XCHACHA20_POLY1305_ARGON2ID</code>: XChaCha20 as authenticated cipher with Poly1305 and Argon2id for key derivation.</p>
-   </ul>
-   <h4 class="heading settled" data-level="3.1.2" id="kdf-field"><span class="secno">3.1.2. </span><span class="content">KDF Field</span><a class="self-link" href="#kdf-field"></a></h4>
-   <h3 class="heading settled" data-level="3.2" id="secrets-block"><span class="secno">3.2. </span><span class="content">Secrets Block</span><a class="self-link" href="#secrets-block"></a></h3>
-   <p>A Secrets Block (SB) stores some sort of cryptographic key and related
-data to be used in the context of cryptography. The format of these
-secrets is defined by the Secrets Type.</p>
-   <p>Multiple SBs can exist in a kdbxng file.</p>
-   <p>The structure of a Decryption Secrets Block is shown below.</p>
-<pre>                        1                   2                   3
-    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- 0 |                   Block Type = 0x00000300                     |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- 4 |                      Block Total Length                       |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- 8 /                                                               /
-   /                             UUID                              /
-   /                                                               /
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-24 |                          Secrets Type                         |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-28 |                         Secrets Length                        |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-32 /                                                               /
-   /                          Secrets Data                         /
-   /              (variable length, padded to 32 bits)             /
-   /                                                               /
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   /                                                               /
-   /                       Options (variable)                      /
-   /                                                               /
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   /                       Block Total Length                      /
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   <h5 class="heading settled" data-level="2.2.1.1" id="kdf-map"><span class="secno">2.2.1.1. </span><span class="content">KDF Parameters</span><a class="self-link" href="#kdf-map"></a></h5>
+   <p>The KDF parameters are used to derive a secret (<a href="#final-keys">§ 2.2.2.4 Symmetric Keys</a>). The <a data-link-type="dfn" href="#uuid" id="ref-for-uuid">$UUID</a> is mandatory and
+defines which algorithm should be used as key derivation function. The other parameters are optional
+and depend on the selected algorithm. All parameters associated with the specified algorithm MUST be 
+present for a specific algorithm, otherwise the database is malformed. The fields MUST be encoded
+in the order listed below.</p>
+   <figure class="table" id="kdfParameterVariantMap">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Field
+       <th>Data Type
+       <th>Description
+       <th>Association
+      <tr>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="uuid">$UUID</dfn>
+       <td>tstr
+       <td>
+         A 16 byte UUID indicating the key derivation algorithm. This should be
+                the first entry of the map. 
+        <ul>
+         <li data-md>
+          <p>Argon2id: <code>9e298b19-56db-4773-b23d-fc3ec6f0a1e6</code></p>
+        </ul>
+       <td>
+      <tr>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="i">I</dfn>
+       <td>uint
+       <td> Iterations. 
+       <td>Argon2
+      <tr>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="m">M</dfn>
+       <td>uint
+       <td> Memory usage in KiB. 
+       <td>Argon2
+      <tr>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="p">P</dfn>
+       <td>uint
+       <td> Parallelism. 
+       <td>Argon2
+      <tr>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="s">S</dfn>
+       <td>bstr
+       <td> Random salt, typically 32 bytes. 
+       <td>Argon2
+    </table>
+   </figure>
+<pre class="example" id="example-5738d9a1"><a class="self-link" href="#example-5738d9a1"></a>{"$UUID": h’9e298b1956db4773b23dfc3ec6f0a1e6', "I": 2, "M": 4096, "P": 8, "S": h’0102030401020304010203040102030401020304010203040102030401020304'}
+
+A5                                      # map(5)
+   65                                   # text(5)
+      2455554944                        # "$UUID"
+   50                                   # bytes(16)
+      9E298B1956DB4773B23DFC3EC6F0A1E6  # "\x9E)\x8B\u0019V\xDBGs\xB2=\xFC>\xC6\xF0\xA1\xE6"
+   61                                   # text(1)
+      49                                # "I"
+   02                                   # unsigned(2)
+   61                                   # text(1)
+      4D                                # "M"
+   19 1000                              # unsigned(4096)
+   61                                   # text(1)
+      50                                # "P"
+   08                                   # unsigned(8)
+   61                                   # text(1)
+      53                                # "S"
+   58 20                                # bytes(32)
+      0102030401020304010203040102030401020304010203040102030401020304 # "\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004\u0001\u0002\u0003\u0004"
+
+A5652455554944509E298B1956DB4773B23DFC3EC6F0A1E6614902614D19100061500
+861535820010203040102030401020304010203040102030401020304010203040102
+0304
 </pre>
-   <p>The Enhanced Packet Block has the following fields:</p>
+   <h4 class="heading settled" data-level="2.2.2" id="key-derivation"><span class="secno">2.2.2. </span><span class="content">Key Derivation</span><a class="self-link" href="#key-derivation"></a></h4>
+   <p>The encryption key is derived from one or more sources of key data:</p>
    <ul>
     <li data-md>
-     <p>Block Type: The block type of the Decryption Secrets Block is 0x300.</p>
+     <p>a <a href="#password">§ 2.2.2.1 Password</a>,</p>
     <li data-md>
-     <p>Block Total Length: total size of this block, as described in <a href="#general-block-structure">§ 2.1 General Block Structure</a>.</p>
+     <p>a <a href="#key-file">§ 2.2.2.2 Key File</a>,</p>
     <li data-md>
-     <p>UUID (128 bits): A UUID Version 7 as defined by <a data-link-type="biblio" href="#biblio-rfc9562" title="Universally Unique IDentifiers (UUIDs)">[RFC9562]</a>.</p>
-    <li data-md>
-     <p>Secrets Type (32 bits): an unsigned integer identifier that describes the format of the following Secrets field. Requests for new Secrets Type codes should be made by creating a pull request to update this document.</p>
-    <li data-md>
-     <p>Secrets Length (32 bits): an unsigned integer that indicates the size of the following Secrets field, without any padding octets.</p>
-    <li data-md>
-     <p>Secrets Data: binary data containing secrets, padded to a 32 bit boundary.</p>
-    <li data-md>
-     <p>Options: optionally, a list of options (formatted according to the rules defined in <a href="#options">§ 2.5 Options</a>) can be present.</p>
+     <p>or a <a href="#key-provider">§ 2.2.2.3 Key Provider</a></p>
    </ul>
-   <p>The following is a list of Secrets Types:</p>
+   <h5 class="heading settled" data-level="2.2.2.1" id="password"><span class="secno">2.2.2.1. </span><span class="content">Password</span><a class="self-link" href="#password"></a></h5>
+   <p>A password is the most common source of key data. It is set by a user during
+database creation and is also referred to as the master password. It is recommended
+to use a strong password that fulfill the criteria published by reputable authorities, such as <a href="https://owasp.org/">OWASP</a> and <a href="https://www.nist.gov/">NIST</a>.</p>
+   <p>It is further recommended that applications supporting the creation of CCDB databases
+further support the user with the creation of a secure master password, including the
+suggestion of randomized passwords.</p>
+   <h5 class="heading settled" data-level="2.2.2.2" id="key-file"><span class="secno">2.2.2.2. </span><span class="content">Key File</span><a class="self-link" href="#key-file"></a></h5>
+   <p>A key file can serve as an input either alongside a password or as an alternative to the key derivation function used for deriving a symmetric encryption key. It’s recommended that applications support a range of key file formats to enhance compatibility and flexibility.</p>
+   <p>Applications SHOULD support the following key file formats:</p>
    <ul>
     <li data-md>
-     <p><code>0x004a574b</code>: JSON Web Key (JWK). This format is described in <a data-link-type="biblio" href="#biblio-rfc7517" title="JSON Web Key (JWK)">[RFC7517]</a>. Cryptographic algorithms and identifiers for use with JWKs are described in <a data-link-type="biblio" href="#biblio-rfc7517" title="JSON Web Key (JWK)">[RFC7517]</a>.</p>
+     <p><strong>Raw</strong>: A file containing exactly 32 bytes that make up the key.</p>
     <li data-md>
-     <p><code>0x0050454d</code>: A PEM encoded secret. This format is described in <a data-link-type="biblio" href="#biblio-rfc7468" title="Textual Encodings of PKIX, PKCS, and CMS Structures">[RFC7468]</a>. Readers and writers supporting this format MUST support the public key (<code>BEGIN PUBLIC KEY</code>/<code>END PUBLIC KEY</code>) and private key (<code>BEGIN PRIVATE KEY</code>/<code>END PRIVATE KEY</code>; see <a data-link-type="biblio" href="#biblio-rfc5958" title="Asymmetric Key Packages">[RFC5958]</a>) in DER encoding. Readers SHOULD expect Secrets Data to contain multiple keys and certificates appended to each other.</p>
-    <li data-md>
-     <p><code>0x00505744</code>: A password.</p>
+     <p><strong>Hex</strong>: A file containing exactly 64 bytes that are interpreted as a hex encoded 32 byte key.</p>
    </ul>
-   <p>Readers and writers MAY NOT implement all supported Secrets Types. Readers MAY ignore blocks with an
-unsupported type. Readers SHOULD NOT modify unsupported blocks. Writers MUST generate only valid
-data based on the selected Secrets Type.</p>
-   <p>In addition to the options defined in <a href="#options">§ 2.5 Options</a>, the following options are valid within this block:</p>
-   <figure class="table" id="secrets-options">
-    <table class="complex data longlastcol">
-     <tbody>
-      <tr>
-       <th>Name
-       <th>Type
-       <th>Length
-       <th>Multiple allowed?
-      <tr>
-       <td><code>sec_title</code>
-       <td>64
-       <td>variable
-       <td>no
-      <tr>
-       <td><code>sec_url</code>
-       <td>65
-       <td>variable
-       <td>no
-      <tr>
-       <td><code>sec_url</code>
-       <td>65
-       <td>variable
-       <td>no
-    </table>
-   </figure>
-   <ul>
-    <li data-md>
-     <p><code>sec_title</code>: A human readable name or title associated with the given secret.</p>
-    <li data-md>
-     <p><code>sec_url</code>: A valid URL associated with the given secret. This can be used to associate a secret with a specific (online) service. In the context of a passkey (FIDO2 credential), this option MUST be used to store the relying party id (rpId).</p>
-   </ul>
-   <h2 class="heading settled" data-level="4" id="block-type-codes"><span class="secno">4. </span><span class="content">Standardized Block Type Codes</span><a class="self-link" href="#block-type-codes"></a></h2>
-   <figure class="table" id="block-type-codes-table">
-    <table class="complex data longlastcol">
-     <tbody>
-      <tr>
-       <th>Block Type Code
-       <th>Description
-      <tr>
-       <td>0x00000001
-       <td>Asymmetric Secrets Block
-      <tr>
-       <td>0x4b444258
-       <td>Database Header Block
-    </table>
-   </figure>
-   <h2 class="heading settled" data-level="5" id="thread-modell"><span class="secno">5. </span><span class="content">Thread Model</span><a class="self-link" href="#thread-modell"></a></h2>
-   <h3 class="heading settled" data-level="5.1" id="assumptions"><span class="secno">5.1. </span><span class="content">Assumptions</span><a class="self-link" href="#assumptions"></a></h3>
-   <figure class="table" id="thread-assumptions">
-    <table class="complex data longlastcol">
-     <tbody>
-      <tr>
-       <th>Identifier
-       <th>Description
-      <tr>
-       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="a_untrusted_storage_location">A_UNTRUSTED_STORAGE_LOCATION</dfn>
-       <td> The file may be stored in a untrusted location, e.g., a unprotected USB stick or file share. 
-      <tr>
-       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="a_trusted_processing_environment">A_TRUSTED_PROCESSING_ENVIRONMENT</dfn>
-       <td> The file is only decrypted and processed in a trusted processing environment. 
-    </table>
-   </figure>
-   <h3 class="heading settled" data-level="5.2" id="threads"><span class="secno">5.2. </span><span class="content">Threads</span><a class="self-link" href="#threads"></a></h3>
-   <figure class="table" id="thread-threads">
-    <table class="complex data longlastcol">
-     <tbody>
-      <tr>
-       <th>Identifier
-       <th>Description
-      <tr>
-       <td>T_FILE_ACCESS
-       <td> The file is accessed at rest by a untrusted person. Applicable because of <a data-link-type="dfn" href="#a_untrusted_storage_location" id="ref-for-a_untrusted_storage_location">A_UNTRUSTED_STORAGE_LOCATION</a>.
-                Mitigated by <a data-link-type="dfn" href="#m_encryption" id="ref-for-m_encryption">M_ENCRYPTION</a>. 
-      <tr>
-       <td>T_FILE_MANIP
-       <td> The file is manipulated at rest by a untrusted person. Applicable because of <a data-link-type="dfn" href="#a_untrusted_storage_location" id="ref-for-a_untrusted_storage_location①">A_UNTRUSTED_STORAGE_LOCATION</a>.
-                Mitigated by <a data-link-type="dfn" href="#m_integrity" id="ref-for-m_integrity">M_INTEGRITY</a>. 
-      <tr>
-       <td>T_MEMORY_ACCESS
-       <td> The memory is accessed while reading or writing the database by a malicious actor. Not applicable because
-                of <a data-link-type="dfn" href="#a_trusted_processing_environment" id="ref-for-a_trusted_processing_environment">A_TRUSTED_PROCESSING_ENVIRONMENT</a>. A kdbxng file MUST NOT be processed on a untrusted system. 
-      <tr>
-       <td>T_MEMORY_MANIP
-       <td> The memory is manipulated while reading or writing the database by a malicious actor.  Not applicable because
-                of <a data-link-type="dfn" href="#a_trusted_processing_environment" id="ref-for-a_trusted_processing_environment①">A_TRUSTED_PROCESSING_ENVIRONMENT</a>. A kdbxng file MUST NOT be processed on a untrusted system. 
-    </table>
-   </figure>
-   <h3 class="heading settled" data-level="5.3" id="mitigations"><span class="secno">5.3. </span><span class="content">Mitigations</span><a class="self-link" href="#mitigations"></a></h3>
-   <figure class="table" id="thread-mitigations">
-    <table class="complex data longlastcol">
-     <tbody>
-      <tr>
-       <th>Identifier
-       <th>Description
-      <tr>
-       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="m_encryption">M_ENCRYPTION</dfn>
-       <td> The file is encrypted using a state-of-the-art cipher. 
-      <tr>
-       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="m_integrity">M_INTEGRITY</dfn>
-       <td> The integrity of the file is verified using a message authenticaiton code. 
-    </table>
-   </figure>
-   <h3 class="heading settled" data-level="5.4" id="policies"><span class="secno">5.4. </span><span class="content">Policies</span><a class="self-link" href="#policies"></a></h3>
-   <p>The following policies SHOULD be considered by applications supporting the format defined within this specification.</p>
-   <figure class="table" id="policies①">
-    <table class="complex data longlastcol">
-     <tbody>
-      <tr>
-       <th>Identifier
-       <th>Description
-      <tr>
-       <td>P_MEM_PROTECT
-       <td> The memory of readers and writers should be handeled with care. This SHOULD include but is
-                is not limited to mitigations like <a href="https://www.man7.org/linux/man-pages/man2/mlock.2.html">mlock</a> on UNIX like systems. 
-    </table>
-   </figure>
-   <h2 class="heading settled" data-level="6" id="file-encryption"><span class="secno">6. </span><span class="content">File Encryption</span><a class="self-link" href="#file-encryption"></a></h2>
-   <p>Every database SHOULD be stored encrypted at rest to ensure the confidentiality, integrity, and authenticity of the data.
-The cipher suite to be used with a given database is defined by the CID of the corresponding <a href="#header-block">§ 3.1 Database Header Block</a>. The CID defines the cipher, mac, and (password) key derivation function to be used to en-/decryt
-the database.</p>
-   <h3 class="heading settled" data-level="6.1" id="key-derivation"><span class="secno">6.1. </span><span class="content">Key Derivation</span><a class="self-link" href="#key-derivation"></a></h3>
-   <p>The symmetric key used for the en-/decryption of the databse is derived from one or more
-sources of key data:</p>
-   <ul>
-    <li data-md>
-     <p>Password</p>
-    <li data-md>
-     <p>Key File</p>
-    <li data-md>
-     <p>Key Provider</p>
-   </ul>
-   <h4 class="heading settled" data-level="6.1.1" id="password"><span class="secno">6.1.1. </span><span class="content">Password</span><a class="self-link" href="#password"></a></h4>
-   <p>A password is the most common source of key data. It is set by a user during database creation and is also referred to as the master password. It is recommended to use a strong password that fulfill the criteria published by reputable authorities, such as OWASP and NIST.</p>
-   <p>It is further recommended that applications supporting the creation of kdbxng databases further support the user with the creation of a secure master password, including the suggestion of randomized passwords.</p>
-   <h4 class="heading settled" data-level="6.1.2" id="key-file"><span class="secno">6.1.2. </span><span class="content">Key File</span><a class="self-link" href="#key-file"></a></h4>
-   <p>A key file stores a (random) sequence of octets used with a KDF. Applications SHOULD support the following key file formats:</p>
-   <ul>
-    <li data-md>
-     <p>Raw: A file containing exactly 32 bytes that make up the key.</p>
-    <li data-md>
-     <p>Hex: A file containing exactly 64 bytes that are interpreted as a hex encoded 32 byte key.</p>
-   </ul>
-   <h4 class="heading settled" data-level="6.1.3" id="key-provider"><span class="secno">6.1.3. </span><span class="content">Key Provider</span><a class="self-link" href="#key-provider"></a></h4>
-   <p>Key material MAY also be obtained from other sources, e.g., using the HMAC Secret Extension of CTAP2 <a data-link-type="biblio" href="#biblio-fido-v21" title="Client to Authenticator Protocol (CTAP)">[FIDO-v2.1]</a>. Currently this standard doesn’t include any key providers.</p>
-   <h4 class="heading settled" data-level="6.1.4" id="symmetic-key-derivation"><span class="secno">6.1.4. </span><span class="content">Symmetic Key Derivation</span><a class="self-link" href="#symmetic-key-derivation"></a></h4>
-   <p>To generate a symmetric key, a (password) key derivation function (KDF) is employed, which derives the key from one or more key sources. The input to this function MUST NOT be empty and must contain the following sequence as an argument: <code>password || keyFileContent || keyProviderContent</code>. The process for deriving a symmetic key for en-/decryption is as follows:</p>
-<pre>symKey = KDF(password || keyFileContent || keyProviderContent)
+   <h5 class="heading settled" data-level="2.2.2.3" id="key-provider"><span class="secno">2.2.2.3. </span><span class="content">Key Provider</span><a class="self-link" href="#key-provider"></a></h5>
+   <p>Key material MAY also be obtained from other sources, e.g., using the HMAC Secret Extension of CTAP2 <a data-link-type="biblio" href="#biblio-fido-v21" title="Client to Authenticator Protocol (CTAP)">[fido-v2.1]</a>. Such capabilities MAY be defined as
+extensions independent of this document.</p>
+   <h5 class="heading settled" data-level="2.2.2.4" id="final-keys"><span class="secno">2.2.2.4. </span><span class="content">Symmetric Keys</span><a class="self-link" href="#final-keys"></a></h5>
+   <p>To minimize the exposure of sensitive information in memory, all database entries and related information are encrypted independently using the selected
+cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid①">cid</a>). For each entry, a symmetric key is derived from the master secret using the HKDF key derivation function.</p>
+   <h6 class="heading settled" data-level="2.2.2.4.1" id="decrypting-the-master-secret"><span class="secno">2.2.2.4.1. </span><span class="content">Decrypting the master secret</span><a class="self-link" href="#decrypting-the-master-secret"></a></h6>
+   <p>Before the master secret can be used it must be decrypted using a key derived from the selected password key derivation function (<a data-link-type="dfn" href="#kdf" id="ref-for-kdf">kdf</a>).
+The input into this selected key derivation function is as follows, with its remaining arguments defined by <a href="#kdf-map">§ 2.2.1.1 KDF Parameters</a>:</p>
+<pre class="highlight">password <c- o>||</c-> keyFileContent <c- o>||</c-> keyProviderContent
 </pre>
-   <p class="note" role="note"><span class="marker">Note:</span> It’s important to note that the length of the symmetric key must be adjusted according to the selected cipher. Most KDFs, including Argon2, allow the generiation of secrets with differnt lengths "out-of-the-box".</p>
-   <h3 class="heading settled" data-level="6.2" id="file-en--decryption"><span class="secno">6.2. </span><span class="content">File En-/Decryption</span><a class="self-link" href="#file-en--decryption"></a></h3>
-   <p>All consecutive blocks between the Database Header Block and the next Database Header Block or the end of file are encrypted
-using the selected authenticated encryption with associated data (AEAD) cipher. Before encryption, a new and unique IV MUST 
-be generated and placed in the IV field of the Database Header Block. Writers MUST NOT reuse the IV for encryptions.
-The cipher takes a part of the Database Header Block as associated data (see <a href="#integrity-check">§ 6.3 Integrity Check</a>).</p>
-   <p class="note" role="note"><span class="marker">Note:</span> Please keep in mind that, depending on the length of the IV, it might not be secure to generate the IV using a CSPRNG.</p>
-   <h3 class="heading settled" data-level="6.3" id="integrity-check"><span class="secno">6.3. </span><span class="content">Integrity Check</span><a class="self-link" href="#integrity-check"></a></h3>
-   <p>To ensure the integrity and authenticity, a message authentication code (MAC), also knwon as
-a keyed hash function, is applied. The message authentication code is generated as a side effect
-of encrypting the database using the selected authenticated encryption with associated data (AEAD) cipher.
-All data of the Database Header Block following the TAG up to and including the trailing Block Total Length
-is considered associated data.</p>
-   <p>The generated message authentication code tag is written to the TAG field of the Database Header Block.</p>
-   <p class="note" role="note"><span class="marker">Note:</span> An application that doesn’t want to decrypt the whole database at once, e.g., because it wants to
-minimize the exposure of sensitive information in memory, MAY verify the MAC independently. In that case,
-the application MUST follow the same steps the AEAD cipher would to generate the correct hash message, e.g.,
-the insertion of padding between associated data and encrypted data.</p>
-   <h2 class="heading settled" data-level="7" id="recommendet-extension"><span class="secno">7. </span><span class="content">Recommended File Name Extension: .kdbxng</span><a class="self-link" href="#recommendet-extension"></a></h2>
-   <p>The recommended file name extension for the "KDBX Next Generation File Format" specified in this document is ".kdbxng".</p>
-   <p>On Windows and macOS, files are distinguished by an extension to their filename. Such an extension is technically not actually required, as applications should be able to automatically detect the kdbxng file format through the "magic bytes" at the beginning of the file, as some other UN*X desktop environments do. However, using name extensions makes it easier to work with files (e.g. visually distinguish file formats) so it is recommended - though not required - to use .kdbxng as the name extension for files following this specification.</p>
+   <p>It’s essential to ensure that the string passed to the KDF is not empty. Therefore, an application must enforce the usage of at least one of the defined
+sources of key data.</p>
+   <p>The process for deriving a symmetric key for encryption is <code>KDF(password || keyFileContent || keyProviderContent)</code>, e.g.,:</p>
+<pre class="example highlight" id="example-36914e57"><a class="self-link" href="#example-36914e57"></a>I<c- o>:</c-> <c- mf>2</c-><c- p>,</c-> M<c- o>:</c-> <c- mf>4096</c-><c- p>,</c-> P<c- o>:</c-> <c- mf>8</c-><c- p>,</c-> S<c- o>:</c-> <c- mo>0102030401020304010203040102030401020304010203040102030401020304</c->
+password<c- o>:</c-> supersecret
+
+symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed68ede40c225ce4e98 <c- o>=</c-> Argon2id<c- p>(</c-><c- u>"supersecret"</c-><c- p>)</c->
+</pre>
+   <h6 class="heading settled" data-level="2.2.2.4.2" id="deriving-symmetric-keys"><span class="secno">2.2.2.4.2. </span><span class="content">Deriving symmetric keys</span><a class="self-link" href="#deriving-symmetric-keys"></a></h6>
+   <p>The symmetric key for each entry is derived from the master secret using HKDF. The master secret is considered uniform, i.e., it is directly
+used as a input into the <code>expand()</code> function. When creating a new master secret, e.g., during the creation of a new database, one must ensure the
+uniformness of the master secret, e.g., by deriving a the key from a cryptographically secure pseudo random number generator, and in addition using the <code>extract</code> function of HKDF with the fixed salt "CCDB".</p>
+<pre class="example highlight" id="example-c2a7a508"><a class="self-link" href="#example-c2a7a508"></a>ikm <c- o>=</c-> CSPRNG<c- p>.</c->rand<c- p>()</c->
+masterSecret <c- o>=</c-> HKDF<c- p>.</c->extract<c- p>(</c-><c- u>"CCDB"</c-><c- p>,</c-> ikm<c- p>)</c->
+</pre>
+   <p>For each database entry, a key is derived from the master secret and the index of the entry represented as <code>u32</code> in little endian format.
+The info argument of <code>Hkdf.expand</code> consists of the string "entry:" with the index appended to it in little endian format..</p>
+<pre class="example highlight" id="example-b05874ac"><a class="self-link" href="#example-b05874ac"></a>k <c- o>=</c-> HKDF<c- p>.</c->expand<c- p>(</c->masterSecret<c- p>,</c-> <c- u>"entry:\x01\x00\x00\x00"</c-><c- p>)</c->
+</pre>
+   <h3 class="heading settled" data-level="2.3" id="body"><span class="secno">2.3. </span><span class="content">Body</span><a class="self-link" href="#body"></a></h3>
+   <p>The body starts with meta data that contains information about the database itself,
+followed by one or more groups. Within a group there can occur an arbitrary amount
+of entries and further (nested) groups. The body MUST start with a meta data struct
+and there MUST NOT be any further meta data be encoded within the body.</p>
+   <p>The body data is a nested CBOR map (major type 5) consisting of <a href="#body-meta">§ 2.3.1 Meta</a>, <a href="#body-group">§ 2.3.2 Group</a>, and <a href="#body-entry">§ 2.3.3.1 Entry</a> data items.</p>
+   <figure class="table" id="rootBodyContent">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Field
+       <th>Data Type
+       <th>Description
+       <th>Optional
+      <tr>
+       <td>meta (0x00)
+       <td>map
+       <td> Properties describing the database itself (<a href="#body-meta">§ 2.3.1 Meta</a>). 
+       <td>
+      <tr>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="entries">entries</dfn> (0x01)
+       <td>[+ <a href="#body-entry">§ 2.3.3.1 Entry</a>]
+       <td> All entries of this database. 
+       <td>
+      <tr>
+       <td>groups (0x02)
+       <td><a href="#body-group">§ 2.3.2 Group</a>
+       <td> The root of an arbitrary number of (nested) groups. Groups only hold references
+                to entries within <a data-link-type="dfn" href="#entries" id="ref-for-entries">entries</a>. 
+       <td>
+    </table>
+   </figure>
+   <h4 class="heading settled" data-level="2.3.1" id="body-meta"><span class="secno">2.3.1. </span><span class="content">Meta</span><a class="self-link" href="#body-meta"></a></h4>
+   <p>The meta data structure contains information about the database itself, like its name and the time it was created.</p>
+   <p>The values of all fields, except for the <code>iv</code>, are encrypted using the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid②">cid</a>). The
+individual fields decrypted by concatenating them:</p>
+<pre class="example highlight" id="example-053d7198"><a class="self-link" href="#example-053d7198"></a>k <c- o>=</c-> HKDF<c- p>.</c->expand<c- p>(</c->masterSecret<c- p>,</c-> <c- u>"meta"</c-><c- p>)</c->
+s <c- o>=</c-> dec<c- p>(</c->gen <c- o>||</c-> name <c- o>||</c-> times<c- p>,</c-> k<c- p>,</c-> iv<c- p>)</c->
+</pre>
+   <figure class="table" id="metaBodyContent">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Field
+       <th>Data Type
+       <th>Description
+       <th>Optional
+      <tr>
+       <td>iv (0x00)
+       <td>bstr
+       <td>
+         Initialization vector (nonce) used for encryption. 
+        <p class="note" role="note"><span class="marker">Note:</span> A new and unique IV MUST be used for every encryption. One MUST NOT use the same IV twice! This can be achieved by using a counter or by using a cryptographically secure (pseudo) random number generator (CSRNG) to generate the IV at random.</p>
+       <td>
+      <tr>
+       <td>gen (0x01)
+       <td>tstr
+       <td> The name of the application that created the database. 
+       <td>
+      <tr>
+       <td>name (0x02)
+       <td>tstr
+       <td> The name of the database. 
+       <td>
+      <tr>
+       <td>times (0x03)
+       <td><a href="#body-times">§ 2.3.3 Times</a>
+       <td> Time stamps. This field has to be updated each time the database content is changed. 
+       <td>
+    </table>
+   </figure>
+<pre class="example" id="example-5a774a46"><a class="self-link" href="#example-5a774a46"></a>{
+  0x00: "PassKeeZ",
+  0x01: "My Secrets",
+  0x02: {0x00: 1714585008, 0x01: 1714585008}
+}
+
+A30068506173734B65655A016A4D79205365637265747302A2001A66327DB001
+1A66327DB0
+</pre>
+   <h4 class="heading settled" data-level="2.3.2" id="body-group"><span class="secno">2.3.2. </span><span class="content">Group</span><a class="self-link" href="#body-group"></a></h4>
+   <p>A group represents a way to set entries into context and into relation to each other, e.g., one can
+group multiple entries that belong to the same (online) service represented by its relying party id.
+Groups are represented as (imbalanced) tree, with a root group and a arbitrary number of nested groups.
+Each group has zero or more references to entries.</p>
+   <p>The values of all fields, except for the <code>iv</code> and groups, are encrypted using the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid③">cid</a>). The
+individual fields are decrypted by concatenating them. The context for the key expansion is the word <code>group</code> followed
+by (nested) group indices separated by colones (<code>:</code>), e.g., <code>"group:0:1"</code> refers to the second entry (1) under the root entry
+(0).</p>
+<pre class="example highlight" id="example-b9f40845"><a class="self-link" href="#example-b9f40845"></a><c- c1>// Decrypt the root entry</c->
+k <c- o>=</c-> HKDF<c- p>.</c->expand<c- p>(</c->masterSecret<c- p>,</c-> <c- u>"group:0"</c-><c- p>)</c->
+s <c- o>=</c-> dec<c- p>(</c->uuid <c- o>||</c-> name <c- o>||</c-> times <c- o>||</c-> entries<c- p>,</c-> k<c- p>,</c-> iv<c- p>)</c->
+</pre>
+   <figure class="table" id="groupBodyContent">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Field
+       <th>Data Type
+       <th>Description
+       <th>Optional
+      <tr>
+       <td>iv (0x00)
+       <td>bstr
+       <td> Initialization vector (nonce) used for encryption. 
+       <td>
+      <tr>
+       <td>uuid (0x01)
+       <td>tstr
+       <td>
+         A unique identifier for the given group, e.g., UUIDv4 or UUIDv7 encoded as URN, e.g.: 
+        <ul>
+         <li data-md>
+          <p><code>0e695c28-42f9-43e4-9aca-3f71cd701dc0</code></p>
+        </ul>
+       <td>
+      <tr>
+       <td>name (0x02)
+       <td>tstr
+       <td> A human readable name for the given group. 
+       <td>
+      <tr>
+       <td>times (0x03)
+       <td>map
+       <td> Counters and time values (see <a href="#body-times">§ 2.3.3 Times</a>). 
+       <td>
+      <tr>
+       <td>entries (0x04)
+       <td>[+ uint]
+       <td>
+         An array of zero or more entry indices. 
+        <p class="note" role="note"><span class="marker">Note:</span> The database uses indices instead of the entry UUIDs to make look ups, which are the common case, a little bit faster. This also means that the database MUST update the indices every time a entry is moved within the linear entry list, e.g., when a entry is deleted.</p>
+       <td>
+      <tr>
+       <td>groups (0x05)
+       <td>[+ <a href="#body-group">§ 2.3.2 Group</a> ]
+       <td> An array of <a href="#body-group">§ 2.3.2 Group</a>s. 
+       <td>Optional
+    </table>
+   </figure>
+   <h4 class="heading settled" data-level="2.3.3" id="body-times"><span class="secno">2.3.3. </span><span class="content">Times</span><a class="self-link" href="#body-times"></a></h4>
+   <figure class="table" id="timeContent">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Field
+       <th>Data Type
+       <th>Description
+       <th>Optional
+      <tr>
+       <td>creat (0x00)
+       <td>uint
+       <td> Epoch-based date/time the parent was created. 
+       <td>
+      <tr>
+       <td>mod (0x01)
+       <td>uint
+       <td> Epoch-based date/time the parent was modified the last time. 
+       <td>
+      <tr>
+       <td>exp (0x02)
+       <td>uint
+       <td> Epoch-based date/time the parent will expire. The meaning of this field may vary depending on the parent. 
+       <td>Optional
+      <tr>
+       <td>cnt (0x03)
+       <td>uint
+       <td> Counter how many times the parent was used. The meaning of this field may vary depending on the parent. 
+       <td>Optional
+    </table>
+   </figure>
+<pre class="example" id="example-1cbb5614"><a class="self-link" href="#example-1cbb5614"></a>{0x00: 1714585008, 0x01: 1714585008}
+
+A2001A66327DB0011A66327DB0
+</pre>
+   <h5 class="heading settled" data-level="2.3.3.1" id="body-entry"><span class="secno">2.3.3.1. </span><span class="content">Entry</span><a class="self-link" href="#body-entry"></a></h5>
+   <p>A entry usually represents a set of credentials for a specific service and user. Each entry has a unique id.</p>
+   <p>The values of all fields, except for the <code>iv</code>, are encrypted using the selected cipher (<a data-link-type="dfn" href="#cid" id="ref-for-cid④">cid</a>). The
+individual fields are decrypted by concatenating them. Missing fields are skipped. The context for the 
+key expansion is the index of the entry as little-endian <code>u32</code>, starting from 0, which is appended to
+the string "entry:".</p>
+<pre class="example highlight" id="example-8e58a66c"><a class="self-link" href="#example-8e58a66c"></a><c- c1>// Decrypt the second entry consisting only of the uuid, times, and pw.</c->
+k <c- o>=</c-> HKDF<c- p>.</c->expand<c- p>(</c->masterSecret<c- p>,</c-> <c- u>"entry:\x01\x00\x00\x00"</c-><c- p>)</c->
+s <c- o>=</c-> dec<c- p>(</c->uuid <c- o>||</c-> times <c- o>||</c-> pw<c- p>,</c-> k<c- p>,</c-> iv<c- p>)</c->
+</pre>
+   <figure class="table" id="entryBodyContent">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Field
+       <th>Data Type
+       <th>Description
+       <th>Optional
+      <tr>
+       <td>iv (0x00)
+       <td>bstr
+       <td>
+         Initialization vector (nonce) used for encryption. The IVs size depends
+                on the cipher used for encryption: 
+        <p class="note" role="note"><span class="marker">Note:</span> A new and unique IV MUST be used for every encryption. One MUST NOT use the same IV twice! This can be achieved by using a counter or by using a cryptographically secure (pseudo) random number generator (CSRNG) to generate the IV at random.</p>
+       <td>
+      <tr>
+       <td>uuid (0x01)
+       <td>tstr
+       <td>
+         A unique identifier for the given entry, e.g., UUIDv4 or UUIDv7, encoded as URN, e.g.: 
+        <ul>
+         <li data-md>
+          <p><code>0e695c28-42f9-43e4-9aca-3f71cd701dc0</code></p>
+        </ul>
+       <td>
+      <tr>
+       <td>name (0x02)
+       <td>tstr
+       <td> A human readable name for the given entry. 
+       <td>Optional
+      <tr>
+       <td>times (0x03)
+       <td>map
+       <td>
+         Counters and time values (see <a href="#body-times">§ 2.3.3 Times</a>). 
+        <p class="note" role="note"><span class="marker">Note:</span> For applications supporting passkeys, the UsageCount field might be of particular relevance
+                but please be aware that counters make the synchronization between devices difficult and may lead
+                to scenarios where the user locks himself out of his accounts.</p>
+       <td>
+      <tr>
+       <td>notes (0x04)
+       <td>tstr
+       <td> Notes related to the given entry. 
+       <td>Optional
+      <tr>
+       <td>pw (0x05)
+       <td>tstr
+       <td> A password string. 
+       <td>Optional
+      <tr>
+       <td>key (0x06)
+       <td>map
+       <td>
+         A CBOR Object Signing and Encryption (COSE) key <a data-link-type="biblio" href="#biblio-rfc8152" title="CBOR Object Signing and Encryption (COSE): Initial Algorithms">[RFC8152]</a>. Also see Double Coordinate Curves, Octet Key Pair, and Symmetric Keys. 
+        <p><strong>Double Coordinate Curve:</strong></p>
+<pre class="example" id="example-c301555e">{
+  1: 2, 
+  3: -7, 
+  -1: 1, 
+  -4: h’299ba40f6547f9a591636ba3aabcf52adedeca324d3d6e81c8302d5199de9d0d'
+}
+
+A4            # map(4)
+   01         # unsigned(1) # kty
+   02         # unsigned(2)   # Elliptic Curve keys w/ x- and y-coordinate pair
+   03         # unsigned(3) # alg
+   26         # negative(6)   # ECDSA w/ SHA-256
+   20         # negative(0) # crv 
+   01         # unsigned(1)   # NIST P-256 also known as secp256r1
+   23         # negative(3) # d (private key)
+   58 20      # bytes(32)
+      299BA40F6547F9A591636BA3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D
+</pre>
+       <td>Optional
+      <tr>
+       <td>url (0x07)
+       <td>tstr
+       <td> A text string representing a URL. 
+       <td>Optional
+      <tr>
+       <td>uname (0x08)
+       <td>tstr
+       <td> The user name corresponding to the given credential. 
+       <td>Optional
+      <tr>
+       <td>uid (0x09)
+       <td>bstr
+       <td> A ID assigned to the user by the relying party. This is different from the uname as the uname is chosen
+                by the user herself. 
+       <td>Optional
+      <tr>
+       <td>group (0x0a)
+       <td>tstr
+       <td> A UUID (URN) referencing a <a href="#body-group">§ 2.3.2 Group</a>. If not present, the given entry is implicitly
+                associated to the group directly under the document root. 
+       <td>Optional
+      <tr>
+       <td>attach (0x0b)
+       <td>[+ <a href="#attachment">§ 2.3.3.2 Attachment</a> ]
+       <td> One or more attachments associated with the given entry. This can for example be a file
+                containing recovery keys. 
+       <td>Optional
+    </table>
+   </figure>
+   <h6 class="heading settled" data-level="2.3.3.1.1" id="example-password-entry"><span class="secno">2.3.3.1.1. </span><span class="content">Example: Password Entry</span><a class="self-link" href="#example-password-entry"></a></h6>
+<pre class="example" id="example-24fe29e3"><a class="self-link" href="#example-24fe29e3"></a>{
+  0x00: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
+  0x01: "Github", 
+  0x02: {0x00: 1714585008, 0x01: 1714585008}, 
+  0x03: "I should probably change my password.", 
+  0x04: "supersecret"
+}
+
+A500782430653639356332382D343266392D343365342D396163612D33663731
+6364373031646330016647697468756202A2001A66327DB0011A66327DB00378
+25492073686F756C642070726F6261626C79206368616E6765206D7920706173
+73776F72642E046B7375706572736563726574
+</pre>
+   <h6 class="heading settled" data-level="2.3.3.1.2" id="example-passkey-entry"><span class="secno">2.3.3.1.2. </span><span class="content">Example: Passkey Entry</span><a class="self-link" href="#example-passkey-entry"></a></h6>
+   <p>The given example shows a passkey entry. The passkey properties map to the <code>Entry</code> fields as follows:</p>
+   <ul>
+    <li data-md>
+     <p><strong>credId</strong> = uuid = <code>\x0e\x69\x5c\x28\x42\xf9\x43\xe4\x9a\xca\x3f\x71\xcd\x70\x1d\xc0</code></p>
+    <li data-md>
+     <p><strong>rpId</strong> = url = <code>github.com</code></p>
+    <li data-md>
+     <p><strong>userId</strong> = uid = <code>\xb5\xe3\x68\x34\xa0\xda\x97\xb7\x50\x35\x58\x54\x90\x93\xe0\x48\x59\x4b\xc5\x11\xe2\x5c\xc8\x51\xcc\xf7\xa6\x8c\xb0\xfa\xd3\xf8</code></p>
+   </ul>
+<pre class="example" id="example-e7a05075"><a class="self-link" href="#example-e7a05075"></a>{
+  0: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
+  1: "Github", 
+  2: {0: 1714585008, 1: 1714585008}, 
+  5: {
+    1: 2, 
+    3: -7, 
+    -1: 1, 
+    -4: h’299BA40F6547F9A591636BA3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D'
+  }, 
+  6: "github.com", 
+  7: "r4gus", 
+  8: h’B5E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8'
+}
+
+A700782430653639356332382D343266392D343365342D396163612D33663731
+6364373031646330016647697468756202A2001A66327DB0011A66327DB005A4
+010203262001235820299BA40F6547F9A591636BA3AABCF52ADEDECA324D3D6E
+81C8302D5199DE9D0D066A6769746875622E636F6D07657234677573085820B5
+E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
+</pre>
+   <h5 class="heading settled" data-level="2.3.3.2" id="attachment"><span class="secno">2.3.3.2. </span><span class="content">Attachment</span><a class="self-link" href="#attachment"></a></h5>
+   <figure class="table" id="attachmentEntry">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Field
+       <th>Data Type
+       <th>Description
+       <th>Optional
+      <tr>
+       <td>desc (0x00)
+       <td>tstr
+       <td> A descriptor, e.g., a file name. 
+       <td>
+      <tr>
+       <td>att (0x01)
+       <td>bstr
+       <td> A binary attachment. 
+       <td>
+    </table>
+   </figure>
+   <h3 class="heading settled" data-level="2.4" id="extensions"><span class="secno">2.4. </span><span class="content">Extensions</span><a class="self-link" href="#extensions"></a></h3>
+   <p>Extensions extend the given specification and are identified by a unique
+human readable ASCII string. While extensions MAY be defined outside of
+this document, it is RECOMMENDED that extensions are proposed using a pull-request
+before they are added to this document.</p>
+   <h4 class="heading settled" data-level="2.4.1" id="passkey"><span class="secno">2.4.1. </span><span class="content">Passkey</span><a class="self-link" href="#passkey"></a></h4>
+   <p><strong>Identifier</strong>: <code>passkey</code></p>
+   <p>The passkey extension indicates that FIDO2 related passkeys are stored in a
+well defined format. This allows users to easily migrate between applications
+that support the CCDB format.</p>
+   <p>A passkey is identified by a entry with a note containing the word "passkey".
+Passkey realted values map as follows to entry values:</p>
+   <p><strong>Required</strong></p>
+   <ul>
+    <li data-md>
+     <p><code>credId</code>: <code>uuid</code></p>
+    <li data-md>
+     <p><code>private-key</code>: <code>key</code></p>
+    <li data-md>
+     <p><code>rpId</code>: url</p>
+    <li data-md>
+     <p><code>userId</code>: uid</p>
+    <li data-md>
+     <p><code>userName</code>: <code>uname</code></p>
+   </ul>
+   <p><strong>Optional</strong></p>
+   <ul>
+    <li data-md>
+     <p><code>usageCount</code>: <code>times</code></p>
+   </ul>
+   <h3 class="heading settled" data-level="2.5" id="serialization"><span class="secno">2.5. </span><span class="content">Serialization</span><a class="self-link" href="#serialization"></a></h3>
+   <p>During usage, the database typically exists in an intermediate form, largely contingent upon the programming language employed.
+Before persisting it to disk, the database must undergo serialization according to the following steps:</p>
+   <ol>
+    <li data-md>
+     <p><strong>Serialize Header Version</strong>: Serialize the version of the header as specified in <a href="#version">§ 2.1 Version</a>.</p>
+    <li data-md>
+     <p><strong>Reserve Space for Master Secret and Tag</strong>: Allocate N bytes to fit the master secret and tag, as well as their lengths.</p>
+    <li data-md>
+     <p><strong>Header Field Length</strong>: Allocate 4 bytes to reserve space for the length of the header fields.</p>
+    <li data-md>
+     <p><strong>Generate Initialization Vector (IV)</strong>: Create a new and unique initialization vector (<a data-link-type="dfn" href="#iv" id="ref-for-iv">iv</a>), ensuring it is not reused.</p>
+    <li data-md>
+     <p>Serialize the header fields, incorporating the <a data-link-type="dfn" href="#iv" id="ref-for-iv①">iv</a>.</p>
+    <li data-md>
+     <p><strong>Write Serialized Header Length</strong>: Record the size of the serialized header fields within the 4 bytes reserved in the previous step.</p>
+    <li data-md>
+     <p><strong>Serialize the Body Length and Body</strong>: All fields containing information about user data are already encrypted at rest, i.e., the body can be serialized directly.</p>
+    <li data-md>
+     <p><strong>Encrypt the Master Secret</strong>: Apply the selected AEAD cipher to encrypt the master secret and fill the memory reserved in 2.</p>
+     <ul>
+      <li data-md>
+       <p>key: The symmetric key specified in <a href="#final-keys">§ 2.2.2.4 Symmetric Keys</a></p>
+      <li data-md>
+       <p>Initialization Vector (IV): <a data-link-type="dfn" href="#iv" id="ref-for-iv②">iv</a></p>
+      <li data-md>
+       <p>Associated Data (AD): All data following the Tag (i.e., <code>Header Length || Header || Body Length || Body</code>)</p>
+     </ul>
+   </ol>
+   <h3 class="heading settled" data-level="2.6" id="deserialization"><span class="secno">2.6. </span><span class="content">Deserialization</span><a class="self-link" href="#deserialization"></a></h3>
+   <p>Before an application can use a database it has to be deserialized and decrypted
+according to the following steps:</p>
+   <ol>
+    <li data-md>
+     <p><strong>Read Serialized Data</strong>: Retrieve the serialized data from storage.</p>
+    <li data-md>
+     <p><strong>Validate Version</strong>: Read the <a href="#version">§ 2.1 Version</a> and validate that <a data-link-type="dfn" href="#sig" id="ref-for-sig">sig</a> equals <code>CCDB</code>.</p>
+    <li data-md>
+     <p><strong>Extract Master Secret</strong>: Extract the master secret for decryption.</p>
+    <li data-md>
+     <p><strong>Extract Tag</strong>: Extract the tag for integrity validation.</p>
+    <li data-md>
+     <p><strong>Extract Header</strong>: Extract the header based on the header length.</p>
+    <li data-md>
+     <p><strong>Validate Header</strong>: Validate that all required header fields are present and contain sain values.</p>
+    <li data-md>
+     <p><strong>Decrypt the Master Secret</strong>: Utilize the specified cipher and associated parameters to decrypt the encrypted master secret:</p>
+     <ul>
+      <li data-md>
+       <p>key: The symmetric key specified in <a href="#final-keys">§ 2.2.2.4 Symmetric Keys</a>.</p>
+      <li data-md>
+       <p>Initialization Vector (IV): <a data-link-type="dfn" href="#iv" id="ref-for-iv③">iv</a></p>
+      <li data-md>
+       <p>Associated Data (AD): <code>Header Length || Header || Body Length || Body</code></p>
+     </ul>
+    <li data-md>
+     <p><strong>Decode the Body</strong>: Decode the body according to the specifications outlined in the <a href="#body">§ 2.3 Body</a> section.</p>
+   </ol>
+   <h2 class="heading settled" data-level="3" id="security"><span class="secno">3. </span><span class="content">Security Considerations</span><a class="self-link" href="#security"></a></h2>
+   <p>Files that store sensitive information are of particular interest to adversaries. The threads posed to
+a encrypted database change depending on its current state, including data-at-rest, data-in-transit, and
+data-in-use.</p>
+   <p>An attacker with access to the database at rest or in transit might try to decrypt or manipulate the
+database. To prevent decryption without a valid key and to ensure the integrity of the whole database,
+including all public parts, only state-of-the-art AEAD ciphers are allowed. The header and body are part
+of the associated data. This ensures that any manipulation by an attacker will lead to an error when
+decrypting the master secret. The downside is that any manipulation of the file will inevitably lead 
+to a malformed database, which can be used for an denial-of-service (DOS) attack.</p>
+   <p>Instead of encrypting the whole body, only the values of each entry and metadata are encrypted. This prevents the unnecessary
+cluttering of the address space with potential sensitive information. Instead, the application can decrypt individual
+fields on a on demand basis, making it easier to manage the secrets held in memory. This means that at a specific point
+during execution, only the master secret, the key for the entry, and the decrypted fields must be managed by the application.</p>
+   <p>Compression, in combination with encryption, may lead to unwanted behavior. Using CBOR as the main data format allows
+for a small message size making compression less relevant. This is why CCDB specifically doesn’t use compression.</p>
   </main>
   <div data-fill-with="conformance">
    <h2 class="no-ref no-num heading settled" id="conformance"><span class="content"> Conformance</span><a class="self-link" href="#conformance"></a></h2>
@@ -2880,26 +3246,38 @@ the insertion of padding between associated data and encrypted data.</p>
   <h2 class="no-num no-ref heading settled" id="index"><span class="content">Index</span><a class="self-link" href="#index"></a></h2>
   <h3 class="no-num no-ref heading settled" id="index-defined-here"><span class="content">Terms defined by this specification</span><a class="self-link" href="#index-defined-here"></a></h3>
   <ul class="index">
-   <li><a href="#a_trusted_processing_environment">A_TRUSTED_PROCESSING_ENVIRONMENT</a><span>, in § 5.1</span>
-   <li><a href="#a_untrusted_storage_location">A_UNTRUSTED_STORAGE_LOCATION</a><span>, in § 5.1</span>
-   <li><a href="#m_encryption">M_ENCRYPTION</a><span>, in § 5.3</span>
-   <li><a href="#m_integrity">M_INTEGRITY</a><span>, in § 5.3</span>
+   <li><a href="#cid">cid</a><span>, in § 2.2.1</span>
+   <li><a href="#entries">entries</a><span>, in § 2.3</span>
+   <li><a href="#ext">ext</a><span>, in § 2.2.1</span>
+   <li><a href="#i">I</a><span>, in § 2.2.1.1</span>
+   <li><a href="#iv">iv</a><span>, in § 2.2.1</span>
+   <li><a href="#kdf">kdf</a><span>, in § 2.2.1</span>
+   <li><a href="#m">M</a><span>, in § 2.2.1.1</span>
+   <li><a href="#major-version">major version</a><span>, in § 2.1</span>
+   <li><a href="#minor-version">minor version</a><span>, in § 2.1</span>
+   <li><a href="#p">P</a><span>, in § 2.2.1.1</span>
+   <li><a href="#s">S</a><span>, in § 2.2.1.1</span>
+   <li><a href="#sig">sig</a><span>, in § 2.1</span>
+   <li><a href="#uuid">$UUID</a><span>, in § 2.2.1.1</span>
   </ul>
   <h2 class="no-num no-ref heading settled" id="references"><span class="content">References</span><a class="self-link" href="#references"></a></h2>
   <h3 class="no-num no-ref heading settled" id="normative"><span class="content">Normative References</span><a class="self-link" href="#normative"></a></h3>
   <dl>
-   <dt id="biblio-fido-v21">[FIDO-v2.1]
-   <dd><a href="https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html"><cite>Client to Authenticator Protocol (CTAP)</cite></a>. Editor's Draft. URL: <a href="https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html">https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html</a>
    <dt id="biblio-rfc2119">[RFC2119]
    <dd>S. Bradner. <a href="https://datatracker.ietf.org/doc/html/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. March 1997. Best Current Practice. URL: <a href="https://datatracker.ietf.org/doc/html/rfc2119">https://datatracker.ietf.org/doc/html/rfc2119</a>
-   <dt id="biblio-rfc5958">[RFC5958]
-   <dd>S. Turner. <a href="https://www.rfc-editor.org/rfc/rfc5958"><cite>Asymmetric Key Packages</cite></a>. August 2010. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc5958">https://www.rfc-editor.org/rfc/rfc5958</a>
-   <dt id="biblio-rfc7468">[RFC7468]
-   <dd>S. Josefsson; S. Leonard. <a href="https://www.rfc-editor.org/rfc/rfc7468"><cite>Textual Encodings of PKIX, PKCS, and CMS Structures</cite></a>. April 2015. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc7468">https://www.rfc-editor.org/rfc/rfc7468</a>
-   <dt id="biblio-rfc7517">[RFC7517]
-   <dd>M. Jones. <a href="https://www.rfc-editor.org/rfc/rfc7517"><cite>JSON Web Key (JWK)</cite></a>. May 2015. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc7517">https://www.rfc-editor.org/rfc/rfc7517</a>
-   <dt id="biblio-rfc9562">[RFC9562]
+   <dt id="biblio-rfc8152">[RFC8152]
+   <dd>J. Schaad. <a href="https://www.rfc-editor.org/rfc/rfc9053"><cite>CBOR Object Signing and Encryption (COSE): Initial Algorithms</cite></a>. August 2022. Informational. URL: <a href="https://www.rfc-editor.org/rfc/rfc9053">https://www.rfc-editor.org/rfc/rfc9053</a>
+   <dt id="biblio-rfc8949">[RFC8949]
+   <dd>C. Bormann; P. Hoffman. <a href="https://www.rfc-editor.org/rfc/rfc8949"><cite>Concise Binary Object Representation (CBOR)</cite></a>. December 2020. Internet Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc8949">https://www.rfc-editor.org/rfc/rfc8949</a>
+  </dl>
+  <h3 class="no-num no-ref heading settled" id="informative"><span class="content">Informative References</span><a class="self-link" href="#informative"></a></h3>
+  <dl>
+   <dt id="biblio-fido-v21">[FIDO-V2.1]
+   <dd><a href="https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html"><cite>Client to Authenticator Protocol (CTAP)</cite></a>. Editor's Draft. URL: <a href="https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html">https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html</a>
+   <dt id="biblio-rfc4122">[RFC4122]
    <dd>K. Davis; B. Peabody; P. Leach. <a href="https://www.rfc-editor.org/rfc/rfc9562"><cite>Universally Unique IDentifiers (UUIDs)</cite></a>. May 2024. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc9562">https://www.rfc-editor.org/rfc/rfc9562</a>
+   <dt id="biblio-xml">[XML]
+   <dd>Tim Bray; et al. <a href="https://www.w3.org/TR/xml/"><cite>Extensible Markup Language (XML) 1.0 (Fifth Edition)</cite></a>. 26 November 2008. REC. URL: <a href="https://www.w3.org/TR/xml/">https://www.w3.org/TR/xml/</a>
   </dl>
 <script>/* Boilerplate: script-dom-helper */
 "use strict";
@@ -3101,10 +3479,19 @@ function parseHTML(markup) {
 "use strict";
 {
 let dfnPanelData = {
-"a_trusted_processing_environment": {"dfnID":"a_trusted_processing_environment","dfnText":"A_TRUSTED_PROCESSING_ENVIRONMENT","external":false,"refSections":[{"refs":[{"id":"ref-for-a_trusted_processing_environment"},{"id":"ref-for-a_trusted_processing_environment\u2460"}],"title":"5.2. Threads"}],"url":"#a_trusted_processing_environment"},
-"a_untrusted_storage_location": {"dfnID":"a_untrusted_storage_location","dfnText":"A_UNTRUSTED_STORAGE_LOCATION","external":false,"refSections":[{"refs":[{"id":"ref-for-a_untrusted_storage_location"},{"id":"ref-for-a_untrusted_storage_location\u2460"}],"title":"5.2. Threads"}],"url":"#a_untrusted_storage_location"},
-"m_encryption": {"dfnID":"m_encryption","dfnText":"M_ENCRYPTION","external":false,"refSections":[{"refs":[{"id":"ref-for-m_encryption"}],"title":"5.2. Threads"}],"url":"#m_encryption"},
-"m_integrity": {"dfnID":"m_integrity","dfnText":"M_INTEGRITY","external":false,"refSections":[{"refs":[{"id":"ref-for-m_integrity"}],"title":"5.2. Threads"}],"url":"#m_integrity"},
+"cid": {"dfnID":"cid","dfnText":"cid","external":false,"refSections":[{"refs":[{"id":"ref-for-cid"}],"title":"2.2. Trailer"},{"refs":[{"id":"ref-for-cid\u2460"}],"title":"2.2.2.4. Symmetric Keys"},{"refs":[{"id":"ref-for-cid\u2461"}],"title":"2.3.1. Meta"},{"refs":[{"id":"ref-for-cid\u2462"}],"title":"2.3.2. Group"},{"refs":[{"id":"ref-for-cid\u2463"}],"title":"2.3.3.1. Entry"}],"url":"#cid"},
+"entries": {"dfnID":"entries","dfnText":"entries","external":false,"refSections":[{"refs":[{"id":"ref-for-entries"}],"title":"2.3. Body"}],"url":"#entries"},
+"ext": {"dfnID":"ext","dfnText":"ext","external":false,"refSections":[],"url":"#ext"},
+"i": {"dfnID":"i","dfnText":"I","external":false,"refSections":[],"url":"#i"},
+"iv": {"dfnID":"iv","dfnText":"iv","external":false,"refSections":[{"refs":[{"id":"ref-for-iv"},{"id":"ref-for-iv\u2460"},{"id":"ref-for-iv\u2461"}],"title":"2.5. Serialization"},{"refs":[{"id":"ref-for-iv\u2462"}],"title":"2.6. Deserialization"}],"url":"#iv"},
+"kdf": {"dfnID":"kdf","dfnText":"kdf","external":false,"refSections":[{"refs":[{"id":"ref-for-kdf"}],"title":"2.2.2.4.1. Decrypting the master secret"}],"url":"#kdf"},
+"m": {"dfnID":"m","dfnText":"M","external":false,"refSections":[],"url":"#m"},
+"major-version": {"dfnID":"major-version","dfnText":"major version","external":false,"refSections":[],"url":"#major-version"},
+"minor-version": {"dfnID":"minor-version","dfnText":"minor version","external":false,"refSections":[],"url":"#minor-version"},
+"p": {"dfnID":"p","dfnText":"P","external":false,"refSections":[],"url":"#p"},
+"s": {"dfnID":"s","dfnText":"S","external":false,"refSections":[],"url":"#s"},
+"sig": {"dfnID":"sig","dfnText":"sig","external":false,"refSections":[{"refs":[{"id":"ref-for-sig"}],"title":"2.6. Deserialization"}],"url":"#sig"},
+"uuid": {"dfnID":"uuid","dfnText":"$UUID","external":false,"refSections":[{"refs":[{"id":"ref-for-uuid"}],"title":"2.2.1.1. KDF Parameters"}],"url":"#uuid"},
 };
 
 document.addEventListener("DOMContentLoaded", ()=>{
@@ -3493,10 +3880,12 @@ function genLinkingSyntaxes(dfn) {
 "use strict";
 {
 let refsData = {
-"#a_trusted_processing_environment": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"kdbxng","spec":"kdbxng-1","status":"local","text":"a_trusted_processing_environment","type":"dfn","url":"#a_trusted_processing_environment"},
-"#a_untrusted_storage_location": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"kdbxng","spec":"kdbxng-1","status":"local","text":"a_untrusted_storage_location","type":"dfn","url":"#a_untrusted_storage_location"},
-"#m_encryption": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"kdbxng","spec":"kdbxng-1","status":"local","text":"m_encryption","type":"dfn","url":"#m_encryption"},
-"#m_integrity": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"kdbxng","spec":"kdbxng-1","status":"local","text":"m_integrity","type":"dfn","url":"#m_integrity"},
+"#cid": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"cid","type":"dfn","url":"#cid"},
+"#entries": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"entries","type":"dfn","url":"#entries"},
+"#iv": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"iv","type":"dfn","url":"#iv"},
+"#kdf": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"kdf","type":"dfn","url":"#kdf"},
+"#sig": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"sig","type":"dfn","url":"#sig"},
+"#uuid": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"$uuid","type":"dfn","url":"#uuid"},
 };
 
 function mkRefHint(link, ref) {
