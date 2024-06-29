@@ -1489,8 +1489,8 @@ Possible extra rowspan handling
 	}
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
-  <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="0cd5f153410b5597cfa07844a37ba293130b2909" name="revision">
+  <link href="https://r4gus.github.io/kdbxng/docs/index.html" rel="canonical">
+  <meta content="318224d1b858d8a899d56036807466953b42b0d3" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2055,9 +2055,9 @@ dfn > a.self-link::before      { content: "#"; }
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
-     <dd><a class="u-url" href="https://r4gus.github.io/ccdb/index.html">https://r4gus.github.io/ccdb/index.html</a>
+     <dd><a class="u-url" href="https://r4gus.github.io/kdbxng/docs/index.html">https://r4gus.github.io/kdbxng/docs/index.html</a>
      <dt>Issue Tracking:
-     <dd><a href="https://github.com/r4gus/ccdb/issues/">GitHub</a>
+     <dd><a href="https://github.com/r4gus/kdbxng/issues/">GitHub</a>
      <dt class="editor">Editor:
      <dd class="editor p-author h-card vcard"><a class="p-name fn u-email email" href="mailto:david@thesugar.de">David P. Sugar</a>
     </dl>
@@ -2081,7 +2081,7 @@ Parts of this work may be from another specification document.  If so, those par
   </div>
   <div class="p-summary" data-fill-with="abstract">
    <h2 class="no-num no-toc no-ref heading settled" id="abstract"><span class="content">Abstract</span></h2>
-   <p>foo bar</p>
+   <p>This document describes a format to store secrets at rest based on the pcapng file format. It is designed as an alternative to other file formats like KDBX used with KeePass and KeePassXC.</p>
   </div>
   <div data-fill-with="at-risk"></div>
   <nav data-fill-with="table-of-contents" id="toc">
@@ -2118,6 +2118,8 @@ Parts of this work may be from another specification document.  If so, those par
         <li><a href="#kdf-field"><span class="secno">3.1.2</span> <span class="content">KDF Field</span></a>
        </ol>
       <li><a href="#secrets-block"><span class="secno">3.2</span> <span class="content">Secrets Block</span></a>
+      <li><a href="#binary-block"><span class="secno">3.3</span> <span class="content">Binary Block</span></a>
+      <li><a href="#ddb"><span class="secno">3.4</span> <span class="content">Database Description Block</span></a>
      </ol>
     <li><a href="#block-type-codes"><span class="secno">4</span> <span class="content">Standardized Block Type Codes</span></a>
     <li>
@@ -2295,6 +2297,11 @@ the optional fields (if any), or skip some of them.</p>
        <td>variable
        <td>yes
       <tr>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="opt_binary">opt_binary</dfn>
+       <td>4
+       <td>variable
+       <td>yes
+      <tr>
        <td><code>opt_custom</code>
        <td>2988/2989
        <td>variable
@@ -2325,7 +2332,9 @@ the optional fields (if any), or skip some of them.</p>
        <p>Usage Count (64 bits): The number of times the block or its content was used as unsigned integer. The meaning of this depends on the type of the block. The field MAY be ignored.</p>
      </ul>
     <li data-md>
-     <p><code>opt_tag</code>: A tag associated with the given block.</p>
+     <p><code>opt_tag</code>: A human readable tag associated with the given block.</p>
+    <li data-md>
+     <p><code>opt_binary</code>: A binary file (see <a href="#binary-block">§ 3.3 Binary Block</a>) associated with the given block.</p>
     <li data-md>
      <p><code>opt_custom</code>: This option is described in detail in <a href="#custom-options">§ 2.5.1 Custom Options</a>.</p>
    </ul>
@@ -2580,8 +2589,13 @@ data based on the selected Secrets Type.</p>
        <td>variable
        <td>no
       <tr>
-       <td><code>sec_url</code>
-       <td>65
+       <td><code>sec_uname</code>
+       <td>66
+       <td>variable
+       <td>no
+      <tr>
+       <td><code>sec_uid</code>
+       <td>67
        <td>variable
        <td>no
     </table>
@@ -2591,6 +2605,127 @@ data based on the selected Secrets Type.</p>
      <p><code>sec_title</code>: A human readable name or title associated with the given secret.</p>
     <li data-md>
      <p><code>sec_url</code>: A valid URL associated with the given secret. This can be used to associate a secret with a specific (online) service. In the context of a passkey (FIDO2 credential), this option MUST be used to store the relying party id (rpId).</p>
+    <li data-md>
+     <p><code>sec_uname</code>: A user name string associated with the credential. This can for example be the username provided together with a password for login. The username is usually chosen by the user herself.</p>
+    <li data-md>
+     <p><code>sec_uid</code>: A id identifying the user. The id is usually selected by the application or service associated with the secret. In the context of a passkey (FIDO2 credential), this option MUST be used to store the user id.</p>
+   </ul>
+   <h3 class="heading settled" data-level="3.3" id="binary-block"><span class="secno">3.3. </span><span class="content">Binary Block</span><a class="self-link" href="#binary-block"></a></h3>
+   <p>A Binary Block (BB) stores binary data and MUST be used in the context of a <a data-link-type="dfn" href="#opt_binary" id="ref-for-opt_binary">opt_binary</a> option.</p>
+<pre>                        1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 0 |                   Block Type = 0x00000301                     |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 4 |                      Block Total Length                       |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 8 |                         File Name Length                      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+12 /                                                               /
+   /                         File Name Data                        /
+   /              (variable length, padded to 32 bits)             /
+   /                                                               /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                         Binary Length                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                                                               /
+   /                         Binary Data                           /
+   /              (variable length, padded to 32 bits)             /
+   /                                                               /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                       Block Total Length                      /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
+   <ul>
+    <li data-md>
+     <p>Block Type: The block type of the Binary Block is 0x301.</p>
+    <li data-md>
+     <p>Block Total Length: total size of this block, as described in <a href="#general-block-structure">§ 2.1 General Block Structure</a>.</p>
+    <li data-md>
+     <p>File Name Length (32 bits): The length of the File Name Data.</p>
+    <li data-md>
+     <p>File Name Data: The file name associated with the Binary Data, e.g., "avatar.png".</p>
+    <li data-md>
+     <p>Binary Length (32 bits): The length of the Binary Data.</p>
+    <li data-md>
+     <p>Binary Data: The binary data.</p>
+   </ul>
+   <h3 class="heading settled" data-level="3.4" id="ddb"><span class="secno">3.4. </span><span class="content">Database Description Block</span><a class="self-link" href="#ddb"></a></h3>
+   <p>A Database Description Block (DDB) is mandatory. It comes right after a <a href="#header-block">§ 3.1 Database Header Block</a> and stores information about the given database.</p>
+<pre>                        1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 0 |                   Block Type = 0x00000302                     |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 4 |                      Block Total Length                       |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 8 |                         Generator Length                      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+12 /                                                               /
+   /                            Generator                          /
+   /              (variable length, padded to 32 bits)             /
+   /                                                               /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Database Name Length                    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                                                               /
+   /                          Database Name                        /
+   /              (variable length, padded to 32 bits)             /
+   /                                                               /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Database Description Length             |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                                                               /
+   /                          Database Description                 /
+   /              (variable length, padded to 32 bits)             /
+   /                                                               /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                                                               /
+   /                       Options (variable)                      /
+   /                                                               /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                       Block Total Length                      /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
+   <ul>
+    <li data-md>
+     <p>Block Type: The block type of the Database Description Block is 0x302.</p>
+    <li data-md>
+     <p>Block Total Length: total size of this block, as described in <a href="#general-block-structure">§ 2.1 General Block Structure</a>.</p>
+    <li data-md>
+     <p>Generator Length (32 bits): The length of the Generator.</p>
+    <li data-md>
+     <p>Generator: A human readable name of the application that generated the given database.</p>
+    <li data-md>
+     <p>Database Name Length (32 bits): The length of the Database Name.</p>
+    <li data-md>
+     <p>Database Name: The name of the database. This name is usually chosen by the user who created the database.</p>
+    <li data-md>
+     <p>Database Description Length (32 bits): The length of the Database Description.</p>
+    <li data-md>
+     <p>Database Description: A description of the database. This is usually provided by the user who created the database.</p>
+    <li data-md>
+     <p>Options: optionally, a list of options (formatted according to the rules defined in <a href="#options">§ 2.5 Options</a>) can be present.</p>
+   </ul>
+   <p>In addition to the options defined in <a href="#options">§ 2.5 Options</a>, the following options are valid within this block:</p>
+   <figure class="table" id="common-options②">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Name
+       <th>Type
+       <th>Length
+       <th>Multiple allowed?
+      <tr>
+       <td><code>ddb_default_uname</code>
+       <td>96
+       <td>variable
+       <td>no
+    </table>
+   </figure>
+   <ul>
+    <li data-md>
+     <p><code>ddb_default_uname</code>: The default username to use. This can help implementations to pre select a username when creating a new credential.</p>
    </ul>
    <h2 class="heading settled" data-level="4" id="block-type-codes"><span class="secno">4. </span><span class="content">Standardized Block Type Codes</span><a class="self-link" href="#block-type-codes"></a></h2>
    <figure class="table" id="block-type-codes-table">
@@ -2884,6 +3019,7 @@ the insertion of padding between associated data and encrypted data.</p>
    <li><a href="#a_untrusted_storage_location">A_UNTRUSTED_STORAGE_LOCATION</a><span>, in § 5.1</span>
    <li><a href="#m_encryption">M_ENCRYPTION</a><span>, in § 5.3</span>
    <li><a href="#m_integrity">M_INTEGRITY</a><span>, in § 5.3</span>
+   <li><a href="#opt_binary">opt_binary</a><span>, in § 2.5</span>
   </ul>
   <h2 class="no-num no-ref heading settled" id="references"><span class="content">References</span><a class="self-link" href="#references"></a></h2>
   <h3 class="no-num no-ref heading settled" id="normative"><span class="content">Normative References</span><a class="self-link" href="#normative"></a></h3>
@@ -3105,6 +3241,7 @@ let dfnPanelData = {
 "a_untrusted_storage_location": {"dfnID":"a_untrusted_storage_location","dfnText":"A_UNTRUSTED_STORAGE_LOCATION","external":false,"refSections":[{"refs":[{"id":"ref-for-a_untrusted_storage_location"},{"id":"ref-for-a_untrusted_storage_location\u2460"}],"title":"5.2. Threads"}],"url":"#a_untrusted_storage_location"},
 "m_encryption": {"dfnID":"m_encryption","dfnText":"M_ENCRYPTION","external":false,"refSections":[{"refs":[{"id":"ref-for-m_encryption"}],"title":"5.2. Threads"}],"url":"#m_encryption"},
 "m_integrity": {"dfnID":"m_integrity","dfnText":"M_INTEGRITY","external":false,"refSections":[{"refs":[{"id":"ref-for-m_integrity"}],"title":"5.2. Threads"}],"url":"#m_integrity"},
+"opt_binary": {"dfnID":"opt_binary","dfnText":"opt_binary","external":false,"refSections":[{"refs":[{"id":"ref-for-opt_binary"}],"title":"3.3. Binary Block"}],"url":"#opt_binary"},
 };
 
 document.addEventListener("DOMContentLoaded", ()=>{
@@ -3497,6 +3634,7 @@ let refsData = {
 "#a_untrusted_storage_location": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"kdbxng","spec":"kdbxng-1","status":"local","text":"a_untrusted_storage_location","type":"dfn","url":"#a_untrusted_storage_location"},
 "#m_encryption": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"kdbxng","spec":"kdbxng-1","status":"local","text":"m_encryption","type":"dfn","url":"#m_encryption"},
 "#m_integrity": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"kdbxng","spec":"kdbxng-1","status":"local","text":"m_integrity","type":"dfn","url":"#m_integrity"},
+"#opt_binary": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"kdbxng","spec":"kdbxng-1","status":"local","text":"opt_binary","type":"dfn","url":"#opt_binary"},
 };
 
 function mkRefHint(link, ref) {

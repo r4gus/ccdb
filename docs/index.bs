@@ -7,7 +7,7 @@ Work Status: exploring
 Repository: https://github.com/r4gus/kdbxng
 URL: https://r4gus.github.io/kdbxng/docs/index.html
 Editor: David P. Sugar, david@thesugar.de
-Abstract: foo bar
+Abstract: This document describes a format to store secrets at rest based on the pcapng file format. It is designed as an alternative to other file formats like KDBX used with KeePass and KeePassXC.
 Warning: Not Ready
 Complain About: accidental-2119 yes, missing-example-ids yes
 Markup Shorthands: markdown yes, css no
@@ -191,6 +191,12 @@ The following codes can always be present in any optional field:
             <td>yes</td>
         </tr>
         <tr>
+            <td><dfn>opt_binary</dfn></td>
+            <td>4</td>
+            <td>variable</td>
+            <td>yes</td>
+        </tr>
+        <tr>
             <td>`opt_custom`</td>
             <td>2988/2989</td>
             <td>variable</td>
@@ -208,7 +214,8 @@ The following codes can always be present in any optional field:
     - Last Access Time (64 bits): The time the block was accessed the last time as (signed) epoch time value in ms.
     - Expiry Time (64 bits): The time the block will expire as (signed) epoch time value in ms. The meaning of this depends on the type of the block. A Expiry Time of 0 or less MUST be ignored.
     - Usage Count (64 bits): The number of times the block or its content was used as unsigned integer. The meaning of this depends on the type of the block. The field MAY be ignored.
-- `opt_tag`: A tag associated with the given block.
+- `opt_tag`: A human readable tag associated with the given block.
+- `opt_binary`: A binary file (see [[#binary-block]]) associated with the given block.
 - `opt_custom`: This option is described in detail in [[#custom-options]].
 
 ### Custom Options ### {#custom-options}
@@ -456,8 +463,14 @@ In addition to the options defined in [[#options]], the following options are va
             <td>no</td>
         </tr>
         <tr>
-            <td>`sec_url`</td>
-            <td>65</td>
+            <td>`sec_uname`</td>
+            <td>66</td>
+            <td>variable</td>
+            <td>no</td>
+        </tr>
+        <tr>
+            <td>`sec_uid`</td>
+            <td>67</td>
             <td>variable</td>
             <td>no</td>
         </tr>
@@ -466,6 +479,119 @@ In addition to the options defined in [[#options]], the following options are va
 
 - `sec_title`: A human readable name or title associated with the given secret. 
 - `sec_url`: A valid URL associated with the given secret. This can be used to associate a secret with a specific (online) service. In the context of a passkey (FIDO2 credential), this option MUST be used to store the relying party id (rpId).
+- `sec_uname`: A user name string associated with the credential. This can for example be the username provided together with a password for login. The username is usually chosen by the user herself.
+- `sec_uid`: A id identifying the user. The id is usually selected by the application or service associated with the secret. In the context of a passkey (FIDO2 credential), this option MUST be used to store the user id.
+
+## Binary Block ## {#binary-block}
+
+A Binary Block (BB) stores binary data and MUST be used in the context of a [=opt_binary=] option.
+
+<pre>
+                        1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 0 |                   Block Type = 0x00000301                     |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 4 |                      Block Total Length                       |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 8 |                         File Name Length                      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+12 /                                                               /
+   /                         File Name Data                        /
+   /              (variable length, padded to 32 bits)             /
+   /                                                               /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                         Binary Length                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                                                               /
+   /                         Binary Data                           /
+   /              (variable length, padded to 32 bits)             /
+   /                                                               /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                       Block Total Length                      /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
+
+- Block Type: The block type of the Binary Block is 0x301.
+- Block Total Length: total size of this block, as described in [[#general-block-structure]].
+- File Name Length (32 bits): The length of the File Name Data.
+- File Name Data: The file name associated with the Binary Data, e.g., "avatar.png".
+- Binary Length (32 bits): The length of the Binary Data.
+- Binary Data: The binary data.
+
+
+## Database Description Block ## {#ddb}
+
+A Database Description Block (DDB) is mandatory. It comes right after a [[#header-block]] and stores information about the given database.
+
+<pre>
+                        1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 0 |                   Block Type = 0x00000302                     |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 4 |                      Block Total Length                       |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ 8 |                         Generator Length                      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+12 /                                                               /
+   /                            Generator                          /
+   /              (variable length, padded to 32 bits)             /
+   /                                                               /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Database Name Length                    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                                                               /
+   /                          Database Name                        /
+   /              (variable length, padded to 32 bits)             /
+   /                                                               /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Database Description Length             |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                                                               /
+   /                          Database Description                 /
+   /              (variable length, padded to 32 bits)             /
+   /                                                               /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                                                               /
+   /                       Options (variable)                      /
+   /                                                               /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                       Block Total Length                      /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
+
+- Block Type: The block type of the Database Description Block is 0x302.
+- Block Total Length: total size of this block, as described in [[#general-block-structure]].
+- Generator Length (32 bits): The length of the Generator.
+- Generator: A human readable name of the application that generated the given database.
+- Database Name Length (32 bits): The length of the Database Name.
+- Database Name: The name of the database. This name is usually chosen by the user who created the database.
+- Database Description Length (32 bits): The length of the Database Description.
+- Database Description: A description of the database. This is usually provided by the user who created the database.
+- Options: optionally, a list of options (formatted according to the rules defined in [[#options]]) can be present.
+
+In addition to the options defined in [[#options]], the following options are valid within this block:
+
+<figure id="common-options" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Length</th>
+            <th>Multiple allowed?</th>
+        </tr>
+        <tr>
+            <td>`ddb_default_uname`</td>
+            <td>96</td>
+            <td>variable</td>
+            <td>no</td>
+        </tr>
+    </table>
+</figure>
+
+- `ddb_default_uname`: The default username to use. This can help implementations to pre select a username when creating a new credential.
+
 
 Standardized Block Type Codes {#block-type-codes}
 =====================
