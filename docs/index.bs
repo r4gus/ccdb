@@ -94,7 +94,7 @@ The outer header encodes information required to decrypt the remaining database.
 
 <pre class='railroad'>
 N: Version
-N: Header Field Length (u64)
+N: Header Field Length (u32)
 OneOrMore:
     N: Header Field
     Choice:
