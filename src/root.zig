@@ -164,6 +164,18 @@ pub const Header = struct {
             .fields = fields,
         };
     }
+
+    pub fn deriveKey(self: *const @This(), key: []u8, key_data: []const u8, allocator: std.mem.Allocator) !void {
+        if (std.mem.eql(u8, cipher_suites.CCDB_XCHACHA20_POLY1305_ARGON2ID, self.fields.cid)) {
+            if (self.fields.kdf.I == null or self.fields.kdf.M == null or self.fields.kdf.P == null or self.fields.kdf.S == null) return error.MissingKdfParams;
+
+            try argon2.kdf(allocator, key, key_data, self.fields.kdf.S.?[0..], .{
+                .t = self.fields.kdf.I.?,
+                .m = self.fields.kdf.M.?,
+                .p = self.fields.kdf.P.?,
+            }, .argon2id);
+        } else return error.InvalidCipherSuite; // This is bad is it should have been captured much earlier :(
+    }
 };
 
 // +------------------------------------------------+
@@ -205,4 +217,28 @@ test "deserialize header" {
     try std.testing.expectEqual(@as(u24, 1), header.fields.kdf.P.?);
     try std.testing.expectEqualSlices(u8, header.fields.cid, cipher_suites.CCDB_XCHACHA20_POLY1305_ARGON2ID);
     try std.testing.expectEqualSlices(u8, header.fields.iv, "\x50\xe1\xf0\x45\xf7\x22\x2f\x6b\xe1\xb0\xe5\xf9\x5b\x2f\x9d\xc8\x97\x29\x48\x5c\xd5\x2f\xc9\x27");
+}
+
+test "derive key" {
+    const allocator = std.testing.allocator;
+
+    const header = try Header.new(
+        cipher_suites.CCDB_XCHACHA20_POLY1305_ARGON2ID,
+        .{
+            .I = 2,
+            .M = 19456,
+            .P = 1,
+            .S = "\x7a\x03\x29\xda\xfd\x46\x6e\x07\x38\x79\x1c\xe4\x87\xf4\x41\x7a\xaf\xf4\x5a\xe0\xcb\x41\xa0\xa1\x0a\x23\xf0\x17\x15\x75\x81\xd0".*,
+        },
+        std.crypto.random,
+        allocator,
+    );
+    @memcpy(header.fields.iv, "\x50\xe1\xf0\x45\xf7\x22\x2f\x6b\xe1\xb0\xe5\xf9\x5b\x2f\x9d\xc8\x97\x29\x48\x5c\xd5\x2f\xc9\x27");
+    defer header.deinit();
+
+    var out: [32]u8 = .{0} ** 32;
+    try header.deriveKey(&out, "supersecret", allocator);
+
+    // TODO: verify!
+    try std.testing.expectEqualSlices(u8, "\xb1\xcf\x52\x14\x9f\x94\x0a\xac\xb9\xa9\xfd\x46\x63\xf5\xf8\x9c\xde\x43\x43\xe5\x2e\x82\xef\xcd\x47\xc1\x9b\x9c\x83\xc4\x57\x08", &out);
 }
