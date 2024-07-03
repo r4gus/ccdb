@@ -179,6 +179,98 @@ pub const Header = struct {
 };
 
 // +------------------------------------------------+
+// | Body                                           |
+// +------------------------------------------------+
+
+pub const Times = struct {
+    creat: i64,
+    mod: i64,
+    exp: ?i64 = null,
+    cnt: ?usize = null,
+
+    pub fn cborStringify(self: *const @This(), _: cbor.Options, out: anytype) !void {
+        try cbor.stringify(self, .{
+            .from_callback = true,
+            .field_settings = &.{
+                .{ .name = "creat", .field_options = .{ .alias = "0", .serialization_type = .Integer } },
+                .{ .name = "mod", .field_options = .{ .alias = "1", .serialization_type = .Integer } },
+                .{ .name = "exp", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
+                .{ .name = "cnt", .field_options = .{ .alias = "3", .serialization_type = .Integer } },
+            },
+        }, out);
+    }
+
+    pub fn cborParse(item: cbor.DataItem, _: cbor.Options) !@This() {
+        return try cbor.parse(@This(), item, .{
+            .from_callback = true, // prevent infinite loops
+            .field_settings = &.{
+                .{ .name = "creat", .field_options = .{ .alias = "0", .serialization_type = .Integer } },
+                .{ .name = "mod", .field_options = .{ .alias = "1", .serialization_type = .Integer } },
+                .{ .name = "exp", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
+                .{ .name = "cnt", .field_options = .{ .alias = "3", .serialization_type = .Integer } },
+            },
+        });
+    }
+};
+
+pub const Meta = struct {
+    gen: []u8,
+    name: []u8,
+    times: Times,
+    allocator: std.mem.Allocator,
+
+    pub fn new(gen: []const u8, name: []const u8, allocator: std.mem.Allocator, milliTimestamp: fn () i64) !@This() {
+        const gen_ = try allocator.dupe(u8, gen);
+        errdefer allocator.free(gen_);
+        const name_ = try allocator.dupe(u8, name);
+        const t = milliTimestamp();
+
+        return .{
+            .gen = gen_,
+            .name = name_,
+            .times = .{
+                .creat = t,
+                .mod = t,
+            },
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *const @This()) void {
+        self.allocator.free(self.gen);
+        self.allocator.free(self.name);
+    }
+
+    pub fn updateTime(self: *@This(), milliTimestamp: fn () i64) void {
+        self.times.mod = milliTimestamp();
+    }
+
+    pub fn cborStringify(self: *const @This(), _: cbor.Options, out: anytype) !void {
+        try cbor.stringify(self, .{
+            .from_callback = true,
+            .field_settings = &.{
+                .{ .name = "gen", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "times", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
+                .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+            },
+        }, out);
+    }
+
+    pub fn cborParse(item: cbor.DataItem, _: cbor.Options) !@This() {
+        return try cbor.parse(@This(), item, .{
+            .from_callback = true, // prevent infinite loops
+            .field_settings = &.{
+                .{ .name = "gen", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "times", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
+                .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+            },
+        });
+    }
+};
+
+// +------------------------------------------------+
 // | Tests                                          |
 // +------------------------------------------------+
 
@@ -241,4 +333,23 @@ test "derive key" {
 
     // TODO: verify!
     try std.testing.expectEqualSlices(u8, "\xb1\xcf\x52\x14\x9f\x94\x0a\xac\xb9\xa9\xfd\x46\x63\xf5\xf8\x9c\xde\x43\x43\xe5\x2e\x82\xef\xcd\x47\xc1\x9b\x9c\x83\xc4\x57\x08", &out);
+}
+
+test "serialize Meta" {
+    const mockup = struct {
+        pub fn ms() i64 {
+            return 1720033910;
+        }
+    };
+
+    const allocator = std.testing.allocator;
+    var arr = std.ArrayList(u8).init(allocator);
+    defer arr.deinit();
+
+    const meta = try Meta.new("PassKeeZ", "My Passkeys", allocator, mockup.ms);
+    defer meta.deinit();
+
+    try cbor.stringify(meta, .{}, arr.writer());
+
+    try std.testing.expectEqualSlices(u8, "\xa3\x00\x68\x50\x61\x73\x73\x4b\x65\x65\x5a\x01\x6b\x4d\x79\x20\x50\x61\x73\x73\x6b\x65\x79\x73\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76", arr.items);
 }
