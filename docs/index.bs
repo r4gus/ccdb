@@ -569,6 +569,49 @@ deleted entry is permanently removed from the database.
     </table>
 </figure>
 
+#### User #### {#user-entry}
+
+<figure id="entryUser" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Field</th>
+            <th>Data Type</th>
+            <th>Description</th>
+            <th>Optional</th>
+        </tr>
+        <tr>
+            <td>id (0x00)</td>
+            <td>bstr</td>
+            <td>
+                The user handle of the user account. A user handle is an opaque byte
+                sequence with a maximum size of 64 bytes, and is not meant to be
+                displayed to the user.
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>name (0x01)</td>
+            <td>tstr</td>
+            <td>
+                A human-palatable identifier for a user account. This name is usually
+                chosen by the user, e.g., the user name. For example, "alexm",
+                "alex.mueller@example.com".
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>display_name (0x02)</td>
+            <td>tstr</td>
+            <td>
+                A human-palatable name for the user account, intended only for display.
+                For example, "Alex Müller" or "田中倫". The Relying Party SHOULD let
+                the user choose this, and SHOULD NOT restrict the choice more than necessary.
+            </td>
+            <td>Optional</td>
+        </tr>
+    </table>
+</figure>
+
 #### Entry #### {#body-entry}
 
 <figure id="entryBodyContent" class="table">
@@ -665,27 +708,29 @@ deleted entry is permanently removed from the database.
             <td>Optional</td>
         </tr>
         <tr>
-            <td>uname (0x07)</td>
-            <td>tstr</td>
+            <td>user (0x07)</td>
+            <td>[[#user-entry]]</td>
             <td>
-                The user name corresponding to the given credential.
+                The user corresponding to the given credential.
+                
+                The [[#user-entry]] MUST contain at least one field.
             </td>
             <td>Optional</td>
         </tr>
         <tr>
-            <td>uid (0x08)</td>
-            <td>bstr</td>
-            <td>
-                A ID assigned to the user by the relying party.
-            </td>
-            <td>Optional</td>
-        </tr>
-        <tr>
-            <td>group (0x09)</td>
+            <td>group (0x08)</td>
             <td>tstr</td>
             <td>
                 A UUID (URN) referencing a [[#body-group]]. If not present, the given entry is implicitly
                 associated to the group directly under the document root.
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>tags (0x09)</td>
+            <td>[+ tstr]</td>
+            <td>
+                One or more tags associated with the given entry.
             </td>
             <td>Optional</td>
         </tr>

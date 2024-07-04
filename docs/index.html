@@ -1488,9 +1488,9 @@ Possible extra rowspan handling
 		}
 	}
 </style>
-  <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
+  <meta content="Bikeshed version a1dabb26c, updated Mon Jun 17 15:00:44 2024 -0700" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="e92a27454a847df798a01bfcbcc9e23beac2b837" name="revision">
+  <meta content="ec2c2f5197b48dda37470b0febd8b1ec156430ec" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2211,7 +2211,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">CBOR Credential Database Format</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">A Collection of Interesting Ideas, <time class="dt-updated" datetime="2024-07-01">1 July 2024</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">A Collection of Interesting Ideas, <time class="dt-updated" datetime="2024-07-04">4 July 2024</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2233,7 +2233,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
    </div>
    <p class="copyright" data-fill-with="copyright"><a href="http://creativecommons.org/publicdomain/zero/1.0/" rel="license"><img alt="CC0" height="15" src="https://licensebuttons.net/p/zero/1.0/80x15.png" width="80"></a> To the extent possible under law, the editors have waived all copyright
 and related or neighboring rights to this work.
-In addition, as of 1 July 2024,
+In addition, as of 4 July 2024,
 the editors have made this specification available under the <a href="https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0" rel="license">Open Web Foundation Agreement Version 1.0</a>,
 which is available at https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0.
 Parts of this work may be from another specification document.  If so, those parts are instead covered by the license of that specification document. </p>
@@ -2288,13 +2288,14 @@ Parts of this work may be from another specification document.  If so, those par
           <li><a href="#body-meta"><span class="secno">2.2.1.2</span> <span class="content">Meta</span></a>
           <li><a href="#body-group"><span class="secno">2.2.1.3</span> <span class="content">Group</span></a>
           <li><a href="#body-times"><span class="secno">2.2.1.4</span> <span class="content">Times</span></a>
+          <li><a href="#user-entry"><span class="secno">2.2.1.5</span> <span class="content">User</span></a>
           <li>
-           <a href="#body-entry"><span class="secno">2.2.1.5</span> <span class="content">Entry</span></a>
+           <a href="#body-entry"><span class="secno">2.2.1.6</span> <span class="content">Entry</span></a>
            <ol class="toc">
-            <li><a href="#example-password-entry"><span class="secno">2.2.1.5.1</span> <span class="content">Example: Password Entry</span></a>
-            <li><a href="#example-passkey-entry"><span class="secno">2.2.1.5.2</span> <span class="content">Example: Passkey Entry</span></a>
+            <li><a href="#example-password-entry"><span class="secno">2.2.1.6.1</span> <span class="content">Example: Password Entry</span></a>
+            <li><a href="#example-passkey-entry"><span class="secno">2.2.1.6.2</span> <span class="content">Example: Passkey Entry</span></a>
            </ol>
-          <li><a href="#attachment"><span class="secno">2.2.1.6</span> <span class="content">Attachment</span></a>
+          <li><a href="#attachment"><span class="secno">2.2.1.7</span> <span class="content">Attachment</span></a>
          </ol>
        </ol>
       <li><a href="#database-creation"><span class="secno">2.3</span> <span class="content">Database Creation</span></a>
@@ -2455,7 +2456,7 @@ header as well as the confidential block is verified using message authenticatio
        <path d="M149.5 31h0.0"></path>
        <path d="M382.0 31h0.0"></path>
        <rect height="22" width="232.5" x="149.5" y="20"></rect>
-       <text x="265.75" y="35">Header Field Length (u64)</text>
+       <text x="265.75" y="35">Header Field Length (u32)</text>
       </g>
       <path d="M382.0 31h10"></path>
       <path d="M392.0 31h10"></path>
@@ -2695,7 +2696,7 @@ symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed6
     </table>
    </figure>
    <h4 class="heading settled" data-level="2.2.1" id="body-data-structure"><span class="secno">2.2.1. </span><span class="content">Body Data Structure</span><a class="self-link" href="#body-data-structure"></a></h4>
-   <p>The body data is a nested CBOR map (major type 5) consisting of <a href="#body-meta">§ 2.2.1.2 Meta</a>, <a href="#body-group">§ 2.2.1.3 Group</a>, and <a href="#body-entry">§ 2.2.1.5 Entry</a> data items.</p>
+   <p>The body data is a nested CBOR map (major type 5) consisting of <a href="#body-meta">§ 2.2.1.2 Meta</a>, <a href="#body-group">§ 2.2.1.3 Group</a>, and <a href="#body-entry">§ 2.2.1.6 Entry</a> data items.</p>
    <figure class="table" id="rootBodyContent">
     <table class="complex data longlastcol">
      <tbody>
@@ -2711,7 +2712,7 @@ symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed6
        <td>
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="entries">entries</dfn> (0x01)
-       <td>[+ <a href="#body-entry">§ 2.2.1.5 Entry</a>]
+       <td>[+ <a href="#body-entry">§ 2.2.1.6 Entry</a>]
        <td> All entries of this database. 
        <td>
       <tr>
@@ -2730,7 +2731,7 @@ symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed6
     </table>
    </figure>
    <h5 class="heading settled" data-level="2.2.1.1" id="body-bin"><span class="secno">2.2.1.1. </span><span class="content">Bin Entry</span><a class="self-link" href="#body-bin"></a></h5>
-   <p>When a <a href="#body-entry">§ 2.2.1.5 Entry</a> is deleted it SHOULD NOT be removed directly but instead
+   <p>When a <a href="#body-entry">§ 2.2.1.6 Entry</a> is deleted it SHOULD NOT be removed directly but instead
 moved into the <a data-link-type="dfn">Bin</a>. Moving a deleted entry in the bin allows the user
 to undo a deletion. Each application MAY define a limit after which a
 deleted entry is permanently removed from the database.</p>
@@ -2750,7 +2751,7 @@ deleted entry is permanently removed from the database.</p>
       <tr>
        <td>entry (0x01)
        <td>map
-       <td> The deleted <a href="#body-entry">§ 2.2.1.5 Entry</a>. The exact location where the entry was deleted from is defined by <a data-link-type="dfn">Groups</a>. 
+       <td> The deleted <a href="#body-entry">§ 2.2.1.6 Entry</a>. The exact location where the entry was deleted from is defined by <a data-link-type="dfn">Groups</a>. 
        <td>
     </table>
    </figure>
@@ -2852,7 +2853,39 @@ deleted entry is permanently removed from the database.</p>
        <td>Optional
     </table>
    </figure>
-   <h5 class="heading settled" data-level="2.2.1.5" id="body-entry"><span class="secno">2.2.1.5. </span><span class="content">Entry</span><a class="self-link" href="#body-entry"></a></h5>
+   <h5 class="heading settled" data-level="2.2.1.5" id="user-entry"><span class="secno">2.2.1.5. </span><span class="content">User</span><a class="self-link" href="#user-entry"></a></h5>
+   <figure class="table" id="entryUser">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Field
+       <th>Data Type
+       <th>Description
+       <th>Optional
+      <tr>
+       <td>id (0x00)
+       <td>bstr
+       <td> The user handle of the user account. A user handle is an opaque byte
+                sequence with a maximum size of 64 bytes, and is not meant to be
+                displayed to the user. 
+       <td>Optional
+      <tr>
+       <td>name (0x01)
+       <td>tstr
+       <td> A human-palatable identifier for a user account. This name is usually
+                chosen by the user, e.g., the user name. For example, "alexm",
+                "alex.mueller@example.com". 
+       <td>Optional
+      <tr>
+       <td>display_name (0x02)
+       <td>tstr
+       <td> A human-palatable name for the user account, intended only for display.
+                For example, "Alex Müller" or "田中倫". The Relying Party SHOULD let
+                the user choose this, and SHOULD NOT restrict the choice more than necessary. 
+       <td>Optional
+    </table>
+   </figure>
+   <h5 class="heading settled" data-level="2.2.1.6" id="body-entry"><span class="secno">2.2.1.6. </span><span class="content">Entry</span><a class="self-link" href="#body-entry"></a></h5>
    <figure class="table" id="entryBodyContent">
     <table class="complex data longlastcol">
      <tbody>
@@ -2928,30 +2961,32 @@ A4            # map(4)
        <td> A text string representing a URL. 
        <td>Optional
       <tr>
-       <td>uname (0x07)
-       <td>tstr
-       <td> The user name corresponding to the given credential. 
+       <td>user (0x07)
+       <td><a href="#user-entry">§ 2.2.1.5 User</a>
+       <td>
+         The user corresponding to the given credential. 
+        <p>The <a href="#user-entry">§ 2.2.1.5 User</a> MUST contain at least one field.</p>
        <td>Optional
       <tr>
-       <td>uid (0x08)
-       <td>bstr
-       <td> A ID assigned to the user by the relying party. 
-       <td>Optional
-      <tr>
-       <td>group (0x09)
+       <td>group (0x08)
        <td>tstr
        <td> A UUID (URN) referencing a <a href="#body-group">§ 2.2.1.3 Group</a>. If not present, the given entry is implicitly
                 associated to the group directly under the document root. 
        <td>Optional
       <tr>
+       <td>tags (0x09)
+       <td>[+ tstr]
+       <td> One or more tags associated with the given entry. 
+       <td>Optional
+      <tr>
        <td>attach (0x0a)
-       <td>[+ <a href="#attachment">§ 2.2.1.6 Attachment</a> ]
+       <td>[+ <a href="#attachment">§ 2.2.1.7 Attachment</a> ]
        <td> One or more attachments associated with the given entry. This can for example be a file
                 containing recovery keys. 
        <td>Optional
     </table>
    </figure>
-   <h6 class="heading settled" data-level="2.2.1.5.1" id="example-password-entry"><span class="secno">2.2.1.5.1. </span><span class="content">Example: Password Entry</span><a class="self-link" href="#example-password-entry"></a></h6>
+   <h6 class="heading settled" data-level="2.2.1.6.1" id="example-password-entry"><span class="secno">2.2.1.6.1. </span><span class="content">Example: Password Entry</span><a class="self-link" href="#example-password-entry"></a></h6>
 <pre class="example" id="example-24fe29e3"><a class="self-link" href="#example-24fe29e3"></a>{
   0x00: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
   0x01: "Github", 
@@ -2965,7 +3000,7 @@ A500782430653639356332382D343266392D343365342D396163612D33663731
 25492073686F756C642070726F6261626C79206368616E6765206D7920706173
 73776F72642E046B7375706572736563726574
 </pre>
-   <h6 class="heading settled" data-level="2.2.1.5.2" id="example-passkey-entry"><span class="secno">2.2.1.5.2. </span><span class="content">Example: Passkey Entry</span><a class="self-link" href="#example-passkey-entry"></a></h6>
+   <h6 class="heading settled" data-level="2.2.1.6.2" id="example-passkey-entry"><span class="secno">2.2.1.6.2. </span><span class="content">Example: Passkey Entry</span><a class="self-link" href="#example-passkey-entry"></a></h6>
    <p>The given example shows a passkey entry. The passkey properties map to the <code>Entry</code> fields as follows:</p>
    <ul>
     <li data-md>
@@ -2996,7 +3031,7 @@ A700782430653639356332382D343266392D343365342D396163612D33663731
 81C8302D5199DE9D0D066A6769746875622E636F6D07657234677573085820B5
 E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
 </pre>
-   <h5 class="heading settled" data-level="2.2.1.6" id="attachment"><span class="secno">2.2.1.6. </span><span class="content">Attachment</span><a class="self-link" href="#attachment"></a></h5>
+   <h5 class="heading settled" data-level="2.2.1.7" id="attachment"><span class="secno">2.2.1.7. </span><span class="content">Attachment</span><a class="self-link" href="#attachment"></a></h5>
    <figure class="table" id="attachmentEntry">
     <table class="complex data longlastcol">
      <tbody>
@@ -3166,7 +3201,7 @@ for a small message size making compression less relevant. This is why CCDB spec
    <h4 class="heading settled" data-level="3.5.2" id="double-enc"><span class="secno">3.5.2. </span><span class="content">No Double Encryption</span><a class="self-link" href="#double-enc"></a></h4>
    <p>Some file formats, like KDBX4, encrypt not only their main data but also specific fields such as password entries. The primary reason for this is to prevent the pollution of process memory with secrets, thereby making them more manageable. Assuming that the underlying operating system enforces process separation, including their allocated memory, and that the application protects the memory from being swapped out, the threat model involves an attacker with root privileges who can access process memory to obtain information about the decrypted data.</p>
    <p>The problem arises when an attacker can read the decrypted XML data structure of a KDBX4 database located in main memory. In such a case, the attacker can also read the prepended StreamKey. This allows the attacker to parse the XML data structure, collect all "protected" fields, and decrypt them using the StreamCipher with the StreamKey. Consequently, the fields are merely obfuscated, and the application cannot enforce the confidentiality of the data.</p>
-   <p>We, the authors of this document, believe that no confidential data should be processed on a compromised system and that there are no sufficient protection measures against an attacker with root privileges. Therefore, we assume a trusted processing environment in our threat model. Applications aiming to protect their data with a second layer of encryption should encrypt the data themselves and then store the ciphertext in the <a data-link-type="dfn" href="#secret" id="ref-for-secret">secret</a> field of a <a href="#body-entry">§ 2.2.1.5 Entry</a>.</p>
+   <p>We, the authors of this document, believe that no confidential data should be processed on a compromised system and that there are no sufficient protection measures against an attacker with root privileges. Therefore, we assume a trusted processing environment in our threat model. Applications aiming to protect their data with a second layer of encryption should encrypt the data themselves and then store the ciphertext in the <a data-link-type="dfn" href="#secret" id="ref-for-secret">secret</a> field of a <a href="#body-entry">§ 2.2.1.6 Entry</a>.</p>
    <h2 class="heading settled" data-level="4" id="recommendet-extension"><span class="secno">4. </span><span class="content">Recommended File Name Extension: .ccdb</span><a class="self-link" href="#recommendet-extension"></a></h2>
    <p>The recommended file name extension for the "CBOR Credential Database Format" specified in this document is ".ccdb".</p>
    <p>On Windows and macOS, files are distinguished by an extension to their filename. Such an extension is technically not actually required, as applications should be able to automatically detect the ccdb file format through the "magic bytes" at the beginning of the file, as some other UN*X desktop environments do. However, using name extensions makes it easier to work with files (e.g. visually distinguish file formats) so it is recommended - though not required - to use .ccdb as the name extension for files following this specification.</p>
@@ -3337,7 +3372,7 @@ for a small message size making compression less relevant. This is why CCDB spec
    <li><a href="#m_integrity">M_INTEGRITY</a><span>, in § 3.3</span>
    <li><a href="#p">P</a><span>, in § 2.1.2.1</span>
    <li><a href="#s">S</a><span>, in § 2.1.2.1</span>
-   <li><a href="#secret">secret</a><span>, in § 2.2.1.5</span>
+   <li><a href="#secret">secret</a><span>, in § 2.2.1.6</span>
    <li><a href="#sig">sig</a><span>, in § 2.1.1</span>
   </ul>
   <h2 class="no-num no-ref heading settled" id="references"><span class="content">References</span><a class="self-link" href="#references"></a></h2>
