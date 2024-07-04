@@ -246,7 +246,7 @@ pub const Meta = struct {
         self.times.mod = milliTimestamp();
     }
 
-    pub fn cborStringify(self: *const @This(), _: cbor.Options, out: anytype) !void {
+    pub fn cborStringify(self: *const @This(), o: cbor.Options, out: anytype) !void {
         try cbor.stringify(self, .{
             .from_callback = true,
             .field_settings = &.{
@@ -255,10 +255,11 @@ pub const Meta = struct {
                 .{ .name = "times", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
             },
+            .allocator = o.allocator,
         }, out);
     }
 
-    pub fn cborParse(item: cbor.DataItem, _: cbor.Options) !@This() {
+    pub fn cborParse(item: cbor.DataItem, o: cbor.Options) !@This() {
         return try cbor.parse(@This(), item, .{
             .from_callback = true, // prevent infinite loops
             .field_settings = &.{
@@ -267,6 +268,7 @@ pub const Meta = struct {
                 .{ .name = "times", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
             },
+            .allocator = o.allocator,
         });
     }
 };
@@ -468,7 +470,7 @@ pub const Entry = struct {
         }
     }
 
-    pub fn cborStringify(self: *const @This(), _: cbor.Options, out: anytype) !void {
+    pub fn cborStringify(self: *const @This(), o: cbor.Options, out: anytype) !void {
         try cbor.stringify(self, .{
             .from_callback = true,
             .field_settings = &.{
@@ -485,10 +487,11 @@ pub const Entry = struct {
                 .{ .name = "attach", .field_options = .{ .alias = "10", .serialization_type = .Integer } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
             },
+            .allocator = o.allocator,
         }, out);
     }
 
-    pub fn cborParse(item: cbor.DataItem, _: cbor.Options) !@This() {
+    pub fn cborParse(item: cbor.DataItem, o: cbor.Options) !@This() {
         return try cbor.parse(@This(), item, .{
             .from_callback = true, // prevent infinite loops
             .field_settings = &.{
@@ -505,6 +508,7 @@ pub const Entry = struct {
                 .{ .name = "attach", .field_options = .{ .alias = "10", .serialization_type = .Integer } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
             },
+            .allocator = o.allocator,
         });
     }
 };
@@ -530,7 +534,7 @@ pub const User = struct {
         if (self.display_name) |name| self.allocator.free(name);
     }
 
-    pub fn cborStringify(self: *const @This(), _: cbor.Options, out: anytype) !void {
+    pub fn cborStringify(self: *const @This(), o: cbor.Options, out: anytype) !void {
         try cbor.stringify(self, .{
             .from_callback = true,
             .field_settings = &.{
@@ -539,10 +543,11 @@ pub const User = struct {
                 .{ .name = "display_name", .field_options = .{ .alias = "2", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
             },
+            .allocator = o.allocator,
         }, out);
     }
 
-    pub fn cborParse(item: cbor.DataItem, _: cbor.Options) !@This() {
+    pub fn cborParse(item: cbor.DataItem, o: cbor.Options) !@This() {
         return try cbor.parse(@This(), item, .{
             .from_callback = true, // prevent infinite loops
             .field_settings = &.{
@@ -551,6 +556,7 @@ pub const User = struct {
                 .{ .name = "display_name", .field_options = .{ .alias = "2", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
             },
+            .allocator = o.allocator,
         });
     }
 };
@@ -565,7 +571,7 @@ pub const Attachment = struct {
         self.allocator.free(self.att);
     }
 
-    pub fn cborStringify(self: *const @This(), _: cbor.Options, out: anytype) !void {
+    pub fn cborStringify(self: *const @This(), o: cbor.Options, out: anytype) !void {
         try cbor.stringify(self, .{
             .from_callback = true,
             .field_settings = &.{
@@ -573,10 +579,11 @@ pub const Attachment = struct {
                 .{ .name = "att", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .ByteString } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
             },
+            .allocator = o.allocator,
         }, out);
     }
 
-    pub fn cborParse(item: cbor.DataItem, _: cbor.Options) !@This() {
+    pub fn cborParse(item: cbor.DataItem, o: cbor.Options) !@This() {
         return try cbor.parse(@This(), item, .{
             .from_callback = true, // prevent infinite loops
             .field_settings = &.{
@@ -584,6 +591,7 @@ pub const Attachment = struct {
                 .{ .name = "att", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .ByteString } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
             },
+            .allocator = o.allocator,
         });
     }
 };
@@ -709,4 +717,14 @@ test "serialize Entry" {
     try cbor.stringify(e1, .{}, arr.writer());
 
     try std.testing.expectEqualSlices(u8, expected, arr.items);
+}
+
+test "deserialize Entry" {
+    const allocator = std.testing.allocator;
+    const raw = "\xa8\x00\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x01\x6a\x42\x75\x6e\x64\x65\x73\x77\x65\x68\x72\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x03\x78\x21\x54\x68\x65\x79\x20\x77\x69\x6c\x6c\x20\x63\x61\x6c\x6c\x20\x6d\x65\x20\x62\x61\x63\x6b\x20\x6e\x65\x78\x74\x20\x77\x65\x65\x6b\x2e\x04\x4b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x09\x82\x64\x77\x6f\x72\x6b\x63\x56\x49\x50";
+
+    var e1 = try cbor.parse(Entry, try cbor.DataItem.new(raw), .{ .allocator = allocator });
+    defer e1.deinit();
+
+    try std.testing.expectEqualStrings("0e695c28-42f9-43e4-9aca-3f71cd701dc0", e1.uuid[0..]);
 }
