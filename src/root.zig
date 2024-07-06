@@ -183,6 +183,69 @@ pub const Header = struct {
 // | Body                                           |
 // +------------------------------------------------+
 
+pub const Body = struct {
+    meta: Meta,
+    entries: std.ArrayList(Entry),
+    groups: ?Group = null,
+    bin: ?std.ArrayList(Entry) = null,
+    allocator: std.mem.Allocator,
+    ms: *const fn () i64,
+    rand: std.Random,
+
+    pub fn new(gen: []const u8, name: []const u8, allocator: std.mem.Allocator, ms: *const fn () i64, rand: std.Random) !@This() {
+        return .{
+            .meta = try Meta.new(gen, name, allocator, ms),
+            .entries = std.ArrayList(Entry).init(allocator),
+            .allocator = allocator,
+            .ms = ms,
+            .rand = rand,
+        };
+    }
+
+    pub fn deinit(self: *const @This()) void {
+        self.meta.deinit();
+        for (self.entries.items) |*entry| {
+            entry.deinit();
+        }
+        self.entries.deinit();
+    }
+
+    /// Create a new entry and add it to the list of existing entries.
+    ///
+    /// This function will return a pointer to the created entry, which can
+    /// be used to modify the entry, e.g., add a password.
+    ///
+    /// The memory belongs to the Body and NOT the caller.
+    pub fn newEntry(self: *@This()) !*Entry {
+        var e = Entry.new(self.allocator, self.ms, self.rand);
+        e.parent = @intFromPtr(self);
+        try self.entries.append(e);
+        return &self.entries.items[self.entries.items.len - 1];
+    }
+
+    pub fn serialize(self: *const @This(), writer: anytype) !void {
+        var l: u64 = 2;
+        if (self.groups != null) l += 1;
+        if (self.bin != null) l += 1;
+
+        try cbor.build.writeMap(writer, l);
+        try cbor.build.writeInt(writer, 0);
+        try cbor.stringify(self.meta, .{}, writer);
+        try cbor.build.writeInt(writer, 1);
+        try cbor.stringify(self.entries.items, .{}, writer);
+        if (self.groups) |groups| {
+            try cbor.build.writeInt(writer, 2);
+            try cbor.stringify(groups, .{}, writer);
+        }
+        if (self.bin) |bin| {
+            try cbor.build.writeInt(writer, 3);
+            try cbor.stringify(bin, .{}, writer);
+        }
+    }
+};
+
+pub const Group = struct {};
+
 pub const Times = struct {
     creat: i64,
     mod: i64,
@@ -220,7 +283,7 @@ pub const Meta = struct {
     times: Times,
     allocator: std.mem.Allocator,
 
-    pub fn new(gen: []const u8, name: []const u8, allocator: std.mem.Allocator, milliTimestamp: fn () i64) !@This() {
+    pub fn new(gen: []const u8, name: []const u8, allocator: std.mem.Allocator, milliTimestamp: *const fn () i64) !@This() {
         const gen_ = try allocator.dupe(u8, gen);
         errdefer allocator.free(gen_);
         const name_ = try allocator.dupe(u8, name);
@@ -242,7 +305,7 @@ pub const Meta = struct {
         self.allocator.free(self.name);
     }
 
-    pub fn updateTime(self: *@This(), milliTimestamp: fn () i64) void {
+    pub fn updateTime(self: *@This(), milliTimestamp: *const fn () i64) void {
         self.times.mod = milliTimestamp();
     }
 
@@ -298,8 +361,13 @@ pub const Entry = struct {
     /// This can for example be a file containing recovery keys.
     attach: ?[]Attachment = null,
     allocator: std.mem.Allocator,
+    // This is a little hack to satisfy the compiler. If we use a pointer the
+    // cbor parser thinks that there is a possibility that we want to include
+    // the parent but the parent has some fields that can't be serialized to
+    // cbor. This usize is actually a pointer but it will never be serialized!
+    parent: ?usize = null,
 
-    pub fn new(allocator: std.mem.Allocator, milliTimestamp: fn () i64, random: std.Random) @This() {
+    pub fn new(allocator: std.mem.Allocator, milliTimestamp: *const fn () i64, random: std.Random) @This() {
         const id = uuid.v4.new2(random);
         const t = milliTimestamp();
         return .{
@@ -312,19 +380,26 @@ pub const Entry = struct {
         };
     }
 
+    fn updateTime(self: *@This()) void {
+        if (self.parent) |parent| {
+            const p = @as(*const Body, @ptrFromInt(parent));
+            self.times.mod = p.ms();
+        }
+    }
+
     /// Assign the value `name` to the given Entry.
     ///
     /// The Entry will create a copy of `name`, i.e., the caller still owns
     /// the memory of `name` after this call. Passing `null` as an argument
     /// will free the memory allocated for the name field of the Entry.
-    pub fn setName(self: *@This(), name: ?[]const u8, ms: fn () i64) !void {
+    pub fn setName(self: *@This(), name: ?[]const u8) !void {
         const name_: ?[]u8 = if (name) |n| try self.allocator.dupe(u8, n) else null;
         if (self.name) |n| {
             @memset(n, 0);
             self.allocator.free(n);
         }
         self.name = name_;
-        self.times.mod = ms();
+        self.updateTime();
     }
 
     /// Assign the value `notes` to the given Entry.
@@ -332,14 +407,14 @@ pub const Entry = struct {
     /// The Entry will create a copy of `notes`, i.e., the caller still owns
     /// the memory of `notes` after this call. Passing `null` as an argument
     /// will free the memory allocated for the notes field of the Entry.
-    pub fn setNotes(self: *@This(), notes: ?[]const u8, ms: fn () i64) !void {
+    pub fn setNotes(self: *@This(), notes: ?[]const u8) !void {
         const notes_: ?[]u8 = if (notes) |n| try self.allocator.dupe(u8, n) else null;
         if (self.notes) |n| {
             @memset(n, 0);
             self.allocator.free(n);
         }
         self.notes = notes_;
-        self.times.mod = ms();
+        self.updateTime();
     }
 
     /// Assign the value `secret` to the given Entry.
@@ -354,14 +429,14 @@ pub const Entry = struct {
     /// make much sense as the attacker would have access to ALL memory but you
     /// can still do it (it doesn't hurt). One thing you have to keep in mind is
     /// that the application MUST prevent the memory form being swapped out.
-    pub fn setSecret(self: *@This(), secret: ?[]const u8, ms: fn () i64) !void {
+    pub fn setSecret(self: *@This(), secret: ?[]const u8) !void {
         const secret_: ?[]u8 = if (secret) |s| try self.allocator.dupe(u8, s) else null;
         if (self.secret) |s| {
             @memset(s, 0);
             self.allocator.free(s);
         }
         self.secret = secret_;
-        self.times.mod = ms();
+        self.updateTime();
     }
 
     /// Assign the value `url` to the given Entry.
@@ -371,14 +446,14 @@ pub const Entry = struct {
     /// The Entry will create a copy of `url`, i.e., the caller still owns
     /// the memory of `url` after this call. Passing `null` as an argument
     /// will free the memory allocated for the url field of the Entry.
-    pub fn setUrl(self: *@This(), url: ?[]const u8, ms: fn () i64) !void {
+    pub fn setUrl(self: *@This(), url: ?[]const u8) !void {
         const url_: ?[]u8 = if (url) |u| try self.allocator.dupe(u8, u) else null;
         if (self.url) |u| {
             @memset(u, 0);
             self.allocator.free(u);
         }
         self.url = url_;
-        self.times.mod = ms();
+        self.updateTime();
     }
 
     /// Assign the value `user` to the given Entry.
@@ -393,7 +468,6 @@ pub const Entry = struct {
             name: ?[]const u8,
             display_name: ?[]const u8,
         },
-        ms: fn () i64,
     ) !void {
         const user_: ?User = if (user) |u| blk: {
             const id_: ?[]u8 = if (u.id) |id| try self.allocator.dupe(u8, id) else null;
@@ -410,10 +484,10 @@ pub const Entry = struct {
         } else null;
         if (self.user) |u| u.deinit();
         self.user = user_;
-        self.times.mod = ms();
+        self.updateTime();
     }
 
-    pub fn addTag(self: *@This(), tag: []const u8, ms: fn () i64) !void {
+    pub fn addTag(self: *@This(), tag: []const u8) !void {
         // Check if tag already exists
         if (self.tags) |tags| {
             for (tags) |tag_other| {
@@ -432,7 +506,7 @@ pub const Entry = struct {
         try arr.append(t);
         self.tags = try arr.toOwnedSlice();
 
-        self.times.mod = ms();
+        self.updateTime();
     }
 
     pub fn deinit(self: *@This()) void {
@@ -486,6 +560,7 @@ pub const Entry = struct {
                 .{ .name = "tags", .field_options = .{ .alias = "9", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "attach", .field_options = .{ .alias = "10", .serialization_type = .Integer } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+                .{ .name = "parent", .field_options = .{ .skip = .Skip } },
             },
             .allocator = o.allocator,
         }, out);
@@ -507,6 +582,7 @@ pub const Entry = struct {
                 .{ .name = "tags", .field_options = .{ .alias = "9", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "attach", .field_options = .{ .alias = "10", .serialization_type = .Integer } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+                .{ .name = "parent", .field_options = .{ .skip = .Skip } },
             },
             .allocator = o.allocator,
         });
@@ -697,17 +773,17 @@ test "serialize Entry" {
     defer e1.deinit();
     @memcpy(e1.uuid[0..], "0e695c28-42f9-43e4-9aca-3f71cd701dc0");
 
-    try e1.setName("Bundeswehr", mockup.ms);
-    try e1.setNotes("They will call me back next week.", mockup.ms);
-    try e1.setSecret("supersecret", mockup.ms);
-    try e1.setUrl("github.com", mockup.ms);
+    try e1.setName("Bundeswehr");
+    try e1.setNotes("They will call me back next week.");
+    try e1.setSecret("supersecret");
+    try e1.setUrl("github.com");
     try e1.setUser(.{
         .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1",
         .name = "r4gus",
         .display_name = "David Sugar",
-    }, mockup.ms);
-    try e1.addTag("work", mockup.ms);
-    try e1.addTag("VIP", mockup.ms);
+    });
+    try e1.addTag("work");
+    try e1.addTag("VIP");
 
     const expected = "\xa8\x00\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x01\x6a\x42\x75\x6e\x64\x65\x73\x77\x65\x68\x72\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x03\x78\x21\x54\x68\x65\x79\x20\x77\x69\x6c\x6c\x20\x63\x61\x6c\x6c\x20\x6d\x65\x20\x62\x61\x63\x6b\x20\x6e\x65\x78\x74\x20\x77\x65\x65\x6b\x2e\x04\x4b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x09\x82\x64\x77\x6f\x72\x6b\x63\x56\x49\x50";
 
@@ -721,10 +797,66 @@ test "serialize Entry" {
 
 test "deserialize Entry" {
     const allocator = std.testing.allocator;
+    // {0: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 1: "Bundeswehr", 2: {0: 1720033910, 1: 1720033910}, 3: "They will call me back next week.", 4: h'7375706572736563726574', 6: "github.com", 7: {0: h'B39DE50BC1080EB796F09FEE8E30C7F1', 1: "r4gus", 2: "David Sugar"}, 9: ["work", "VIP"]}
     const raw = "\xa8\x00\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x01\x6a\x42\x75\x6e\x64\x65\x73\x77\x65\x68\x72\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x03\x78\x21\x54\x68\x65\x79\x20\x77\x69\x6c\x6c\x20\x63\x61\x6c\x6c\x20\x6d\x65\x20\x62\x61\x63\x6b\x20\x6e\x65\x78\x74\x20\x77\x65\x65\x6b\x2e\x04\x4b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x09\x82\x64\x77\x6f\x72\x6b\x63\x56\x49\x50";
 
     var e1 = try cbor.parse(Entry, try cbor.DataItem.new(raw), .{ .allocator = allocator });
     defer e1.deinit();
 
     try std.testing.expectEqualStrings("0e695c28-42f9-43e4-9aca-3f71cd701dc0", e1.uuid[0..]);
+    try std.testing.expectEqualStrings("Bundeswehr", e1.name.?);
+    try std.testing.expectEqualStrings("They will call me back next week.", e1.notes.?);
+    try std.testing.expectEqualStrings("supersecret", e1.secret.?);
+    try std.testing.expectEqualStrings("github.com", e1.url.?);
+    try std.testing.expectEqualSlices(u8, "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1", e1.user.?.id.?);
+    try std.testing.expectEqualSlices(u8, "r4gus", e1.user.?.name.?);
+    try std.testing.expectEqualSlices(u8, "David Sugar", e1.user.?.display_name.?);
+    try std.testing.expectEqualSlices(u8, "work", e1.tags.?[0]);
+    try std.testing.expectEqualSlices(u8, "VIP", e1.tags.?[1]);
+}
+
+test "serialize body #1" {
+    const mockup = struct {
+        pub fn ms() i64 {
+            return 1720033910;
+        }
+    };
+    const allocator = std.testing.allocator;
+    const raw = "\xa2\x00\xa3\x00\x68\x50\x61\x73\x73\x4b\x65\x65\x5a\x01\x6b\x4d\x79\x20\x50\x61\x73\x73\x6b\x65\x79\x73\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x01\x82\xa8\x00\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x01\x6a\x42\x75\x6e\x64\x65\x73\x77\x65\x68\x72\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x03\x78\x21\x54\x68\x65\x79\x20\x77\x69\x6c\x6c\x20\x63\x61\x6c\x6c\x20\x6d\x65\x20\x62\x61\x63\x6b\x20\x6e\x65\x78\x74\x20\x77\x65\x65\x6b\x2e\x04\x4b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x09\x82\x64\x77\x6f\x72\x6b\x63\x56\x49\x50\xa7\x00\x78\x24\x32\x38\x64\x38\x34\x33\x31\x35\x2d\x34\x66\x36\x38\x2d\x34\x38\x31\x66\x2d\x62\x63\x32\x36\x2d\x36\x63\x34\x34\x63\x35\x32\x65\x30\x30\x33\x38\x01\x66\x47\x69\x74\x68\x75\x62\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x04\x48\x31\x32\x33\x34\x35\x36\x37\x38\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x09\x81\x63\x64\x65\x76";
+
+    var body = try Body.new("PassKeeZ", "My Passkeys", allocator, mockup.ms, std.crypto.random);
+    defer body.deinit();
+
+    var e1 = try body.newEntry();
+    @memcpy(e1.uuid[0..], "0e695c28-42f9-43e4-9aca-3f71cd701dc0"); // so we have reproducible results
+    try e1.setName("Bundeswehr");
+    try e1.setNotes("They will call me back next week.");
+    try e1.setSecret("supersecret");
+    try e1.setUrl("github.com");
+    try e1.setUser(.{
+        .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1",
+        .name = "r4gus",
+        .display_name = "David Sugar",
+    });
+    try e1.addTag("work");
+    try e1.addTag("VIP");
+
+    var e2 = try body.newEntry();
+    @memcpy(e2.uuid[0..], "28d84315-4f68-481f-bc26-6c44c52e0038"); // so we have reproducible results
+    try e2.setName("Github");
+    try e2.setSecret("12345678");
+    try e2.setUrl("github.com");
+    try e2.setUser(.{
+        .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2",
+        .name = "r4gus",
+        .display_name = "David Sugar",
+    });
+    try e2.addTag("dev");
+
+    var arr = std.ArrayList(u8).init(allocator);
+    defer arr.deinit();
+
+    try body.serialize(arr.writer());
+
+    try std.testing.expectEqualSlices(u8, raw, arr.items);
 }
