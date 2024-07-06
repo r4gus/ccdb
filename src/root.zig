@@ -210,12 +210,28 @@ pub const Body = struct {
         self.entries.deinit();
     }
 
+    /// Get the database entry with the given id.
+    ///
+    /// The id is a UUID encoded as URN.
+    ///
+    /// The Body owns the memory. The caller MAY modify the entry using
+    /// one of the provided setter functions. The caller MUST NOT modify
+    /// the memory of the returned entry directly.
+    pub fn getEntryById(self: *const @This(), id: [36]u8) ?*Entry {
+        for (self.entries.items) |*entry| {
+            if (std.mem.eql(u8, entry.uuid[0..], id[0..])) return entry;
+        }
+        return null;
+    }
+
     /// Create a new entry and add it to the list of existing entries.
     ///
     /// This function will return a pointer to the created entry, which can
     /// be used to modify the entry, e.g., add a password.
     ///
-    /// The memory belongs to the Body and NOT the caller.
+    /// The Body owns the memory. The caller MAY modify the entry using
+    /// one of the provided setter functions. The caller MUST NOT modify
+    /// the memory of the returned entry directly.
     pub fn newEntry(self: *@This()) !*Entry {
         var e = Entry.new(self.allocator, self.ms, self.rand);
         e.parent = @intFromPtr(self);
@@ -241,6 +257,38 @@ pub const Body = struct {
             try cbor.build.writeInt(writer, 3);
             try cbor.stringify(bin, .{}, writer);
         }
+    }
+
+    pub fn deserialize(allocator: std.mem.Allocator, ms: *const fn () i64, rand: std.Random, raw: []const u8) !@This() {
+        var di = try cbor.DataItem.new(raw);
+
+        if (di.getType() != .Map) return error.ExpectedMap;
+        var mi = di.map();
+        if (mi == null) return error.ExpectedMap;
+
+        const meta = mi.?.next();
+        if (meta == null) return error.ExpectedMetaData;
+        const meta_num = meta.?.key.int();
+        if (meta_num == null or meta_num.? != 0) return error.MetaKeyMalformed;
+        const meta_ = try cbor.parse(Meta, meta.?.value, .{ .allocator = allocator });
+        errdefer meta_.deinit();
+
+        const entries = mi.?.next();
+        if (entries == null) return error.ExpectedEntries;
+        const entries_num = entries.?.key.int();
+        if (entries_num == null or entries_num.? != 1) return error.EntriesKeyMalformed;
+        const entries_ = try cbor.parse([]Entry, entries.?.value, .{ .allocator = allocator });
+        errdefer entries_.deinit();
+
+        // TODO: parse remaining fields
+
+        return .{
+            .meta = meta_,
+            .entries = std.ArrayList(Entry).fromOwnedSlice(allocator, entries_),
+            .allocator = allocator,
+            .ms = ms,
+            .rand = rand,
+        };
     }
 };
 
@@ -824,39 +872,29 @@ test "serialize body #1" {
     const allocator = std.testing.allocator;
     const raw = "\xa2\x00\xa3\x00\x68\x50\x61\x73\x73\x4b\x65\x65\x5a\x01\x6b\x4d\x79\x20\x50\x61\x73\x73\x6b\x65\x79\x73\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x01\x82\xa8\x00\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x01\x6a\x42\x75\x6e\x64\x65\x73\x77\x65\x68\x72\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x03\x78\x21\x54\x68\x65\x79\x20\x77\x69\x6c\x6c\x20\x63\x61\x6c\x6c\x20\x6d\x65\x20\x62\x61\x63\x6b\x20\x6e\x65\x78\x74\x20\x77\x65\x65\x6b\x2e\x04\x4b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x09\x82\x64\x77\x6f\x72\x6b\x63\x56\x49\x50\xa7\x00\x78\x24\x32\x38\x64\x38\x34\x33\x31\x35\x2d\x34\x66\x36\x38\x2d\x34\x38\x31\x66\x2d\x62\x63\x32\x36\x2d\x36\x63\x34\x34\x63\x35\x32\x65\x30\x30\x33\x38\x01\x66\x47\x69\x74\x68\x75\x62\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x04\x48\x31\x32\x33\x34\x35\x36\x37\x38\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x09\x81\x63\x64\x65\x76";
 
-    var body = try Body.new("PassKeeZ", "My Passkeys", allocator, mockup.ms, std.crypto.random);
+    var body = try Body.deserialize(allocator, mockup.ms, std.crypto.random, raw);
     defer body.deinit();
 
-    var e1 = try body.newEntry();
-    @memcpy(e1.uuid[0..], "0e695c28-42f9-43e4-9aca-3f71cd701dc0"); // so we have reproducible results
-    try e1.setName("Bundeswehr");
-    try e1.setNotes("They will call me back next week.");
-    try e1.setSecret("supersecret");
-    try e1.setUrl("github.com");
-    try e1.setUser(.{
-        .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1",
-        .name = "r4gus",
-        .display_name = "David Sugar",
-    });
-    try e1.addTag("work");
-    try e1.addTag("VIP");
+    try std.testing.expectEqualSlices(u8, "PassKeeZ", body.meta.gen);
+    try std.testing.expectEqualSlices(u8, "My Passkeys", body.meta.name);
 
-    var e2 = try body.newEntry();
-    @memcpy(e2.uuid[0..], "28d84315-4f68-481f-bc26-6c44c52e0038"); // so we have reproducible results
-    try e2.setName("Github");
-    try e2.setSecret("12345678");
-    try e2.setUrl("github.com");
-    try e2.setUser(.{
-        .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2",
-        .name = "r4gus",
-        .display_name = "David Sugar",
-    });
-    try e2.addTag("dev");
+    const e1 = body.getEntryById("0e695c28-42f9-43e4-9aca-3f71cd701dc0".*).?;
+    try std.testing.expectEqualStrings("Bundeswehr", e1.name.?);
+    try std.testing.expectEqualStrings("They will call me back next week.", e1.notes.?);
+    try std.testing.expectEqualStrings("supersecret", e1.secret.?);
+    try std.testing.expectEqualStrings("github.com", e1.url.?);
+    try std.testing.expectEqualSlices(u8, "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1", e1.user.?.id.?);
+    try std.testing.expectEqualSlices(u8, "r4gus", e1.user.?.name.?);
+    try std.testing.expectEqualSlices(u8, "David Sugar", e1.user.?.display_name.?);
+    try std.testing.expectEqualSlices(u8, "work", e1.tags.?[0]);
+    try std.testing.expectEqualSlices(u8, "VIP", e1.tags.?[1]);
 
-    var arr = std.ArrayList(u8).init(allocator);
-    defer arr.deinit();
-
-    try body.serialize(arr.writer());
-
-    try std.testing.expectEqualSlices(u8, raw, arr.items);
+    const e2 = body.getEntryById("28d84315-4f68-481f-bc26-6c44c52e0038".*).?;
+    try std.testing.expectEqualStrings("Github", e2.name.?);
+    try std.testing.expectEqualStrings("12345678", e2.secret.?);
+    try std.testing.expectEqualStrings("github.com", e2.url.?);
+    try std.testing.expectEqualSlices(u8, "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2", e2.user.?.id.?);
+    try std.testing.expectEqualSlices(u8, "r4gus", e2.user.?.name.?);
+    try std.testing.expectEqualSlices(u8, "David Sugar", e2.user.?.display_name.?);
+    try std.testing.expectEqualSlices(u8, "dev", e2.tags.?[0]);
 }
