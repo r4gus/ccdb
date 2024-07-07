@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version a1dabb26c, updated Mon Jun 17 15:00:44 2024 -0700" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="44aaf04ba1061be67f937bb940aa940464eba2cc" name="revision">
+  <meta content="b5984050100450f824c640a98063be1d8a8674c8" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2211,7 +2211,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">CBOR Credential Database Format</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">A Collection of Interesting Ideas, <time class="dt-updated" datetime="2024-07-06">6 July 2024</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">A Collection of Interesting Ideas, <time class="dt-updated" datetime="2024-07-07">7 July 2024</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2233,7 +2233,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
    </div>
    <p class="copyright" data-fill-with="copyright"><a href="http://creativecommons.org/publicdomain/zero/1.0/" rel="license"><img alt="CC0" height="15" src="https://licensebuttons.net/p/zero/1.0/80x15.png" width="80"></a> To the extent possible under law, the editors have waived all copyright
 and related or neighboring rights to this work.
-In addition, as of 6 July 2024,
+In addition, as of 7 July 2024,
 the editors have made this specification available under the <a href="https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0" rel="license">Open Web Foundation Agreement Version 1.0</a>,
 which is available at https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0.
 Parts of this work may be from another specification document.  If so, those parts are instead covered by the license of that specification document. </p>
@@ -2250,8 +2250,8 @@ Parts of this work may be from another specification document.  If so, those par
     <li>
      <a href="#intro"><span class="secno">1</span> <span class="content">Introduction</span></a>
      <ol class="toc">
-      <li><a href="#conventions"><span class="secno">1.1</span> <span class="content">Conventions</span></a>
-      <li><a href="#cbor-grammar"><span class="secno">1.2</span> <span class="content">CBOR Grammar</span></a>
+      <li><a href="#cbor-grammar"><span class="secno">1.1</span> <span class="content">CBOR Grammar</span></a>
+      <li><a href="#conventions"><span class="secno">1.2</span> <span class="content">Conventions</span></a>
      </ol>
     <li>
      <a href="#db-format"><span class="secno">2</span> <span class="content">Database Format</span></a>
@@ -2289,12 +2289,7 @@ Parts of this work may be from another specification document.  If so, those par
           <li><a href="#body-group"><span class="secno">2.2.1.3</span> <span class="content">Group</span></a>
           <li><a href="#body-times"><span class="secno">2.2.1.4</span> <span class="content">Times</span></a>
           <li><a href="#user-entry"><span class="secno">2.2.1.5</span> <span class="content">User</span></a>
-          <li>
-           <a href="#body-entry"><span class="secno">2.2.1.6</span> <span class="content">Entry</span></a>
-           <ol class="toc">
-            <li><a href="#example-password-entry"><span class="secno">2.2.1.6.1</span> <span class="content">Example: Password Entry</span></a>
-            <li><a href="#example-passkey-entry"><span class="secno">2.2.1.6.2</span> <span class="content">Example: Passkey Entry</span></a>
-           </ol>
+          <li><a href="#body-entry"><span class="secno">2.2.1.6</span> <span class="content">Entry</span></a>
           <li><a href="#attachment"><span class="secno">2.2.1.7</span> <span class="content">Attachment</span></a>
          </ol>
        </ol>
@@ -2337,31 +2332,7 @@ Parts of this work may be from another specification document.  If so, those par
    <p>This document proposes a new format for storing credentials at rest. The following goals are being pursued:</p>
    <p>Extensibility: The format allows to add new capabilities to the file format over time, and third parties should be able to enrich the information embedded in the file with proprietary extensions, with tools unaware of newer extensions being able to ignore them.</p>
    <p>Resilience: The format protects the data using state-of-the-art cryptographic algorithms to ensure the confidentiality and integrity of the protected data.</p>
-   <h3 class="heading settled" data-level="1.1" id="conventions"><span class="secno">1.1. </span><span class="content">Conventions</span><a class="self-link" href="#conventions"></a></h3>
-   <dl>
-    <dt data-md>Byte
-    <dd data-md>
-     <p>A byte is a value in the range <code>[0, 255]</code> that can be represented with 8 bits.</p>
-    <dt data-md>Unsigned numbers
-    <dd data-md>
-     <p>Unsigned numbers are represented as <code>uN</code>, a number in the range <code>[0, 2^n - 1]</code>, e.g., <code>u32</code> is a number between 0 and 4294967295.</p>
-    <dt data-md>Signed numbers
-    <dd data-md>
-     <p>Signed numbers are represented as <code>iN</code>, a number in the range <code>[-2^(N - 1), 2^(n - 1) - 1]</code>, e.g., <code>i32</code> is a number between 2147483648 and 2147483647.</p>
-    <dt data-md>Endianness
-    <dd data-md>
-     <p>All numbers are stored in the little-endian format, e.g., the <code>u32</code> number 0x12345678 is stored as <code>78 56 34 12</code> consecutively in memory.</p>
-    <dt data-md>Byte sequence
-    <dd data-md>
-     <p>A byte sequence is denoted as <code>byte[N]</code> where <code>N</code> is the number of consecutive bytes in memory.</p>
-    <dt data-md>UUID
-    <dd data-md>
-     <p>Certain elements like ciphers and key derivation functions are encoded as Universally Unique IDentifiers <a data-link-type="biblio" href="#biblio-rfc4122" title="Universally Unique IDentifiers (UUIDs)">[RFC4122]</a> with the version 4 (random data).</p>
-    <dt data-md>String
-    <dd data-md>
-     <p>A UTF-8 string.</p>
-   </dl>
-   <h3 class="heading settled" data-level="1.2" id="cbor-grammar"><span class="secno">1.2. </span><span class="content">CBOR Grammar</span><a class="self-link" href="#cbor-grammar"></a></h3>
+   <h3 class="heading settled" data-level="1.1" id="cbor-grammar"><span class="secno">1.1. </span><span class="content">CBOR Grammar</span><a class="self-link" href="#cbor-grammar"></a></h3>
    <p>This document uses the same grammar as used by <a data-link-type="biblio" href="#biblio-rfc8152" title="CBOR Object Signing and Encryption (COSE): Initial Algorithms">[RFC8152]</a>. The CBOR structures are described in prose.</p>
    <dl>
     <dt data-md>bool
@@ -2387,7 +2358,34 @@ Parts of this work may be from another specification document.  If so, those par
      <p>A CBOR map (major type 5)</p>
     <dt data-md>[+ FOO]
     <dd data-md>
-     <p>Indicates that the type FOO appears one or more times in an array.</p>
+     <p>Indicates that the type FOO appears one or more times in an array. An optional empty array that is part of a map MUST NOT be serialized.</p>
+   </dl>
+   <h3 class="heading settled" data-level="1.2" id="conventions"><span class="secno">1.2. </span><span class="content">Conventions</span><a class="self-link" href="#conventions"></a></h3>
+   <dl>
+    <dt data-md>Byte
+    <dd data-md>
+     <p>A byte is a value in the range <code>[0, 255]</code> that can be represented with 8 bits.</p>
+    <dt data-md>Unsigned numbers
+    <dd data-md>
+     <p>Unsigned numbers are represented as <code>uN</code>, a number in the range <code>[0, 2^n - 1]</code>, e.g., <code>u32</code> is a number between 0 and 4294967295.</p>
+    <dt data-md>Signed numbers
+    <dd data-md>
+     <p>Signed numbers are represented as <code>iN</code>, a number in the range <code>[-2^(N - 1), 2^(n - 1) - 1]</code>, e.g., <code>i32</code> is a number between 2147483648 and 2147483647.</p>
+    <dt data-md>Endianness
+    <dd data-md>
+     <p>All numbers are stored in the little-endian format, e.g., the <code>u32</code> number 0x12345678 is stored as <code>78 56 34 12</code> consecutively in memory.</p>
+    <dt data-md>Byte sequence
+    <dd data-md>
+     <p>A byte sequence is denoted as <code>byte[N]</code> where <code>N</code> is the number of consecutive bytes in memory.</p>
+    <dt data-md>UUID
+    <dd data-md>
+     <p>Certain elements like ciphers and key derivation functions are encoded as Universally Unique IDentifiers <a data-link-type="biblio" href="#biblio-rfc4122" title="Universally Unique IDentifiers (UUIDs)">[RFC4122]</a>.</p>
+    <dt data-md>URN
+    <dd data-md>
+     <p>The human readable encoding of a UUID. In the context of CBOR this is encoded as a tstr.</p>
+    <dt data-md>String
+    <dd data-md>
+     <p>A UTF-8 string.</p>
    </dl>
    <h2 class="heading settled" data-level="2" id="db-format"><span class="secno">2. </span><span class="content">Database Format</span><a class="self-link" href="#db-format"></a></h2>
    <p>The CCDB data consists of a public and a confidential part. The database starts with a public header that encodes the properties of
@@ -2818,7 +2816,7 @@ deleted entry is permanently removed from the database.</p>
        <td>
       <tr>
        <td>groups (0x03)
-       <td>[+ UUID]
+       <td>[+ URN]
        <td>
          A array of UUIDs encoded as URN referencing an object in <a data-link-type="dfn" href="#groups" id="ref-for-groups①">groups</a>.
                 All listed groups are children of the given group. 
@@ -2827,12 +2825,17 @@ deleted entry is permanently removed from the database.</p>
        <td>Optional
       <tr>
        <td>entries (0x04)
-       <td>[+ UUID]
+       <td>[+ URN]
        <td>
          A array of UUIDs encoded as URN referencing an object in <a data-link-type="dfn" href="#entries" id="ref-for-entries">entries</a>.
                 All listed entries belong to the given group. 
         <p>The UUIDs SHOULD be of type UUIDv7 but applications MUST NOT
                 expect the UUIDs to be sorted in any specific order.</p>
+       <td>Optional
+      <tr>
+       <td>group (0x05)
+       <td>URN
+       <td> Points to the parent group. 
        <td>Optional
     </table>
    </figure>
@@ -2997,51 +3000,6 @@ A4            # map(4)
        <td>Optional
     </table>
    </figure>
-   <h6 class="heading settled" data-level="2.2.1.6.1" id="example-password-entry"><span class="secno">2.2.1.6.1. </span><span class="content">Example: Password Entry</span><a class="self-link" href="#example-password-entry"></a></h6>
-<pre class="example" id="example-24fe29e3"><a class="self-link" href="#example-24fe29e3"></a>{
-  0x00: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
-  0x01: "Github", 
-  0x02: {0x00: 1714585008, 0x01: 1714585008}, 
-  0x03: "I should probably change my password.", 
-  0x04: "supersecret"
-}
-
-A500782430653639356332382D343266392D343365342D396163612D33663731
-6364373031646330016647697468756202A2001A66327DB0011A66327DB00378
-25492073686F756C642070726F6261626C79206368616E6765206D7920706173
-73776F72642E046B7375706572736563726574
-</pre>
-   <h6 class="heading settled" data-level="2.2.1.6.2" id="example-passkey-entry"><span class="secno">2.2.1.6.2. </span><span class="content">Example: Passkey Entry</span><a class="self-link" href="#example-passkey-entry"></a></h6>
-   <p>The given example shows a passkey entry. The passkey properties map to the <code>Entry</code> fields as follows:</p>
-   <ul>
-    <li data-md>
-     <p><strong>credId</strong> = uuid = <code>\x0e\x69\x5c\x28\x42\xf9\x43\xe4\x9a\xca\x3f\x71\xcd\x70\x1d\xc0</code></p>
-    <li data-md>
-     <p><strong>rpId</strong> = url = <code>github.com</code></p>
-    <li data-md>
-     <p><strong>userId</strong> = uid = <code>\xb5\xe3\x68\x34\xa0\xda\x97\xb7\x50\x35\x58\x54\x90\x93\xe0\x48\x59\x4b\xc5\x11\xe2\x5c\xc8\x51\xcc\xf7\xa6\x8c\xb0\xfa\xd3\xf8</code></p>
-   </ul>
-<pre class="example" id="example-e7a05075"><a class="self-link" href="#example-e7a05075"></a>{
-  0: "0e695c28-42f9-43e4-9aca-3f71cd701dc0", 
-  1: "Github", 
-  2: {0: 1714585008, 1: 1714585008}, 
-  5: {
-    1: 2, 
-    3: -7, 
-    -1: 1, 
-    -4: h’299BA40F6547F9A591636BA3AABCF52ADEDECA324D3D6E81C8302D5199DE9D0D'
-  }, 
-  6: "github.com", 
-  7: "r4gus", 
-  8: h’B5E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8'
-}
-
-A700782430653639356332382D343266392D343365342D396163612D33663731
-6364373031646330016647697468756202A2001A66327DB0011A66327DB005A4
-010203262001235820299BA40F6547F9A591636BA3AABCF52ADEDECA324D3D6E
-81C8302D5199DE9D0D066A6769746875622E636F6D07657234677573085820B5
-E36834A0DA97B7503558549093E048594BC511E25CC851CCF7A68CB0FAD3F8
-</pre>
    <h5 class="heading settled" data-level="2.2.1.7" id="attachment"><span class="secno">2.2.1.7. </span><span class="content">Attachment</span><a class="self-link" href="#attachment"></a></h5>
    <figure class="table" id="attachmentEntry">
     <table class="complex data longlastcol">

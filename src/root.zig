@@ -253,7 +253,8 @@ pub const Body = struct {
     /// one of the provided setter functions. The caller MUST NOT modify
     /// the memory of the returned group directly.
     pub fn newGroup(self: *@This(), name: []const u8) !*Group {
-        const g = try Group.new(name, self.allocator, self.ms, self.rand);
+        var g = try Group.new(name, self.allocator, self.ms, self.rand);
+        g.parent = @intFromPtr(self);
         if (self.groups == null) self.groups = std.ArrayList(Group).init(self.allocator);
         try self.groups.?.append(g);
         return &self.groups.?.items[self.groups.?.items.len - 1];
@@ -345,6 +346,11 @@ pub const Group = struct {
     entries: ?[]uuid.urn.Urn = null,
     group: ?uuid.urn.Urn = null,
     allocator: std.mem.Allocator,
+    // This is a little hack to satisfy the compiler. If we use a pointer the
+    // cbor parser thinks that there is a possibility that we want to include
+    // the parent but the parent has some fields that can't be serialized to
+    // cbor. This usize is actually a pointer but it will never be serialized!
+    parent: ?usize = null,
 
     pub fn new(name: []const u8, allocator: std.mem.Allocator, milliTimestamp: *const fn () i64, random: std.Random) !@This() {
         const name_ = try allocator.dupe(u8, name);
@@ -384,7 +390,12 @@ pub const Group = struct {
                                 while (j < e.items.len) : (j += 1) {
                                     if (std.mem.eql(u8, e.items[j][0..], entry.uuid[0..])) {
                                         _ = e.swapRemove(j);
-                                        entries.* = try e.toOwnedSlice();
+                                        if (e.items.len == 0) {
+                                            e.deinit();
+                                            groups.items[i].entries = null;
+                                        } else {
+                                            entries.* = try e.toOwnedSlice();
+                                        }
                                         break :outer_blk;
                                     }
                                 }
@@ -402,7 +413,37 @@ pub const Group = struct {
     }
 
     pub fn addGroup(self: *@This(), group: *Group) !void {
-        if (group.group != null and std.mem.eql(u8, group.group.?[0..], self.uuid[0..])) return;
+        if (group.group) |group_parent_id| outer_blk: {
+            if (std.mem.eql(u8, group_parent_id[0..], self.uuid[0..])) return;
+
+            if (group.parent) |parent_| {
+                const parent: *Body = @ptrFromInt(parent_);
+                if (parent.groups) |groups| {
+                    var i: usize = 0;
+                    while (i < groups.items.len) : (i += 1) {
+                        if (std.mem.eql(u8, group_parent_id[0..], groups.items[i].uuid[0..])) {
+                            if (groups.items[i].groups) |*groups_of_group| {
+                                var e = std.ArrayList(uuid.urn.Urn).fromOwnedSlice(groups.items[i].allocator, groups_of_group.*);
+                                var j: usize = 0;
+                                while (j < e.items.len) : (j += 1) {
+                                    if (std.mem.eql(u8, e.items[j][0..], group.uuid[0..])) {
+                                        _ = e.swapRemove(j);
+                                        if (e.items.len == 0) {
+                                            e.deinit();
+                                            groups.items[i].groups = null;
+                                        } else {
+                                            groups_of_group.* = try e.toOwnedSlice();
+                                        }
+                                        break :outer_blk;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         var arr = if (self.groups) |groups| std.ArrayList(uuid.urn.Urn).fromOwnedSlice(self.allocator, groups) else std.ArrayList(uuid.urn.Urn).init(self.allocator);
         try arr.append(group.uuid);
         self.groups = try arr.toOwnedSlice();
@@ -420,6 +461,7 @@ pub const Group = struct {
                 .{ .name = "entries", .field_options = .{ .alias = "4", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "group", .field_options = .{ .alias = "5", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+                .{ .name = "parent", .field_options = .{ .skip = .Skip } },
             },
             .allocator = o.allocator,
         }, out);
@@ -436,6 +478,7 @@ pub const Group = struct {
                 .{ .name = "entries", .field_options = .{ .alias = "4", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "group", .field_options = .{ .alias = "5", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+                .{ .name = "parent", .field_options = .{ .skip = .Skip } },
             },
             .allocator = o.allocator,
         });
@@ -1136,6 +1179,7 @@ test "serialize body #2" {
     const g3 = try body.newGroup("github.com");
     @memcpy(g3.uuid[0..], "0190889b-0636-7a82-92d2-a5ad838fec1d");
 
+    try g1.addGroup(g3);
     try g2.addGroup(g3);
 
     var e1 = try body.newEntry();
@@ -1196,6 +1240,8 @@ test "serialize body #2" {
     defer arr.deinit();
 
     try body.serialize(arr.writer());
+
+    //std.log.err("{s}", .{std.fmt.fmtSliceHexLower(arr.items)});
 
     try std.testing.expectEqualSlices(u8, raw, arr.items);
 }
