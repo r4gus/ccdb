@@ -183,23 +183,30 @@ pub const Header = struct {
 // | Body                                           |
 // +------------------------------------------------+
 
+/// The database body containing all data.
+///
+/// A Body should only be created by using either the `new()` or `deserialize()` function.
+/// References to `self` are considered to be pointers to a Body object on the stack. A Body
+/// MUST NOT be copied manually!
 pub const Body = struct {
     meta: Meta,
     entries: std.ArrayList(Entry),
-    groups: ?Group = null,
+    groups: ?std.ArrayList(Group) = null,
     bin: ?std.ArrayList(Entry) = null,
     allocator: std.mem.Allocator,
     ms: *const fn () i64,
     rand: std.Random,
 
-    pub fn new(gen: []const u8, name: []const u8, allocator: std.mem.Allocator, ms: *const fn () i64, rand: std.Random) !@This() {
-        return .{
+    pub fn new(gen: []const u8, name: []const u8, allocator: std.mem.Allocator, ms: *const fn () i64, rand: std.Random) !*@This() {
+        const body = try allocator.create(Body);
+        body.* = .{
             .meta = try Meta.new(gen, name, allocator, ms),
             .entries = std.ArrayList(Entry).init(allocator),
             .allocator = allocator,
             .ms = ms,
             .rand = rand,
         };
+        return body;
     }
 
     pub fn deinit(self: *const @This()) void {
@@ -208,20 +215,18 @@ pub const Body = struct {
             entry.deinit();
         }
         self.entries.deinit();
-    }
-
-    /// Get the database entry with the given id.
-    ///
-    /// The id is a UUID encoded as URN.
-    ///
-    /// The Body owns the memory. The caller MAY modify the entry using
-    /// one of the provided setter functions. The caller MUST NOT modify
-    /// the memory of the returned entry directly.
-    pub fn getEntryById(self: *const @This(), id: [36]u8) ?*Entry {
-        for (self.entries.items) |*entry| {
-            if (std.mem.eql(u8, entry.uuid[0..], id[0..])) return entry;
+        if (self.groups) |groups| {
+            for (groups.items) |item| {
+                item.deinit();
+            }
+            groups.deinit();
         }
-        return null;
+        if (self.bin) |bin| {
+            for (bin.items) |*item| {
+                item.deinit();
+            }
+            bin.deinit();
+        }
     }
 
     /// Create a new entry and add it to the list of existing entries.
@@ -239,6 +244,35 @@ pub const Body = struct {
         return &self.entries.items[self.entries.items.len - 1];
     }
 
+    /// Create a new group and add it to the list of existing groups.
+    ///
+    /// This function will return a pointer to the created group, which can
+    /// be used to modify the group.
+    ///
+    /// The Body owns the memory. The caller MAY modify the group using
+    /// one of the provided setter functions. The caller MUST NOT modify
+    /// the memory of the returned group directly.
+    pub fn newGroup(self: *@This(), name: []const u8) !*Group {
+        const g = try Group.new(name, self.allocator, self.ms, self.rand);
+        if (self.groups == null) self.groups = std.ArrayList(Group).init(self.allocator);
+        try self.groups.?.append(g);
+        return &self.groups.?.items[self.groups.?.items.len - 1];
+    }
+
+    /// Get the database entry with the given id.
+    ///
+    /// The id is a UUID encoded as URN.
+    ///
+    /// The Body owns the memory. The caller MAY modify the entry using
+    /// one of the provided setter functions. The caller MUST NOT modify
+    /// the memory of the returned entry directly.
+    pub fn getEntryById(self: *const @This(), id: uuid.urn.Urn) ?*Entry {
+        for (self.entries.items) |*entry| {
+            if (std.mem.eql(u8, entry.uuid[0..], id[0..])) return entry;
+        }
+        return null;
+    }
+
     pub fn serialize(self: *const @This(), writer: anytype) !void {
         var l: u64 = 2;
         if (self.groups != null) l += 1;
@@ -251,15 +285,15 @@ pub const Body = struct {
         try cbor.stringify(self.entries.items, .{}, writer);
         if (self.groups) |groups| {
             try cbor.build.writeInt(writer, 2);
-            try cbor.stringify(groups, .{}, writer);
+            try cbor.stringify(groups.items, .{}, writer);
         }
         if (self.bin) |bin| {
             try cbor.build.writeInt(writer, 3);
-            try cbor.stringify(bin, .{}, writer);
+            try cbor.stringify(bin.items, .{}, writer);
         }
     }
 
-    pub fn deserialize(allocator: std.mem.Allocator, ms: *const fn () i64, rand: std.Random, raw: []const u8) !@This() {
+    pub fn deserialize(allocator: std.mem.Allocator, ms: *const fn () i64, rand: std.Random, raw: []const u8) !*@This() {
         var di = try cbor.DataItem.new(raw);
 
         if (di.getType() != .Map) return error.ExpectedMap;
@@ -278,21 +312,135 @@ pub const Body = struct {
         const entries_num = entries.?.key.int();
         if (entries_num == null or entries_num.? != 1) return error.EntriesKeyMalformed;
         const entries_ = try cbor.parse([]Entry, entries.?.value, .{ .allocator = allocator });
-        errdefer entries_.deinit();
+        errdefer {
+            for (entries_) |*entry| {
+                entry.deinit();
+            }
+            allocator.free(entries_);
+        }
 
         // TODO: parse remaining fields
 
-        return .{
+        const body = try allocator.create(Body);
+        body.* = .{
             .meta = meta_,
             .entries = std.ArrayList(Entry).fromOwnedSlice(allocator, entries_),
             .allocator = allocator,
             .ms = ms,
             .rand = rand,
         };
+        for (body.entries.items) |*entry| {
+            entry.parent = @intFromPtr(body);
+        }
+
+        return body;
     }
 };
 
-pub const Group = struct {};
+pub const Group = struct {
+    uuid: uuid.urn.Urn,
+    name: []u8,
+    times: Times,
+    groups: ?[]uuid.urn.Urn = null,
+    entries: ?[]uuid.urn.Urn = null,
+    group: ?uuid.urn.Urn = null,
+    allocator: std.mem.Allocator,
+
+    pub fn new(name: []const u8, allocator: std.mem.Allocator, milliTimestamp: *const fn () i64, random: std.Random) !@This() {
+        const name_ = try allocator.dupe(u8, name);
+
+        const id = uuid.v7.new2(random, milliTimestamp);
+        const t = milliTimestamp();
+        return .{
+            .uuid = uuid.urn.serialize(id),
+            .name = name_,
+            .times = .{
+                .creat = t,
+                .mod = t,
+            },
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *const @This()) void {
+        self.allocator.free(self.name);
+        if (self.groups) |groups| self.allocator.free(groups);
+        if (self.entries) |entries| self.allocator.free(entries);
+    }
+
+    pub fn addEntry(self: *@This(), entry: *Entry) !void {
+        if (entry.group) |group| outer_blk: {
+            if (std.mem.eql(u8, group[0..], self.uuid[0..])) return;
+
+            if (entry.parent) |parent_| {
+                const parent: *Body = @ptrFromInt(parent_);
+                if (parent.groups) |groups| {
+                    var i: usize = 0;
+                    while (i < groups.items.len) : (i += 1) {
+                        if (std.mem.eql(u8, group[0..], groups.items[i].uuid[0..])) {
+                            if (groups.items[i].entries) |*entries| {
+                                var e = std.ArrayList(uuid.urn.Urn).fromOwnedSlice(groups.items[i].allocator, entries.*);
+                                var j: usize = 0;
+                                while (j < e.items.len) : (j += 1) {
+                                    if (std.mem.eql(u8, e.items[j][0..], entry.uuid[0..])) {
+                                        _ = e.swapRemove(j);
+                                        entries.* = try e.toOwnedSlice();
+                                        break :outer_blk;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        var arr = if (self.entries) |entries| std.ArrayList(uuid.urn.Urn).fromOwnedSlice(self.allocator, entries) else std.ArrayList(uuid.urn.Urn).init(self.allocator);
+        try arr.append(entry.uuid);
+        self.entries = try arr.toOwnedSlice();
+        entry.group = self.uuid;
+    }
+
+    pub fn addGroup(self: *@This(), group: *Group) !void {
+        if (group.group != null and std.mem.eql(u8, group.group.?[0..], self.uuid[0..])) return;
+        var arr = if (self.groups) |groups| std.ArrayList(uuid.urn.Urn).fromOwnedSlice(self.allocator, groups) else std.ArrayList(uuid.urn.Urn).init(self.allocator);
+        try arr.append(group.uuid);
+        self.groups = try arr.toOwnedSlice();
+        group.group = self.uuid;
+    }
+
+    pub fn cborStringify(self: *const @This(), o: cbor.Options, out: anytype) !void {
+        try cbor.stringify(self, .{
+            .from_callback = true,
+            .field_settings = &.{
+                .{ .name = "uuid", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "times", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
+                .{ .name = "groups", .field_options = .{ .alias = "3", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "entries", .field_options = .{ .alias = "4", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "group", .field_options = .{ .alias = "5", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+            },
+            .allocator = o.allocator,
+        }, out);
+    }
+
+    pub fn cborParse(item: cbor.DataItem, o: cbor.Options) !@This() {
+        return try cbor.parse(@This(), item, .{
+            .from_callback = true, // prevent infinite loops
+            .field_settings = &.{
+                .{ .name = "uuid", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "times", .field_options = .{ .alias = "2", .serialization_type = .Integer } },
+                .{ .name = "groups", .field_options = .{ .alias = "3", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "entries", .field_options = .{ .alias = "4", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "group", .field_options = .{ .alias = "5", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
+                .{ .name = "allocator", .field_options = .{ .skip = .Skip } },
+            },
+            .allocator = o.allocator,
+        });
+    }
+};
 
 pub const Times = struct {
     creat: i64,
@@ -386,7 +534,7 @@ pub const Meta = struct {
 
 pub const Entry = struct {
     /// A unique identifier for the given entry, e.g., UUIDv4 or UUIDv7, encoded as URN.
-    uuid: [36]u8,
+    uuid: uuid.urn.Urn,
     /// A human readable name for the given entry.
     name: ?[]u8 = null,
     /// Counters and time values.
@@ -402,7 +550,7 @@ pub const Entry = struct {
     /// The user corresponding to the given credential.
     user: ?User = null,
     /// A URN referencing a Group.
-    group: ?[36]u8 = null,
+    group: ?uuid.urn.Urn = null,
     /// One or more tags associated with the given entry.
     tags: ?[][]u8 = null,
     /// One or more attachments associated with the given entry.
@@ -416,7 +564,7 @@ pub const Entry = struct {
     parent: ?usize = null,
 
     pub fn new(allocator: std.mem.Allocator, milliTimestamp: *const fn () i64, random: std.Random) @This() {
-        const id = uuid.v4.new2(random);
+        const id = uuid.v7.new2(random, milliTimestamp);
         const t = milliTimestamp();
         return .{
             .uuid = uuid.urn.serialize(id),
@@ -484,6 +632,11 @@ pub const Entry = struct {
             self.allocator.free(s);
         }
         self.secret = secret_;
+        self.updateTime();
+    }
+
+    pub fn setKey(self: *@This(), key: ?cbor.cose.Key) void {
+        self.key = key;
         self.updateTime();
     }
 
@@ -872,8 +1025,60 @@ test "serialize body #1" {
     const allocator = std.testing.allocator;
     const raw = "\xa2\x00\xa3\x00\x68\x50\x61\x73\x73\x4b\x65\x65\x5a\x01\x6b\x4d\x79\x20\x50\x61\x73\x73\x6b\x65\x79\x73\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x01\x82\xa8\x00\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x01\x6a\x42\x75\x6e\x64\x65\x73\x77\x65\x68\x72\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x03\x78\x21\x54\x68\x65\x79\x20\x77\x69\x6c\x6c\x20\x63\x61\x6c\x6c\x20\x6d\x65\x20\x62\x61\x63\x6b\x20\x6e\x65\x78\x74\x20\x77\x65\x65\x6b\x2e\x04\x4b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x09\x82\x64\x77\x6f\x72\x6b\x63\x56\x49\x50\xa7\x00\x78\x24\x32\x38\x64\x38\x34\x33\x31\x35\x2d\x34\x66\x36\x38\x2d\x34\x38\x31\x66\x2d\x62\x63\x32\x36\x2d\x36\x63\x34\x34\x63\x35\x32\x65\x30\x30\x33\x38\x01\x66\x47\x69\x74\x68\x75\x62\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x04\x48\x31\x32\x33\x34\x35\x36\x37\x38\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x09\x81\x63\x64\x65\x76";
 
+    var body = try Body.new("PassKeeZ", "My Passkeys", allocator, mockup.ms, std.crypto.random);
+    defer {
+        body.deinit();
+        allocator.destroy(body);
+    }
+
+    var e1 = try body.newEntry();
+    @memcpy(e1.uuid[0..], "0e695c28-42f9-43e4-9aca-3f71cd701dc0"); // so we have reproducible results
+    try e1.setName("Bundeswehr");
+    try e1.setNotes("They will call me back next week.");
+    try e1.setSecret("supersecret");
+    try e1.setUrl("github.com");
+    try e1.setUser(.{
+        .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1",
+        .name = "r4gus",
+        .display_name = "David Sugar",
+    });
+    try e1.addTag("work");
+    try e1.addTag("VIP");
+
+    var e2 = try body.newEntry();
+    @memcpy(e2.uuid[0..], "28d84315-4f68-481f-bc26-6c44c52e0038"); // so we have reproducible results
+    try e2.setName("Github");
+    try e2.setSecret("12345678");
+    try e2.setUrl("github.com");
+    try e2.setUser(.{
+        .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2",
+        .name = "r4gus",
+        .display_name = "David Sugar",
+    });
+    try e2.addTag("dev");
+
+    var arr = std.ArrayList(u8).init(allocator);
+    defer arr.deinit();
+
+    try body.serialize(arr.writer());
+
+    try std.testing.expectEqualSlices(u8, raw, arr.items);
+}
+
+test "deserialize body #1" {
+    const mockup = struct {
+        pub fn ms() i64 {
+            return 1720033910;
+        }
+    };
+    const allocator = std.testing.allocator;
+    const raw = "\xa2\x00\xa3\x00\x68\x50\x61\x73\x73\x4b\x65\x65\x5a\x01\x6b\x4d\x79\x20\x50\x61\x73\x73\x6b\x65\x79\x73\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x01\x82\xa8\x00\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x01\x6a\x42\x75\x6e\x64\x65\x73\x77\x65\x68\x72\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x03\x78\x21\x54\x68\x65\x79\x20\x77\x69\x6c\x6c\x20\x63\x61\x6c\x6c\x20\x6d\x65\x20\x62\x61\x63\x6b\x20\x6e\x65\x78\x74\x20\x77\x65\x65\x6b\x2e\x04\x4b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x09\x82\x64\x77\x6f\x72\x6b\x63\x56\x49\x50\xa7\x00\x78\x24\x32\x38\x64\x38\x34\x33\x31\x35\x2d\x34\x66\x36\x38\x2d\x34\x38\x31\x66\x2d\x62\x63\x32\x36\x2d\x36\x63\x34\x34\x63\x35\x32\x65\x30\x30\x33\x38\x01\x66\x47\x69\x74\x68\x75\x62\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x04\x48\x31\x32\x33\x34\x35\x36\x37\x38\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x09\x81\x63\x64\x65\x76";
+
     var body = try Body.deserialize(allocator, mockup.ms, std.crypto.random, raw);
-    defer body.deinit();
+    defer {
+        body.deinit();
+        allocator.destroy(body);
+    }
 
     try std.testing.expectEqualSlices(u8, "PassKeeZ", body.meta.gen);
     try std.testing.expectEqualSlices(u8, "My Passkeys", body.meta.name);
@@ -897,4 +1102,100 @@ test "serialize body #1" {
     try std.testing.expectEqualSlices(u8, "r4gus", e2.user.?.name.?);
     try std.testing.expectEqualSlices(u8, "David Sugar", e2.user.?.display_name.?);
     try std.testing.expectEqualSlices(u8, "dev", e2.tags.?[0]);
+}
+
+test "serialize body #2" {
+    const mockup = struct {
+        pub fn ms() i64 {
+            return 1720033910;
+        }
+    };
+    const allocator = std.testing.allocator;
+    const raw = "\xa3\x00\xa3\x00\x68\x50\x61\x73\x73\x4b\x65\x65\x5a\x01\x6b\x4d\x79\x20\x50\x61\x73\x73\x6b\x65\x79\x73\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x01\x83\xa9\x00\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x01\x6a\x42\x75\x6e\x64\x65\x73\x77\x65\x68\x72\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x03\x78\x21\x54\x68\x65\x79\x20\x77\x69\x6c\x6c\x20\x63\x61\x6c\x6c\x20\x6d\x65\x20\x62\x61\x63\x6b\x20\x6e\x65\x78\x74\x20\x77\x65\x65\x6b\x2e\x04\x4b\x73\x75\x70\x65\x72\x73\x65\x63\x72\x65\x74\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x08\x78\x24\x30\x31\x39\x30\x38\x38\x36\x65\x2d\x63\x31\x30\x62\x2d\x37\x61\x39\x32\x2d\x39\x64\x30\x62\x2d\x64\x39\x39\x33\x38\x36\x64\x33\x30\x37\x35\x65\x09\x82\x64\x77\x6f\x72\x6b\x63\x56\x49\x50\xa8\x00\x78\x24\x32\x38\x64\x38\x34\x33\x31\x35\x2d\x34\x66\x36\x38\x2d\x34\x38\x31\x66\x2d\x62\x63\x32\x36\x2d\x36\x63\x34\x34\x63\x35\x32\x65\x30\x30\x33\x38\x01\x66\x47\x69\x74\x68\x75\x62\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x04\x48\x31\x32\x33\x34\x35\x36\x37\x38\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x08\x78\x24\x30\x31\x39\x30\x38\x38\x36\x65\x2d\x63\x31\x30\x62\x2d\x37\x61\x39\x32\x2d\x39\x64\x30\x62\x2d\x64\x39\x39\x33\x38\x36\x64\x33\x30\x37\x35\x65\x09\x81\x63\x64\x65\x76\xa7\x00\x78\x24\x30\x31\x39\x30\x38\x38\x37\x34\x2d\x35\x31\x64\x65\x2d\x37\x65\x66\x31\x2d\x61\x39\x66\x64\x2d\x61\x61\x61\x65\x37\x37\x32\x33\x31\x38\x39\x37\x01\x66\x47\x69\x74\x68\x75\x62\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x05\xa6\x01\x02\x03\x26\x20\x01\x21\x58\x20\x00\xec\x46\xbb\x48\x5e\xa6\x0f\x89\x68\xc9\x81\x5a\xca\x32\x90\x45\x50\xde\xe4\x17\xb2\x04\x99\xbc\xca\x11\x47\x64\x29\xd8\xe9\x22\x58\x20\x00\x62\xf7\x19\x97\x14\x97\xad\x20\x57\xa0\x86\x2f\xcd\x46\x8e\xf5\xd7\x74\x0c\x37\xef\x02\x0b\x5a\xda\x48\x30\x36\x34\x0f\x3d\x23\x58\x20\x29\x9b\xa4\x0f\x65\x47\xf9\xa5\x91\x63\x6b\xa3\xaa\xbc\xf5\x2a\xde\xde\xca\x32\x4d\x3d\x6e\x81\xc8\x30\x2d\x51\x99\xde\x9d\x0d\x06\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x07\xa3\x00\x50\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2\x01\x65\x72\x34\x67\x75\x73\x02\x6b\x44\x61\x76\x69\x64\x20\x53\x75\x67\x61\x72\x08\x78\x24\x30\x31\x39\x30\x38\x38\x39\x62\x2d\x30\x36\x33\x36\x2d\x37\x61\x38\x32\x2d\x39\x32\x64\x32\x2d\x61\x35\x61\x64\x38\x33\x38\x66\x65\x63\x31\x64\x02\x83\xa4\x00\x78\x24\x30\x31\x39\x30\x38\x38\x36\x65\x2d\x63\x31\x30\x62\x2d\x37\x61\x39\x32\x2d\x39\x64\x30\x62\x2d\x64\x39\x39\x33\x38\x36\x64\x33\x30\x37\x35\x65\x01\x69\x70\x61\x73\x73\x77\x6f\x72\x64\x73\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x04\x82\x78\x24\x30\x65\x36\x39\x35\x63\x32\x38\x2d\x34\x32\x66\x39\x2d\x34\x33\x65\x34\x2d\x39\x61\x63\x61\x2d\x33\x66\x37\x31\x63\x64\x37\x30\x31\x64\x63\x30\x78\x24\x32\x38\x64\x38\x34\x33\x31\x35\x2d\x34\x66\x36\x38\x2d\x34\x38\x31\x66\x2d\x62\x63\x32\x36\x2d\x36\x63\x34\x34\x63\x35\x32\x65\x30\x30\x33\x38\xa4\x00\x78\x24\x30\x31\x39\x30\x38\x38\x36\x66\x2d\x65\x63\x39\x31\x2d\x37\x66\x32\x37\x2d\x38\x37\x64\x33\x2d\x63\x63\x61\x37\x63\x35\x64\x38\x37\x33\x32\x38\x01\x68\x70\x61\x73\x73\x6b\x65\x79\x73\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x03\x81\x78\x24\x30\x31\x39\x30\x38\x38\x39\x62\x2d\x30\x36\x33\x36\x2d\x37\x61\x38\x32\x2d\x39\x32\x64\x32\x2d\x61\x35\x61\x64\x38\x33\x38\x66\x65\x63\x31\x64\xa5\x00\x78\x24\x30\x31\x39\x30\x38\x38\x39\x62\x2d\x30\x36\x33\x36\x2d\x37\x61\x38\x32\x2d\x39\x32\x64\x32\x2d\x61\x35\x61\x64\x38\x33\x38\x66\x65\x63\x31\x64\x01\x6a\x67\x69\x74\x68\x75\x62\x2e\x63\x6f\x6d\x02\xa2\x00\x1a\x66\x85\xa2\x76\x01\x1a\x66\x85\xa2\x76\x04\x81\x78\x24\x30\x31\x39\x30\x38\x38\x37\x34\x2d\x35\x31\x64\x65\x2d\x37\x65\x66\x31\x2d\x61\x39\x66\x64\x2d\x61\x61\x61\x65\x37\x37\x32\x33\x31\x38\x39\x37\x05\x78\x24\x30\x31\x39\x30\x38\x38\x36\x66\x2d\x65\x63\x39\x31\x2d\x37\x66\x32\x37\x2d\x38\x37\x64\x33\x2d\x63\x63\x61\x37\x63\x35\x64\x38\x37\x33\x32\x38";
+
+    var body = try Body.new("PassKeeZ", "My Passkeys", allocator, mockup.ms, std.crypto.random);
+    defer {
+        body.deinit();
+        allocator.destroy(body);
+    }
+
+    // +- passwords
+    // |  > Bundeswehr
+    // |  > Github
+    // |
+    // +- passkeys
+    //    |
+    //    +- github.com
+    //       > ...
+    const g1 = try body.newGroup("passwords");
+    @memcpy(g1.uuid[0..], "0190886e-c10b-7a92-9d0b-d99386d3075e");
+
+    const g2 = try body.newGroup("passkeys");
+    @memcpy(g2.uuid[0..], "0190886f-ec91-7f27-87d3-cca7c5d87328");
+
+    const g3 = try body.newGroup("github.com");
+    @memcpy(g3.uuid[0..], "0190889b-0636-7a82-92d2-a5ad838fec1d");
+
+    try g2.addGroup(g3);
+
+    var e1 = try body.newEntry();
+    @memcpy(e1.uuid[0..], "0e695c28-42f9-43e4-9aca-3f71cd701dc0"); // so we have reproducible results
+    try e1.setName("Bundeswehr");
+    try e1.setNotes("They will call me back next week.");
+    try e1.setSecret("supersecret");
+    try e1.setUrl("github.com");
+    try e1.setUser(.{
+        .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1",
+        .name = "r4gus",
+        .display_name = "David Sugar",
+    });
+    try e1.addTag("work");
+    try e1.addTag("VIP");
+
+    var e2 = try body.newEntry();
+    @memcpy(e2.uuid[0..], "28d84315-4f68-481f-bc26-6c44c52e0038"); // so we have reproducible results
+    try e2.setName("Github");
+    try e2.setSecret("12345678");
+    try e2.setUrl("github.com");
+    try e2.setUser(.{
+        .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2",
+        .name = "r4gus",
+        .display_name = "David Sugar",
+    });
+    try e2.addTag("dev");
+
+    try g1.addEntry(e1);
+    try g1.addEntry(e2);
+
+    var e3 = try body.newEntry();
+    @memcpy(e3.uuid[0..], "01908874-51de-7ef1-a9fd-aaae77231897");
+    try e3.setName("Github");
+    try e3.setUrl("github.com");
+    try e3.setUser(.{
+        .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2",
+        .name = "r4gus",
+        .display_name = "David Sugar",
+    });
+    e3.setKey(cbor.cose.Key{
+        .P256 = .{
+            .alg = cbor.cose.Algorithm.Es256,
+            .crv = cbor.cose.Curve.P256,
+            .kty = cbor.cose.KeyType.Ec2,
+            .x = "\x00\xec\x46\xbb\x48\x5e\xa6\x0f\x89\x68\xc9\x81\x5a\xca\x32\x90\x45\x50\xde\xe4\x17\xb2\x04\x99\xbc\xca\x11\x47\x64\x29\xd8\xe9".*,
+            .y = "\x00\x62\xf7\x19\x97\x14\x97\xad\x20\x57\xa0\x86\x2f\xcd\x46\x8e\xf5\xd7\x74\x0c\x37\xef\x02\x0b\x5a\xda\x48\x30\x36\x34\x0f\x3d".*,
+            .d = "\x29\x9b\xa4\x0f\x65\x47\xf9\xa5\x91\x63\x6b\xa3\xaa\xbc\xf5\x2a\xde\xde\xca\x32\x4d\x3d\x6e\x81\xc8\x30\x2d\x51\x99\xde\x9d\x0d".*,
+        },
+    });
+
+    // Let's also test if the old entry reference is correctly removed from group 1
+    // after the reassignment.
+    try g1.addEntry(e3);
+    try g3.addEntry(e3);
+
+    var arr = std.ArrayList(u8).init(allocator);
+    defer arr.deinit();
+
+    try body.serialize(arr.writer());
+
+    try std.testing.expectEqualSlices(u8, raw, arr.items);
 }

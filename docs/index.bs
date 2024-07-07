@@ -377,21 +377,27 @@ The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], 
             <td></td>
         </tr>
         <tr>
-            <td>groups (0x02)</td>
-            <td>[[#body-group]]</td>
+            <td><dfn>groups</dfn> (0x02)</td>
+            <td>[+ [[#body-group]]]</td>
             <td>
-                The root of an arbitrary number of (nested) groups. Groups only hold references
-                to entries within [=entries=].
+                All groups of this database. Groups are arranged as a forrest. There is
+                a implicit root and every item of the given array without a parent is
+                implicitly a child of this root. Every Group MAY have one or more children
+                referenced by an index.
             </td>
             <td>Optional</td>
         </tr>
         <tr>
             <td>bin (0x03)</td>
-            <td>[+ [[#body-bin]] ]</td>
+            <td>[+ [[#body-entry]] ]</td>
             <td>
-                The bin is a array of elements of type [[#body-bin]] that
-                represent deleted entries. This filed MAY NOT be present
-                if no entries have been deleted.
+                The bin is a array of elements of type [[#body-entry]] that
+                represent deleted entries. For every deleted entry the exp
+                field of Times is set to some point in the future. Applications
+                SHOULD check regularily the exp field and delete expired entries
+                automatically.
+
+                This fieled MAY NOT be present if no entries have been deleted.
             </td>
             <td>Optional</td>
         </tr>
@@ -507,17 +513,33 @@ deleted entry is permanently removed from the database.
         </tr>
         <tr>
             <td>groups (0x03)</td>
-            <td>[+ [[#body-group]] ]</td>
+            <td>[+ UUID]</td>
             <td>
-                An array of [[#body-group]]s.
+                A array of UUIDs encoded as URN referencing an object in [=groups=].
+                All listed groups are children of the given group.
+
+                The UUIDs SHOULD be of type UUIDv7 but applications MUST NOT
+                expect the UUIDs to be sorted in any specific order.
             </td>
             <td>Optional</td>
         </tr>
         <tr>
             <td>entries (0x04)</td>
-            <td>[+ tstr]</td>
+            <td>[+ UUID]</td>
             <td>
-                An array of UUID references to entries.
+                A array of UUIDs encoded as URN referencing an object in [=entries=].
+                All listed entries belong to the given group.
+
+                The UUIDs SHOULD be of type UUIDv7 but applications MUST NOT
+                expect the UUIDs to be sorted in any specific order.
+            </td>
+            <td>Optional</td>
+        </tr>
+        <tr>
+            <td>group (0x05)</td>
+            <td>UUID</td>
+            <td>
+                Points to the parent group.
             </td>
             <td>Optional</td>
         </tr>
@@ -626,9 +648,9 @@ deleted entry is permanently removed from the database.
             <td>uuid (0x00)</td>
             <td>tstr</td>
             <td>
-                A unique identifier for the given entry, e.g., UUIDv4 or UUIDv7, encoded as URN, e.g.:
+                A unique identifier for the given entry, e.g., UUIDv4 or UUIDv7, encoded as URN.
 
-                - `0e695c28-42f9-43e4-9aca-3f71cd701dc0`
+                The UUIDs SHOULD be of type UUIDv7.
             </td>
             <td></td>
         </tr>

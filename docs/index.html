@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version a1dabb26c, updated Mon Jun 17 15:00:44 2024 -0700" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="ec2c2f5197b48dda37470b0febd8b1ec156430ec" name="revision">
+  <meta content="44aaf04ba1061be67f937bb940aa940464eba2cc" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2211,7 +2211,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">CBOR Credential Database Format</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">A Collection of Interesting Ideas, <time class="dt-updated" datetime="2024-07-04">4 July 2024</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">A Collection of Interesting Ideas, <time class="dt-updated" datetime="2024-07-06">6 July 2024</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2233,7 +2233,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
    </div>
    <p class="copyright" data-fill-with="copyright"><a href="http://creativecommons.org/publicdomain/zero/1.0/" rel="license"><img alt="CC0" height="15" src="https://licensebuttons.net/p/zero/1.0/80x15.png" width="80"></a> To the extent possible under law, the editors have waived all copyright
 and related or neighboring rights to this work.
-In addition, as of 4 July 2024,
+In addition, as of 6 July 2024,
 the editors have made this specification available under the <a href="https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0" rel="license">Open Web Foundation Agreement Version 1.0</a>,
 which is available at https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0.
 Parts of this work may be from another specification document.  If so, those parts are instead covered by the license of that specification document. </p>
@@ -2716,17 +2716,23 @@ symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed6
        <td> All entries of this database. 
        <td>
       <tr>
-       <td>groups (0x02)
-       <td><a href="#body-group">§ 2.2.1.3 Group</a>
-       <td> The root of an arbitrary number of (nested) groups. Groups only hold references
-                to entries within <a data-link-type="dfn" href="#entries" id="ref-for-entries">entries</a>. 
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="groups">groups</dfn> (0x02)
+       <td>[+ <a href="#body-group">§ 2.2.1.3 Group</a>]
+       <td> All groups of this database. Groups are arranged as a forrest. There is
+                a implicit root and every item of the given array without a parent is
+                implicitly a child of this root. Every Group MAY have one or more children
+                referenced by an index. 
        <td>Optional
       <tr>
        <td>bin (0x03)
-       <td>[+ <a href="#body-bin">§ 2.2.1.1 Bin Entry</a> ]
-       <td> The bin is a array of elements of type <a href="#body-bin">§ 2.2.1.1 Bin Entry</a> that
-                represent deleted entries. This filed MAY NOT be present
-                if no entries have been deleted. 
+       <td>[+ <a href="#body-entry">§ 2.2.1.6 Entry</a> ]
+       <td>
+         The bin is a array of elements of type <a href="#body-entry">§ 2.2.1.6 Entry</a> that
+                represent deleted entries. For every deleted entry the exp
+                field of Times is set to some point in the future. Applications
+                SHOULD check regularily the exp field and delete expired entries
+                automatically. 
+        <p>This fieled MAY NOT be present if no entries have been deleted.</p>
        <td>Optional
     </table>
    </figure>
@@ -2751,7 +2757,7 @@ deleted entry is permanently removed from the database.</p>
       <tr>
        <td>entry (0x01)
        <td>map
-       <td> The deleted <a href="#body-entry">§ 2.2.1.6 Entry</a>. The exact location where the entry was deleted from is defined by <a data-link-type="dfn">Groups</a>. 
+       <td> The deleted <a href="#body-entry">§ 2.2.1.6 Entry</a>. The exact location where the entry was deleted from is defined by <a data-link-type="dfn" href="#groups" id="ref-for-groups">Groups</a>. 
        <td>
     </table>
    </figure>
@@ -2812,13 +2818,21 @@ deleted entry is permanently removed from the database.</p>
        <td>
       <tr>
        <td>groups (0x03)
-       <td>[+ <a href="#body-group">§ 2.2.1.3 Group</a> ]
-       <td> An array of <a href="#body-group">§ 2.2.1.3 Group</a>s. 
+       <td>[+ UUID]
+       <td>
+         A array of UUIDs encoded as URN referencing an object in <a data-link-type="dfn" href="#groups" id="ref-for-groups①">groups</a>.
+                All listed groups are children of the given group. 
+        <p>The UUIDs SHOULD be of type UUIDv7 but applications MUST NOT
+                expect the UUIDs to be sorted in any specific order.</p>
        <td>Optional
       <tr>
        <td>entries (0x04)
-       <td>[+ tstr]
-       <td> An array of UUID references to entries. 
+       <td>[+ UUID]
+       <td>
+         A array of UUIDs encoded as URN referencing an object in <a data-link-type="dfn" href="#entries" id="ref-for-entries">entries</a>.
+                All listed entries belong to the given group. 
+        <p>The UUIDs SHOULD be of type UUIDv7 but applications MUST NOT
+                expect the UUIDs to be sorted in any specific order.</p>
        <td>Optional
     </table>
    </figure>
@@ -2898,11 +2912,8 @@ deleted entry is permanently removed from the database.</p>
        <td>uuid (0x00)
        <td>tstr
        <td>
-         A unique identifier for the given entry, e.g., UUIDv4 or UUIDv7, encoded as URN, e.g.: 
-        <ul>
-         <li data-md>
-          <p><code>0e695c28-42f9-43e4-9aca-3f71cd701dc0</code></p>
-        </ul>
+         A unique identifier for the given entry, e.g., UUIDv4 or UUIDv7, encoded as URN. 
+        <p>The UUIDs SHOULD be of type UUIDv7.</p>
        <td>
       <tr>
        <td>name (0x01)
@@ -3362,6 +3373,7 @@ for a small message size making compression less relevant. This is why CCDB spec
    <li><a href="#cid">cid</a><span>, in § 2.1.2</span>
    <li><a href="#encrypted-body-data">Encrypted Body Data</a><span>, in § 2.2</span>
    <li><a href="#entries">entries</a><span>, in § 2.2.1</span>
+   <li><a href="#groups">groups</a><span>, in § 2.2.1</span>
    <li><a href="#i">I</a><span>, in § 2.1.2.1</span>
    <li><a href="#iv">iv</a><span>, in § 2.1.2</span>
    <li><a href="#kdf">kdf</a><span>, in § 2.1.2</span>
@@ -3596,7 +3608,8 @@ let dfnPanelData = {
 "body-tag": {"dfnID":"body-tag","dfnText":"Body Tag","external":false,"refSections":[],"url":"#body-tag"},
 "cid": {"dfnID":"cid","dfnText":"cid","external":false,"refSections":[{"refs":[{"id":"ref-for-cid"}],"title":"2.1. Outer Header"},{"refs":[{"id":"ref-for-cid\u2460"}],"title":"2.1.3.4. Symmetric Key"},{"refs":[{"id":"ref-for-cid\u2461"},{"id":"ref-for-cid\u2462"}],"title":"2.2. Body"},{"refs":[{"id":"ref-for-cid\u2463"}],"title":"2.4. Serialization"}],"url":"#cid"},
 "encrypted-body-data": {"dfnID":"encrypted-body-data","dfnText":"Encrypted Body Data","external":false,"refSections":[{"refs":[{"id":"ref-for-encrypted-body-data"}],"title":"2.2. Body"}],"url":"#encrypted-body-data"},
-"entries": {"dfnID":"entries","dfnText":"entries","external":false,"refSections":[{"refs":[{"id":"ref-for-entries"}],"title":"2.2.1. Body Data Structure"}],"url":"#entries"},
+"entries": {"dfnID":"entries","dfnText":"entries","external":false,"refSections":[{"refs":[{"id":"ref-for-entries"}],"title":"2.2.1.3. Group"}],"url":"#entries"},
+"groups": {"dfnID":"groups","dfnText":"groups","external":false,"refSections":[{"refs":[{"id":"ref-for-groups"}],"title":"2.2.1.1. Bin Entry"},{"refs":[{"id":"ref-for-groups\u2460"}],"title":"2.2.1.3. Group"}],"url":"#groups"},
 "i": {"dfnID":"i","dfnText":"I","external":false,"refSections":[],"url":"#i"},
 "iv": {"dfnID":"iv","dfnText":"iv","external":false,"refSections":[{"refs":[{"id":"ref-for-iv"}],"title":"2.1. Outer Header"},{"refs":[{"id":"ref-for-iv\u2460"},{"id":"ref-for-iv\u2461"},{"id":"ref-for-iv\u2462"}],"title":"2.4. Serialization"},{"refs":[{"id":"ref-for-iv\u2463"}],"title":"2.5. Deserialization"}],"url":"#iv"},
 "kdf": {"dfnID":"kdf","dfnText":"kdf","external":false,"refSections":[{"refs":[{"id":"ref-for-kdf"}],"title":"2.1. Outer Header"},{"refs":[{"id":"ref-for-kdf\u2460"}],"title":"2.1.3.4. Symmetric Key"}],"url":"#kdf"},
@@ -4003,6 +4016,7 @@ let refsData = {
 "#cid": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"cid","type":"dfn","url":"#cid"},
 "#encrypted-body-data": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"encrypted body data","type":"dfn","url":"#encrypted-body-data"},
 "#entries": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"entries","type":"dfn","url":"#entries"},
+"#groups": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"groups","type":"dfn","url":"#groups"},
 "#iv": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"iv","type":"dfn","url":"#iv"},
 "#kdf": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"kdf","type":"dfn","url":"#kdf"},
 "#m_encryption": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"ccdb","spec":"ccdb-1","status":"local","text":"m_encryption","type":"dfn","url":"#m_encryption"},
