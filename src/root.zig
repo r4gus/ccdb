@@ -320,12 +320,48 @@ pub const Body = struct {
             allocator.free(entries_);
         }
 
-        // TODO: parse remaining fields
+        var groups: ?[]Group = null;
+        errdefer if (groups) |g| {
+            for (g) |*g_| g_.deinit();
+            allocator.free(g);
+        };
+
+        var bin: ?[]Entry = null;
+        errdefer if (bin) |b| {
+            for (b) |*e| e.deinit();
+            allocator.free(b);
+        };
+
+        if (mi.?.next()) |kv| {
+            if (kv.key.int()) |key| {
+                if (key == 2) {
+                    if (groups != null) return error.RepeatingKey;
+                    groups = try cbor.parse([]Group, kv.value, .{ .allocator = allocator });
+                } else if (key == 3) {
+                    if (bin != null) return error.RepeatingKey;
+                    bin = try cbor.parse([]Entry, kv.value, .{ .allocator = allocator });
+                }
+            }
+        }
+
+        if (mi.?.next()) |kv| {
+            if (kv.key.int()) |key| {
+                if (key == 2) {
+                    if (groups != null) return error.RepeatingKey;
+                    groups = try cbor.parse([]Group, kv.value, .{ .allocator = allocator });
+                } else if (key == 3) {
+                    if (bin != null) return error.RepeatingKey;
+                    bin = try cbor.parse([]Entry, kv.value, .{ .allocator = allocator });
+                }
+            }
+        }
 
         const body = try allocator.create(Body);
         body.* = .{
             .meta = meta_,
             .entries = std.ArrayList(Entry).fromOwnedSlice(allocator, entries_),
+            .groups = if (groups) |g| std.ArrayList(Group).fromOwnedSlice(allocator, g) else null,
+            .bin = if (bin) |b| std.ArrayList(Entry).fromOwnedSlice(allocator, b) else null,
             .allocator = allocator,
             .ms = ms,
             .rand = rand,
