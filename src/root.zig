@@ -4,8 +4,207 @@ const cbor = @import("zbor");
 const uuid = @import("uuid");
 
 const argon2 = std.crypto.pwhash.argon2;
-const chacha = @import("chacha.zig");
-const XChaCha20IETF = chacha.XChaCha20IETF;
+const XChaCha20Poly1305 = std.crypto.aead.chacha_poly.XChaCha20Poly1305;
+
+// +------------------------------------------------+
+// | Database                                       |
+// +------------------------------------------------+
+
+pub const Db = struct {
+    header: Header,
+    body: *Body,
+    key: ?[]u8 = null,
+    allocator: std.mem.Allocator,
+
+    pub fn new(
+        /// Name of the application that creates the databse.
+        generator: []const u8,
+        /// Name of the database.
+        name: []const u8,
+        /// Database configuration.
+        params: struct {
+            cipher_suite: []const u8 = cipher_suites.CCDB_XCHACHA20_POLY1305_ARGON2ID,
+            kdf: Kdf = .{
+                .I = 2,
+                .M = 19456,
+                .P = 1,
+            },
+            random: std.Random = std.crypto.random,
+            milliTimestamp: fn () i64 = std.time.milliTimestamp,
+        },
+        allocator: std.mem.Allocator,
+    ) !@This() {
+        // We will enforce a salt for the KDF.
+        var kdf = params.kdf;
+        if (kdf.S == null) {
+            var S: [32]u8 = undefined;
+            params.random.bytes(S[0..]);
+            kdf.S = S;
+        }
+
+        const header = try Header.new(
+            params.cipher_suite,
+            kdf,
+            params.random,
+            allocator,
+        );
+        errdefer header.deinit();
+
+        const body = try Body.new(
+            generator,
+            name,
+            allocator,
+            params.milliTimestamp,
+            params.random,
+        );
+
+        return Db{
+            .header = header,
+            .body = body,
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.header.deinit();
+        self.body.deinit();
+        self.allocator.destroy(self.body);
+        if (self.key) |key| {
+            @memset(key[0..], 0);
+            self.allocator.free(key);
+        }
+    }
+
+    pub fn seal(
+        self: *const @This(),
+        allocator: std.mem.Allocator,
+    ) ![]const u8 {
+        if (self.key == null) return error.NoKey;
+
+        var raw = std.ArrayList(u8).init(allocator);
+        errdefer {
+            @memset(raw.items, 0);
+            raw.deinit();
+        }
+
+        self.header.updateIv(self.body.rand); // Create a new and unique nonce.
+        try self.header.serialize(raw.writer());
+
+        const header_end = raw.items.len;
+        const body_begin = if (std.mem.eql(u8, self.header.fields.cid, cipher_suites.CCDB_XCHACHA20_POLY1305_ARGON2ID)) blk: {
+            break :blk 8 + XChaCha20Poly1305.tag_length + header_end;
+        } else return error.InvalidCipherSuite;
+        try raw.appendNTimes(0, body_begin - header_end);
+
+        try self.body.serialize(raw.writer());
+
+        const body_length = raw.items.len - body_begin;
+        raw.items[header_end] = @as(u8, @intCast(body_length & 0xff));
+        raw.items[header_end + 1] = @as(u8, @intCast((body_length >> 8) & 0xff));
+        raw.items[header_end + 2] = @as(u8, @intCast((body_length >> 16) & 0xff));
+        raw.items[header_end + 3] = @as(u8, @intCast((body_length >> 24) & 0xff));
+        raw.items[header_end + 4] = @as(u8, @intCast((body_length >> 32) & 0xff));
+        raw.items[header_end + 5] = @as(u8, @intCast((body_length >> 40) & 0xff));
+        raw.items[header_end + 6] = @as(u8, @intCast((body_length >> 48) & 0xff));
+        raw.items[header_end + 7] = @as(u8, @intCast((body_length >> 56) & 0xff));
+
+        //std.log.err("{s}", .{std.fmt.fmtSliceHexLower(raw.items[body_begin .. body_begin + body_length])});
+
+        if (std.mem.eql(u8, self.header.fields.cid, cipher_suites.CCDB_XCHACHA20_POLY1305_ARGON2ID)) {
+            if (self.header.fields.iv.len < XChaCha20Poly1305.nonce_length)
+                return error.InvalidNonceLength;
+            if (self.key.?.len < XChaCha20Poly1305.key_length)
+                return error.InvalidKeyLength;
+
+            var buffer: [XChaCha20Poly1305.tag_length]u8 = undefined;
+
+            XChaCha20Poly1305.encrypt(
+                raw.items[body_begin..],
+                &buffer,
+                raw.items[body_begin..],
+                raw.items[0 .. header_end + 8],
+                self.header.fields.iv[0..XChaCha20Poly1305.nonce_length].*,
+                self.key.?[0..XChaCha20Poly1305.key_length].*,
+            );
+
+            @memcpy(raw.items[header_end + 8 .. body_begin], buffer[0..]);
+        } else return error.InvalidCipherSuite; // actually unreachable but fuck it
+
+        return try raw.toOwnedSlice();
+    }
+
+    pub fn open(
+        raw: []const u8,
+        allocator: std.mem.Allocator,
+        ms: *const fn () i64,
+        rand: std.Random,
+        key_data: []const u8,
+    ) !@This() {
+        var used: usize = 0;
+        const header = try Header.deserialize(raw, allocator, &used);
+        errdefer header.deinit();
+
+        const body_begin = if (std.mem.eql(u8, header.fields.cid, cipher_suites.CCDB_XCHACHA20_POLY1305_ARGON2ID)) blk: {
+            break :blk used + 8 + XChaCha20Poly1305.tag_length;
+        } else return error.InvalidCipherSuite;
+
+        if (raw.len < body_begin) return error.UnexpectedEndOfInput;
+
+        const body_length = @as(usize, @intCast(raw[used])) | @as(usize, @intCast(raw[used + 1])) << 8 | @as(usize, @intCast(raw[used + 2])) << 16 | @as(usize, @intCast(raw[used + 3])) << 24 | @as(usize, @intCast(raw[used + 4])) << 32 | @as(usize, @intCast(raw[used + 5])) << 40 | @as(usize, @intCast(raw[used + 6])) << 48 | @as(usize, @intCast(raw[used + 7])) << 56;
+
+        if (raw.len < body_begin + body_length) return error.UnexpectedEndOfInput;
+
+        //const body = try Body.deserialize(allocator, ms, rand, raw[body_begin .. body_begin + body_length]);
+        const encrypted = try allocator.dupe(u8, raw[body_begin .. body_begin + body_length]);
+        defer allocator.free(encrypted);
+
+        return if (std.mem.eql(u8, header.fields.cid, cipher_suites.CCDB_XCHACHA20_POLY1305_ARGON2ID)) blk: {
+            var key: [XChaCha20Poly1305.key_length]u8 = undefined;
+            defer @memset(&key, 0);
+            try header.deriveKey(&key, key_data, allocator);
+            if (header.fields.iv.len < XChaCha20Poly1305.nonce_length)
+                return error.InvalidNonceLength;
+
+            var tag: [XChaCha20Poly1305.tag_length]u8 = undefined;
+            @memcpy(tag[0..], raw[used + 8 .. used + 8 + XChaCha20Poly1305.tag_length]);
+            try XChaCha20Poly1305.decrypt(
+                encrypted,
+                encrypted,
+                tag,
+                raw[0 .. used + 8],
+                header.fields.iv[0..XChaCha20Poly1305.nonce_length].*,
+                key,
+            );
+
+            const body = try Body.deserialize(allocator, ms, rand, encrypted);
+            errdefer body.deinit();
+
+            const k = try allocator.dupe(u8, key[0..]);
+            errdefer {
+                @memset(k, 0);
+                allocator.free(k);
+            }
+
+            break :blk .{
+                .header = header,
+                .body = body,
+                .key = k,
+                .allocator = allocator,
+            };
+        } else return error.InvalidCipherSuite;
+    }
+
+    pub fn setKey(self: *@This(), key_data: []const u8) !void {
+        if (std.mem.eql(u8, self.header.fields.cid, cipher_suites.CCDB_XCHACHA20_POLY1305_ARGON2ID)) {
+            var key: [XChaCha20Poly1305.key_length]u8 = undefined;
+            defer @memset(&key, 0);
+            try self.header.deriveKey(&key, key_data, self.allocator);
+            const k = try self.allocator.dupe(u8, key[0..]);
+            if (self.key) |old_key| self.allocator.free(old_key);
+            self.key = k;
+        } else return error.InvalidCipherSuite;
+    }
+};
 
 // +------------------------------------------------+
 // | Header                                         |
@@ -117,6 +316,10 @@ pub const Header = struct {
     pub fn deinit(self: *const @This()) void {
         self.fields.allocator.free(self.fields.cid);
         self.fields.allocator.free(self.fields.iv);
+    }
+
+    pub fn updateIv(self: *const @This(), random: std.Random) void {
+        random.bytes(self.fields.iv);
     }
 
     pub fn serialize(self: *const @This(), writer: anytype) !void {
@@ -1280,4 +1483,44 @@ test "serialize body #2" {
     //std.log.err("{s}", .{std.fmt.fmtSliceHexLower(arr.items)});
 
     try std.testing.expectEqualSlices(u8, raw, arr.items);
+}
+
+test "serialize Db #1: just verify that de-/serialization works" {
+    const mockup = struct {
+        pub fn ms() i64 {
+            return 1720033910;
+        }
+    };
+    const allocator = std.testing.allocator;
+
+    var db = try Db.new(
+        "PassKeeZ",
+        "My Passkeys",
+        .{ .milliTimestamp = mockup.ms },
+        allocator,
+    );
+    defer db.deinit();
+    try db.setKey("supersecret");
+
+    const raw = try db.seal(allocator);
+    defer allocator.free(raw);
+
+    //std.log.err("{s}", .{std.fmt.fmtSliceHexLower(raw)});
+
+    var db2 = try Db.open(
+        raw,
+        allocator,
+        mockup.ms,
+        std.crypto.random,
+        "supersecret",
+    );
+    defer db2.deinit();
+
+    try std.testing.expectError(error.AuthenticationFailed, Db.open(
+        raw,
+        allocator,
+        mockup.ms,
+        std.crypto.random,
+        "Supersecret",
+    ));
 }
