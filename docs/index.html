@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version a1dabb26c, updated Mon Jun 17 15:00:44 2024 -0700" name="generator">
   <link href="https://r4gus.github.io/ccdb/index.html" rel="canonical">
-  <meta content="b5984050100450f824c640a98063be1d8a8674c8" name="revision">
+  <meta content="60a16068dee0528f257158a5780a55cd5cc92811" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2211,7 +2211,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">CBOR Credential Database Format</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">A Collection of Interesting Ideas, <time class="dt-updated" datetime="2024-07-07">7 July 2024</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">A Collection of Interesting Ideas, <time class="dt-updated" datetime="2024-07-14">14 July 2024</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2233,7 +2233,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
    </div>
    <p class="copyright" data-fill-with="copyright"><a href="http://creativecommons.org/publicdomain/zero/1.0/" rel="license"><img alt="CC0" height="15" src="https://licensebuttons.net/p/zero/1.0/80x15.png" width="80"></a> To the extent possible under law, the editors have waived all copyright
 and related or neighboring rights to this work.
-In addition, as of 7 July 2024,
+In addition, as of 14 July 2024,
 the editors have made this specification available under the <a href="https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0" rel="license">Open Web Foundation Agreement Version 1.0</a>,
 which is available at https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0.
 Parts of this work may be from another specification document.  If so, those parts are instead covered by the license of that specification document. </p>
@@ -2523,11 +2523,11 @@ header as well as the confidential block is verified using message authenticatio
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="major-version">major version</dfn>
        <td>u16
-       <td> 0x01 for CDF major version 1 
+       <td> Major version number, e.g., 1 if the version is 1.0 
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="minor-version">minor version</dfn>
        <td>u16
-       <td> Minor version number, e.g., 0 if the CDF version is 1.0 
+       <td> Minor version number, e.g., 0 if the version is 1.0 
     </table>
    </figure>
    <h4 class="heading settled" data-level="2.1.2" id="header-fields"><span class="secno">2.1.2. </span><span class="content">Header Fields</span><a class="self-link" href="#header-fields"></a></h4>
@@ -2716,7 +2716,7 @@ symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed6
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="groups">groups</dfn> (0x02)
        <td>[+ <a href="#body-group">§ 2.2.1.3 Group</a>]
-       <td> All groups of this database. Groups are arranged as a forrest. There is
+       <td> All groups of this database. Groups are arranged as a forest. There is
                 a implicit root and every item of the given array without a parent is
                 implicitly a child of this root. Every Group MAY have one or more children
                 referenced by an index. 
@@ -2728,9 +2728,9 @@ symKey <c- o>=</c-> <c- mf>1800</c->b386aff0488a7a3720e014afd4b57d27c915ead08ed6
          The bin is a array of elements of type <a href="#body-entry">§ 2.2.1.6 Entry</a> that
                 represent deleted entries. For every deleted entry the exp
                 field of Times is set to some point in the future. Applications
-                SHOULD check regularily the exp field and delete expired entries
+                SHOULD check regularly the exp field and delete expired entries
                 automatically. 
-        <p>This fieled MAY NOT be present if no entries have been deleted.</p>
+        <p>This field MAY NOT be present if no entries have been deleted.</p>
        <td>Optional
     </table>
    </figure>
@@ -3041,8 +3041,6 @@ Before persisting it to disk, the database must undergo serialization according 
     <li data-md>
      <p><strong>Encode the Body</strong>: The body is encoded as specified by the guidelines outlined in the <a href="#body">§ 2.2 Body</a> section.</p>
     <li data-md>
-     <p><strong>Compression (Optional)</strong>: If the <a data-link-type="dfn">cmp</a> header field is not set to None, compress the encoded body using the designated compression algorithm.</p>
-    <li data-md>
      <p><strong>Serialize Body Length</strong>: Serialize the length of the body as a u64 data type.</p>
     <li data-md>
      <p><strong>Encrypt the Body</strong>: Utilize the cipher specified by <a data-link-type="dfn" href="#cid" id="ref-for-cid④">cid</a> to encrypt the body with the following parameters:</p>
@@ -3070,7 +3068,7 @@ according to the following steps:</p>
     <li data-md>
      <p><strong>Extract Header</strong>: Extract the header based on the header length.</p>
     <li data-md>
-     <p><strong>Validate Header</strong>: Validate that all required header fields are present and contain sain values.</p>
+     <p><strong>Validate Header</strong>: Validate that all required header fields are present and contain reasonable values.</p>
     <li data-md>
      <p><strong>Extract Body Length</strong>: Extract the length of the body from the serialized data.</p>
     <li data-md>
@@ -3085,8 +3083,6 @@ according to the following steps:</p>
       <li data-md>
        <p>Associated Data (AD): <code>Outer Header || Body Length</code></p>
      </ul>
-    <li data-md>
-     <p><strong>Decompression (Optional)</strong>: If compression was applied during serialization, decompress the encoded body using the designated decompression algorithm.</p>
     <li data-md>
      <p><strong>Decode the Body</strong>: Decode the body according to the specifications outlined in the <a href="#body">§ 2.2 Body</a> section.</p>
    </ol>
@@ -3124,11 +3120,11 @@ according to the following steps:</p>
       <tr>
        <td>T_MEMORY_ACCESS
        <td> The memory is accessed while reading or writing the database by a malicious actor. Not applicable because
-                of <a data-link-type="dfn" href="#a_trusted_processing_environment" id="ref-for-a_trusted_processing_environment">A_TRUSTED_PROCESSING_ENVIRONMENT</a>. A kdbxng file MUST NOT be processed on a untrusted system. 
+                of <a data-link-type="dfn" href="#a_trusted_processing_environment" id="ref-for-a_trusted_processing_environment">A_TRUSTED_PROCESSING_ENVIRONMENT</a>. A ccdb file MUST NOT be processed on a untrusted system. 
       <tr>
        <td>T_MEMORY_MANIP
        <td> The memory is manipulated while reading or writing the database by a malicious actor.  Not applicable because
-                of <a data-link-type="dfn" href="#a_trusted_processing_environment" id="ref-for-a_trusted_processing_environment①">A_TRUSTED_PROCESSING_ENVIRONMENT</a>. A kdbxng file MUST NOT be processed on a untrusted system. 
+                of <a data-link-type="dfn" href="#a_trusted_processing_environment" id="ref-for-a_trusted_processing_environment①">A_TRUSTED_PROCESSING_ENVIRONMENT</a>. A ccdb file MUST NOT be processed on a untrusted system. 
     </table>
    </figure>
    <h3 class="heading settled" data-level="3.3" id="mitigations"><span class="secno">3.3. </span><span class="content">Mitigations</span><a class="self-link" href="#mitigations"></a></h3>
@@ -3143,7 +3139,7 @@ according to the following steps:</p>
        <td> The file is encrypted using a state-of-the-art cipher. 
       <tr>
        <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="m_integrity">M_INTEGRITY</dfn>
-       <td> The integrity of the file is verified using a message authenticaiton code. 
+       <td> The integrity of the file is verified using a message authentication code. 
     </table>
    </figure>
    <h3 class="heading settled" data-level="3.4" id="policies"><span class="secno">3.4. </span><span class="content">Policies</span><a class="self-link" href="#policies"></a></h3>
@@ -3156,7 +3152,7 @@ according to the following steps:</p>
        <th>Description
       <tr>
        <td>P_MEM_PROTECT
-       <td> The memory of readers and writers should be handeled with care. This SHOULD include but is
+       <td> The memory of readers and writers should be handled with care. This SHOULD include but is
                 is not limited to mitigations like <a href="https://www.man7.org/linux/man-pages/man2/mlock.2.html">mlock</a> on UNIX like systems. 
     </table>
    </figure>
@@ -3169,7 +3165,7 @@ data-in-use.</p>
 for a small message size making compression less relevant. This is why CCDB specifically doesn’t use compression.</p>
    <h4 class="heading settled" data-level="3.5.2" id="double-enc"><span class="secno">3.5.2. </span><span class="content">No Double Encryption</span><a class="self-link" href="#double-enc"></a></h4>
    <p>Some file formats, like KDBX4, encrypt not only their main data but also specific fields such as password entries. The primary reason for this is to prevent the pollution of process memory with secrets, thereby making them more manageable. Assuming that the underlying operating system enforces process separation, including their allocated memory, and that the application protects the memory from being swapped out, the threat model involves an attacker with root privileges who can access process memory to obtain information about the decrypted data.</p>
-   <p>The problem arises when an attacker can read the decrypted XML data structure of a KDBX4 database located in main memory. In such a case, the attacker can also read the prepended StreamKey. This allows the attacker to parse the XML data structure, collect all "protected" fields, and decrypt them using the StreamCipher with the StreamKey. Consequently, the fields are merely obfuscated, and the application cannot enforce the confidentiality of the data.</p>
+   <p>In the case of KDBX4, a problem arises when an attacker can read the decrypted XML data structure of a KDBX4 database located in main memory. In such a case, one must assume that the attacker can also read the prepended StreamKey. This allows the attacker to parse the XML data structure, collect all "protected" fields, and decrypt them using the StreamCipher with the StreamKey. Consequently, the fields are merely obfuscated, and the application cannot enforce the confidentiality of the data.</p>
    <p>We, the authors of this document, believe that no confidential data should be processed on a compromised system and that there are no sufficient protection measures against an attacker with root privileges. Therefore, we assume a trusted processing environment in our threat model. Applications aiming to protect their data with a second layer of encryption should encrypt the data themselves and then store the ciphertext in the <a data-link-type="dfn" href="#secret" id="ref-for-secret">secret</a> field of a <a href="#body-entry">§ 2.2.1.6 Entry</a>.</p>
    <h2 class="heading settled" data-level="4" id="recommendet-extension"><span class="secno">4. </span><span class="content">Recommended File Name Extension: .ccdb</span><a class="self-link" href="#recommendet-extension"></a></h2>
    <p>The recommended file name extension for the "CBOR Credential Database Format" specified in this document is ".ccdb".</p>

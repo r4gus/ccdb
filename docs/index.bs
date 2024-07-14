@@ -132,14 +132,14 @@ The initial 8 bytes encode the CCDB version.
             <td><dfn>major version</dfn></td>
             <td>u16</td>
             <td>
-                0x01 for CDF major version 1
+                Major version number, e.g., 1 if the version is 1.0
             </td>
         </tr>
         <tr>
             <td><dfn>minor version</dfn></td>
             <td>u16</td>
             <td>
-                Minor version number, e.g., 0 if the CDF version is 1.0
+                Minor version number, e.g., 0 if the version is 1.0
             </td>
         </tr>
     </table>
@@ -383,7 +383,7 @@ The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], 
             <td><dfn>groups</dfn> (0x02)</td>
             <td>[+ [[#body-group]]]</td>
             <td>
-                All groups of this database. Groups are arranged as a forrest. There is
+                All groups of this database. Groups are arranged as a forest. There is
                 a implicit root and every item of the given array without a parent is
                 implicitly a child of this root. Every Group MAY have one or more children
                 referenced by an index.
@@ -397,10 +397,10 @@ The body data is a nested CBOR map (major type 5) consisting of [[#body-meta]], 
                 The bin is a array of elements of type [[#body-entry]] that
                 represent deleted entries. For every deleted entry the exp
                 field of Times is set to some point in the future. Applications
-                SHOULD check regularily the exp field and delete expired entries
+                SHOULD check regularly the exp field and delete expired entries
                 automatically.
 
-                This fieled MAY NOT be present if no entries have been deleted.
+                This field MAY NOT be present if no entries have been deleted.
             </td>
             <td>Optional</td>
         </tr>
@@ -817,13 +817,12 @@ Before persisting it to disk, the database must undergo serialization according 
 4. Serialize the header fields, incorporating the [=iv=].
 5. **Write Serialized Header Length**: Record the size of the serialized header fields within the 4 bytes reserved in the previous step.
 6. **Encode the Body**: The body is encoded as specified by the guidelines outlined in the [[#body]] section.
-7. **Compression (Optional)**: If the [=cmp=] header field is not set to None, compress the encoded body using the designated compression algorithm.
-8. **Serialize Body Length**: Serialize the length of the body as a u64 data type.
-9. **Encrypt the Body**: Utilize the cipher specified by [=cid=] to encrypt the body with the following parameters:
+7. **Serialize Body Length**: Serialize the length of the body as a u64 data type.
+8. **Encrypt the Body**: Utilize the cipher specified by [=cid=] to encrypt the body with the following parameters:
     - key: The symmetric key specified in [[#final-keys]].
     - Initialization Vector (IV): [=iv=]
     - Associated Data (AD): The serialized header and body length.
-10. **Write Tag and Encrypted Body**: Place the resulting tag immediately after the body length, followed by the encrypted body.
+9. **Write Tag and Encrypted Body**: Place the resulting tag immediately after the body length, followed by the encrypted body.
 
 ## Deserialization
 
@@ -834,15 +833,14 @@ according to the following steps:
 2. **Validate Version**: Read the [[#header-version]] and validate that [=sig=] equals `CCDB`.
 3. **Extract Header Length**: Extract the length of the header from the serialized data.
 4. **Extract Header**: Extract the header based on the header length.
-5. **Validate Header**: Validate that all required header fields are present and contain sain values.
+5. **Validate Header**: Validate that all required header fields are present and contain reasonable values.
 6. **Extract Body Length**: Extract the length of the body from the serialized data.
 7. **Extract Tag and Encrypted Body**: Extract the tag followed by the encrypted body from the serialized data.
 8. **Decrypt the Body**: Utilize the specified cipher and associated parameters to decrypt the encrypted body:
     - key: The symmetric key specified in [[#final-keys]].
     - Initialization Vector (IV): [=iv=]
     - Associated Data (AD): `Outer Header || Body Length` 
-9. **Decompression (Optional)**: If compression was applied during serialization, decompress the encoded body using the designated decompression algorithm.
-10. **Decode the Body**: Decode the body according to the specifications outlined in the [[#body]] section.
+9. **Decode the Body**: Decode the body according to the specifications outlined in the [[#body]] section.
 
 Thread Model {#thread-modell}
 =====================
@@ -896,14 +894,14 @@ Thread Model {#thread-modell}
             <td>T_MEMORY_ACCESS</td>
             <td>
                 The memory is accessed while reading or writing the database by a malicious actor. Not applicable because
-                of [=A_TRUSTED_PROCESSING_ENVIRONMENT=]. A kdbxng file MUST NOT be processed on a untrusted system.
+                of [=A_TRUSTED_PROCESSING_ENVIRONMENT=]. A ccdb file MUST NOT be processed on a untrusted system.
             </td>
         </tr>
         <tr>
             <td>T_MEMORY_MANIP</td>
             <td>
                 The memory is manipulated while reading or writing the database by a malicious actor.  Not applicable because
-                of [=A_TRUSTED_PROCESSING_ENVIRONMENT=]. A kdbxng file MUST NOT be processed on a untrusted system.
+                of [=A_TRUSTED_PROCESSING_ENVIRONMENT=]. A ccdb file MUST NOT be processed on a untrusted system.
             </td>
         </tr>
     </table>
@@ -926,7 +924,7 @@ Thread Model {#thread-modell}
         <tr>
             <td><dfn>M_INTEGRITY</dfn></td>
             <td>
-                The integrity of the file is verified using a message authenticaiton code.
+                The integrity of the file is verified using a message authentication code.
             </td>
         </tr>
     </table>
@@ -945,7 +943,7 @@ The following policies SHOULD be considered by applications supporting the forma
         <tr>
             <td>P_MEM_PROTECT</td>
             <td>
-                The memory of readers and writers should be handeled with care. This SHOULD include but is
+                The memory of readers and writers should be handled with care. This SHOULD include but is
                 is not limited to mitigations like [mlock](https://www.man7.org/linux/man-pages/man2/mlock.2.html)
                 on UNIX like systems.
             </td>
@@ -968,7 +966,7 @@ for a small message size making compression less relevant. This is why CCDB spec
 
 Some file formats, like KDBX4, encrypt not only their main data but also specific fields such as password entries. The primary reason for this is to prevent the pollution of process memory with secrets, thereby making them more manageable. Assuming that the underlying operating system enforces process separation, including their allocated memory, and that the application protects the memory from being swapped out, the threat model involves an attacker with root privileges who can access process memory to obtain information about the decrypted data.
 
-The problem arises when an attacker can read the decrypted XML data structure of a KDBX4 database located in main memory. In such a case, the attacker can also read the prepended StreamKey. This allows the attacker to parse the XML data structure, collect all "protected" fields, and decrypt them using the StreamCipher with the StreamKey. Consequently, the fields are merely obfuscated, and the application cannot enforce the confidentiality of the data.
+In the case of KDBX4, a problem arises when an attacker can read the decrypted XML data structure of a KDBX4 database located in main memory. In such a case, one must assume that the attacker can also read the prepended StreamKey. This allows the attacker to parse the XML data structure, collect all "protected" fields, and decrypt them using the StreamCipher with the StreamKey. Consequently, the fields are merely obfuscated, and the application cannot enforce the confidentiality of the data.
 
 We, the authors of this document, believe that no confidential data should be processed on a compromised system and that there are no sufficient protection measures against an attacker with root privileges. Therefore, we assume a trusted processing environment in our threat model. Applications aiming to protect their data with a second layer of encryption should encrypt the data themselves and then store the ciphertext in the [=secret=] field of a [[#body-entry]].
 
