@@ -1502,6 +1502,65 @@ test "serialize Db #1: just verify that de-/serialization works" {
     defer db.deinit();
     try db.setKey("supersecret");
 
+    const g1 = try db.body.newGroup("passwords");
+    const g2 = try db.body.newGroup("passkeys");
+    const g3 = try db.body.newGroup("github.com");
+
+    try g1.addGroup(g3);
+    try g2.addGroup(g3);
+
+    var e1 = try db.body.newEntry();
+    @memcpy(e1.uuid[0..], "0e695c28-42f9-43e4-9aca-3f71cd701dc0"); // so we have reproducible results
+    try e1.setName("Bundeswehr");
+    try e1.setNotes("They will call me back next week.");
+    try e1.setSecret("supersecret");
+    try e1.setUrl("github.com");
+    try e1.setUser(.{
+        .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1",
+        .name = "r4gus",
+        .display_name = "David Sugar",
+    });
+    try e1.addTag("work");
+    try e1.addTag("VIP");
+
+    var e2 = try db.body.newEntry();
+    @memcpy(e2.uuid[0..], "28d84315-4f68-481f-bc26-6c44c52e0038"); // so we have reproducible results
+    try e2.setName("Github");
+    try e2.setSecret("12345678");
+    try e2.setUrl("github.com");
+    try e2.setUser(.{
+        .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2",
+        .name = "r4gus",
+        .display_name = "David Sugar",
+    });
+    try e2.addTag("dev");
+
+    try g1.addEntry(e1);
+    try g1.addEntry(e2);
+
+    var e3 = try db.body.newEntry();
+    @memcpy(e3.uuid[0..], "01908874-51de-7ef1-a9fd-aaae77231897");
+    try e3.setName("Github");
+    try e3.setUrl("github.com");
+    try e3.setUser(.{
+        .id = "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf2",
+        .name = "r4gus",
+        .display_name = "David Sugar",
+    });
+    e3.setKey(cbor.cose.Key{
+        .P256 = .{
+            .alg = cbor.cose.Algorithm.Es256,
+            .crv = cbor.cose.Curve.P256,
+            .kty = cbor.cose.KeyType.Ec2,
+            .x = "\x00\xec\x46\xbb\x48\x5e\xa6\x0f\x89\x68\xc9\x81\x5a\xca\x32\x90\x45\x50\xde\xe4\x17\xb2\x04\x99\xbc\xca\x11\x47\x64\x29\xd8\xe9".*,
+            .y = "\x00\x62\xf7\x19\x97\x14\x97\xad\x20\x57\xa0\x86\x2f\xcd\x46\x8e\xf5\xd7\x74\x0c\x37\xef\x02\x0b\x5a\xda\x48\x30\x36\x34\x0f\x3d".*,
+            .d = "\x29\x9b\xa4\x0f\x65\x47\xf9\xa5\x91\x63\x6b\xa3\xaa\xbc\xf5\x2a\xde\xde\xca\x32\x4d\x3d\x6e\x81\xc8\x30\x2d\x51\x99\xde\x9d\x0d".*,
+        },
+    });
+
+    try g1.addEntry(e3);
+    try g3.addEntry(e3);
+
     const raw = try db.seal(allocator);
     defer allocator.free(raw);
 
@@ -1515,6 +1574,15 @@ test "serialize Db #1: just verify that de-/serialization works" {
         "supersecret",
     );
     defer db2.deinit();
+
+    const db2_e1 = db2.body.getEntryById(e1.uuid).?;
+    try std.testing.expectEqualStrings("Bundeswehr", db2_e1.name.?);
+    try std.testing.expectEqualStrings("They will call me back next week.", db2_e1.notes.?);
+    try std.testing.expectEqualSlices(u8, "supersecret", db2_e1.secret.?);
+    try std.testing.expectEqualStrings("github.com", db2_e1.url.?);
+    try std.testing.expectEqualSlices(u8, "\xb3\x9d\xe5\x0b\xc1\x08\x0e\xb7\x96\xf0\x9f\xee\x8e\x30\xc7\xf1", db2_e1.user.?.id.?);
+    try std.testing.expectEqualStrings("r4gus", db2_e1.user.?.name.?);
+    try std.testing.expectEqualStrings("David Sugar", db2_e1.user.?.display_name.?);
 
     try std.testing.expectError(error.AuthenticationFailed, Db.open(
         raw,
