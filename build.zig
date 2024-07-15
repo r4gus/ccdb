@@ -43,6 +43,15 @@ pub fn build(b: *std.Build) void {
     // running `zig build`).
     b.installArtifact(lib);
 
+    const ccdb_module = b.addModule("ccdb", .{
+        .root_source_file = b.path("src/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    ccdb_module.addImport("zbor", zbor_module);
+    ccdb_module.addImport("uuid", uuid_module);
+    try b.modules.put(b.dupe("ccdb"), ccdb_module);
+
     //const exe = b.addExecutable(.{
     //    .name = "ccdb",
     //    .root_source_file = b.path("src/main.zig"),
