@@ -78,7 +78,7 @@ pub const Db = struct {
     pub fn seal(
         self: *const @This(),
         allocator: std.mem.Allocator,
-    ) ![]const u8 {
+    ) ![]u8 {
         if (self.key == null) return error.NoKey;
 
         var raw = std.ArrayList(u8).init(allocator);
@@ -470,10 +470,22 @@ pub const Body = struct {
     /// The Body owns the memory. The caller MAY modify the entry using
     /// one of the provided setter functions. The caller MUST NOT modify
     /// the memory of the returned entry directly.
-    pub fn getEntryById(self: *const @This(), id: uuid.urn.Urn) ?*Entry {
+    pub fn getEntryById(self: *const @This(), id: []const u8) ?*Entry {
+        if (id.len != 36) return null; // A URN is always 36 bytes long
+
         for (self.entries.items) |*entry| {
             if (std.mem.eql(u8, entry.uuid[0..], id[0..])) return entry;
         }
+        return null;
+    }
+
+    pub fn getGroupByName(self: *const @This(), name: []const u8) ?*Group {
+        if (self.groups == null) return null;
+
+        for (self.groups.?.items) |*group| {
+            if (std.mem.eql(u8, name, group.name)) return group;
+        }
+
         return null;
     }
 
@@ -992,6 +1004,16 @@ pub const Entry = struct {
         self.updateTime();
     }
 
+    pub fn removeTag(self: *@This(), i: usize) void {
+        if (self.tags == null or self.tags.?.len >= i) return;
+
+        var arr = std.ArrayList([]u8).fromOwnedSlice(self.allocator, self.tags.?);
+        const v = arr.orderedRemove(i);
+        self.allocator.free(v);
+
+        self.tags = arr.toOwnedSlice() catch unreachable; // TODO is it?
+    }
+
     pub fn deinit(self: *@This()) void {
         @memset(self.uuid[0..], 0);
         if (self.name) |name| {
@@ -1365,7 +1387,7 @@ test "deserialize body #1" {
     try std.testing.expectEqualSlices(u8, "PassKeeZ", body.meta.gen);
     try std.testing.expectEqualSlices(u8, "My Passkeys", body.meta.name);
 
-    const e1 = body.getEntryById("0e695c28-42f9-43e4-9aca-3f71cd701dc0".*).?;
+    const e1 = body.getEntryById("0e695c28-42f9-43e4-9aca-3f71cd701dc0").?;
     try std.testing.expectEqualStrings("Bundeswehr", e1.name.?);
     try std.testing.expectEqualStrings("They will call me back next week.", e1.notes.?);
     try std.testing.expectEqualStrings("supersecret", e1.secret.?);
@@ -1376,7 +1398,7 @@ test "deserialize body #1" {
     try std.testing.expectEqualSlices(u8, "work", e1.tags.?[0]);
     try std.testing.expectEqualSlices(u8, "VIP", e1.tags.?[1]);
 
-    const e2 = body.getEntryById("28d84315-4f68-481f-bc26-6c44c52e0038".*).?;
+    const e2 = body.getEntryById("28d84315-4f68-481f-bc26-6c44c52e0038").?;
     try std.testing.expectEqualStrings("Github", e2.name.?);
     try std.testing.expectEqualStrings("12345678", e2.secret.?);
     try std.testing.expectEqualStrings("github.com", e2.url.?);
@@ -1575,7 +1597,7 @@ test "serialize Db #1: just verify that de-/serialization works" {
     );
     defer db2.deinit();
 
-    const db2_e1 = db2.body.getEntryById(e1.uuid).?;
+    const db2_e1 = db2.body.getEntryById(&e1.uuid).?;
     try std.testing.expectEqualStrings("Bundeswehr", db2_e1.name.?);
     try std.testing.expectEqualStrings("They will call me back next week.", db2_e1.notes.?);
     try std.testing.expectEqualSlices(u8, "supersecret", db2_e1.secret.?);
