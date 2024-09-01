@@ -96,7 +96,7 @@ pub const Kdbx4 = struct {
         keys: Keys,
         allocator: std.mem.Allocator,
     ) !Body {
-        const body = self.readBlocks(keys, allocator);
+        const body = try self.readBlocks(keys, allocator);
 
         return body;
     }
@@ -149,7 +149,7 @@ pub const Kdbx4 = struct {
         }
 
         return .{
-            .body = try blocks.toOwnedSlice(),
+            .compressed = try blocks.toOwnedSlice(),
         };
     }
 
@@ -700,34 +700,125 @@ pub const VariantMap = struct {
 // |Body                                              |
 // +--------------------------------------------------+
 
-pub const Body = struct {
-    body: []const u8,
+pub const BodyTag = enum { compressed, uncompressed };
+pub const Body = union(BodyTag) {
+    compressed: []const u8,
+    uncompressed: struct {
+        stream_cipher: StreamCipher,
+        stream_key: []const u8,
+        binary: std.ArrayList([]const u8),
+        body: []const u8,
+    },
+
+    pub const StreamCipher = enum(u32) {
+        arc_four_variant = 1,
+        salsa20 = 2,
+        chacha20 = 3,
+    };
 
     pub fn deinit(self: *const @This(), allocator: std.mem.Allocator) void {
-        allocator.free(self.body);
+        switch (self.*) {
+            .compressed => |cb| allocator.free(cb),
+            .uncompressed => |uc| {
+                allocator.free(uc.body);
+                allocator.free(uc.stream_key);
+                for (uc.binary.items) |item| {
+                    allocator.free(item);
+                }
+                uc.binary.deinit();
+            },
+        }
     }
 
-    fn decompress(
+    fn parse(
+        raw: []const u8,
+        allocator: std.mem.Allocator,
+    ) !@This() {
+        var stream_cipher: ?StreamCipher = null;
+        var stream_key: ?[]const u8 = null;
+        errdefer if (stream_key) |sk| allocator.free(sk);
+        var binary = std.ArrayList([]const u8).init(allocator);
+        errdefer {
+            for (binary.items) |item| {
+                allocator.free(item);
+            }
+            binary.deinit();
+        }
+
+        var i: usize = 0;
+        while (true) {
+            if (i + 5 >= raw.len) return error.UnexpectedEndOfSlice;
+            const l: usize = @intCast(decode(u32, raw[i + 1 .. i + 5]));
+            if (i + 5 + l > raw.len) return error.UnexpectedEndOfSlice;
+            const t = raw[i];
+
+            switch (t) {
+                0 => {
+                    i += l + 5;
+                    break;
+                },
+                1 => {
+                    if (l != 4) return error.InvalidStreamCipher;
+                    const ss = decode(u32, raw[i + 5 .. i + 5 + l]);
+                    switch (ss) {
+                        1 => stream_cipher = .arc_four_variant,
+                        2 => stream_cipher = .salsa20,
+                        3 => stream_cipher = .chacha20,
+                        else => return error.InvalidStreamCipher,
+                    }
+                },
+                2 => stream_key = try allocator.dupe(u8, raw[i + 5 .. i + 5 + l]),
+                3 => try binary.append(try allocator.dupe(u8, raw[i + 5 .. i + 5 + l])),
+                else => {}, //ignore
+            }
+
+            i += l + 5;
+        }
+
+        if (stream_key == null) return error.StreamKeyMissing;
+        if (stream_cipher == null) return error.StreamCipherMissing;
+
+        return .{
+            .uncompressed = .{
+                .body = raw,
+                .stream_cipher = stream_cipher.?,
+                .stream_key = stream_key.?,
+                .binary = binary,
+            },
+        };
+    }
+
+    pub fn decompress(
         self: *@This(),
         compression: Field.Compression,
         allocator: std.mem.Allocator,
-    ) !void {
-        switch (compression) {
-            .gzip => {
-                var in_stream = std.io.fixedBufferStream(self.body);
-                var arr = std.ArrayList(u8).init(allocator);
-                errdefer arr.deinit();
+    ) !@This() {
+        switch (self.*) {
+            .compressed => |cb| switch (compression) {
+                .gzip => {
+                    var in_stream = std.io.fixedBufferStream(cb);
+                    var arr = std.ArrayList(u8).init(allocator);
+                    errdefer arr.deinit();
 
-                try std.compress.gzip.decompress(
-                    in_stream.reader(),
-                    arr.writer(),
-                );
+                    try std.compress.gzip.decompress(
+                        in_stream.reader(),
+                        arr.writer(),
+                    );
 
-                allocator.free(self.body);
-                self.body = try arr.toOwnedSlice();
+                    const body = try arr.toOwnedSlice();
+                    return try parse(body, allocator);
+                },
+                .none => {
+                    const body = try allocator.dupe(u8, cb);
+                    return try parse(body, allocator);
+                },
             },
-            .none => {},
+            else => {
+                return self.*;
+            },
         }
+
+        return self;
     }
 };
 
@@ -825,7 +916,8 @@ test "parse kdbx4 file" {
     const keys = try kdbx.getKeys("supersecret", std.testing.allocator);
     var body = try kdbx.decryptBody(keys, std.testing.allocator);
     defer body.deinit(std.testing.allocator);
-    try body.decompress(kdbx.header.getCompression(), std.testing.allocator);
+    const uncompressed_body = try body.decompress(kdbx.header.getCompression(), std.testing.allocator);
+    defer uncompressed_body.deinit(std.testing.allocator);
 
-    std.log.err("{s}", .{body.body});
+    //std.log.err("{s}", .{body.body});
 }
