@@ -5,6 +5,290 @@
 const std = @import("std");
 
 // +--------------------------------------------------+
+// |KDBX4                                             |
+// +--------------------------------------------------+
+
+pub const Kdbx4 = struct {
+    header: Header,
+    hash: [32]u8,
+    mac: [32]u8,
+    body: []const u8,
+
+    pub const CompositeKey = [32]u8;
+
+    pub const Keys = struct {
+        encryption_key: [32]u8,
+        mac_key: [64]u8,
+    };
+
+    pub const Block = struct {
+        mac: []const u8,
+        mac_data: []const u8,
+        data: []const u8,
+        bytes: usize,
+    };
+
+    pub fn new(raw: []const u8) !@This() {
+        const h = try Header.new(raw);
+        if (raw.len <= h.getLen() + 64) return error.UnexpectedEndOfSlice;
+
+        const hash = raw[h.getLen() .. h.getLen() + 32];
+        var hash2: [32]u8 = .{0} ** 32;
+        std.crypto.hash.sha2.Sha256.hash(raw[0..h.getLen()], &hash2, .{});
+        if (!std.mem.eql(u8, hash, hash2[0..])) return error.HeaderHashIntegrityFailure;
+
+        const mac = raw[h.getLen() + 32 .. h.getLen() + 64];
+
+        return .{
+            .header = h,
+            .hash = hash[0..32].*,
+            .mac = mac[0..32].*,
+            .body = raw[h.getLen() + 64 ..],
+        };
+    }
+
+    fn readBlock(raw: []const u8) !?Block {
+        if (raw.len < 36) return error.UnexpectedEndOfInput;
+        const mac = raw[0..32];
+        const len = std.mem.readInt(u32, &raw[32..36].*, .little);
+        if (raw.len < 36 + len) return error.UnexpectedEndOfInput;
+
+        if (len == 0) {
+            return null;
+        }
+
+        return .{
+            .mac = mac,
+            .mac_data = raw[32 .. 36 + len],
+            .data = raw[36 .. 36 + len],
+            .bytes = 36 + len,
+        };
+    }
+
+    fn checkMac(
+        expected: []const u8,
+        data: []const []const u8,
+        key: [64]u8,
+        index: u64,
+    ) !void {
+        const HmacSha256 = std.crypto.auth.hmac.sha2.HmacSha256;
+        var raw_index: [8]u8 = undefined;
+        std.mem.writeInt(u64, &raw_index, index, .little);
+
+        var sha512_context = std.crypto.hash.sha2.Sha512.init(.{});
+        sha512_context.update(&raw_index); // block index
+        sha512_context.update(&key);
+        const k = sha512_context.finalResult();
+
+        var mac: [HmacSha256.mac_length]u8 = undefined;
+        var ctx = HmacSha256.init(&k);
+        for (data) |d| {
+            ctx.update(d);
+        }
+        ctx.final(&mac);
+        //HmacSha256.create(&mac, data, &k);
+
+        if (!std.mem.eql(u8, &mac, expected)) return error.MacIntegrityViolation;
+    }
+
+    pub fn decryptBody(
+        self: *const @This(),
+        keys: Keys,
+        allocator: std.mem.Allocator,
+    ) !Body {
+        const body = self.readBlocks(keys, allocator);
+
+        return body;
+    }
+
+    fn readBlocks(
+        self: *const @This(),
+        keys: Keys,
+        allocator: std.mem.Allocator,
+    ) !Body {
+        const cid = if (self.header.getField(.cipher_id)) |cid| cid else return error.MissingCipherId;
+        const cipher = cid.getCipherId();
+        const iv_ = if (self.header.getField(.encryption_iv)) |iv| iv else return error.MissingEncryptionIv;
+        const initialization_vector = if (cipher == .chacha20) blk: {
+            const iv = iv_.getEncryptionIvChaCha20();
+            break :blk try allocator.dupe(u8, &iv);
+        } else blk: {
+            const iv = iv_.getEncryptionIvCbc();
+            break :blk try allocator.dupe(u8, &iv);
+        };
+        defer allocator.free(initialization_vector);
+
+        var block_index: u64 = 0;
+        var index: usize = 0;
+        var blocks = std.ArrayList(u8).init(allocator);
+
+        var view = self.body;
+        while (try readBlock(view)) |block| {
+            //std.log.err("view len: {d}\nblock bytes: {d}\ndata len: {d}", .{ view.len, block.bytes, block.data.len });
+
+            var raw_block_index: [8]u8 = undefined;
+            std.mem.writeInt(u64, &raw_block_index, block_index, .little);
+            var raw_block_len: [4]u8 = undefined;
+            std.mem.writeInt(u32, &raw_block_len, @as(u32, @intCast(block.data.len)), .little);
+
+            // HMAC-SHA256(BlockIndex || BlockSize || BlockData)
+            try checkMac(
+                block.mac,
+                &.{ &raw_block_index, &raw_block_len, block.data },
+                keys.mac_key,
+                block_index,
+            );
+            block_index += 1;
+
+            //std.log.err("block {d}, len {d}", .{ block_index, block.data.len });
+
+            try decrypt(blocks.writer(), block.data, cipher, keys.encryption_key, initialization_vector);
+
+            index += block.bytes;
+            view = self.body[index..];
+        }
+
+        return .{
+            .body = try blocks.toOwnedSlice(),
+        };
+    }
+
+    fn decrypt(
+        out: anytype,
+        in: []const u8,
+        cipher: Field.Cipher,
+        key: [32]u8,
+        iv: []u8,
+    ) !void {
+        switch (cipher) {
+            .aes128_cbc => {
+                return error.Aes128CbcNotImplemented;
+            },
+            .aes256_cbc => {
+                var xor_vector: [16]u8 = undefined;
+                var i: usize = 0;
+
+                @memcpy(&xor_vector, iv[0..16]);
+                var ctx = std.crypto.core.aes.Aes256.initDec(key);
+
+                while (i < in.len) : (i += 16) {
+                    var data: [16]u8 = .{0} ** 16;
+                    const offset = if (i + 16 <= in.len) 16 else in.len - i;
+                    var in_: [16]u8 = undefined;
+                    @memcpy(in_[0..offset], in[i .. i + offset]);
+
+                    ctx.decrypt(data[0..], &in_);
+                    for (&data, xor_vector) |*b1, b2| {
+                        b1.* ^= b2;
+                    }
+
+                    // This could be bad if a block is not divisible by 16 but
+                    // this will probably only happen for the last block, i.e.,
+                    // doesn't affect the CBC decryption.
+                    @memcpy(&xor_vector, in[i .. i + offset]);
+
+                    try out.writeAll(&data);
+                }
+
+                // We copy it back into the iv so we keep track of the
+                // last encrypted AES block.
+                @memcpy(iv, xor_vector[0..]);
+            },
+            .twofish_cbc => {
+                return error.TwoFishCbcNotImplemented;
+            },
+            .chacha20 => {
+                return error.ChaCha20NotImplemented;
+            },
+        }
+    }
+
+    pub fn getBlockKey(keys: Keys, index: u64) [64]u8 {
+        const block_index = encode(8, index);
+        const k: [64]u8 = .{0} ** 64;
+
+        var h = std.crypto.hash.sha2.Sha512.init(.{});
+        h.update(&block_index);
+        h.update(&keys.mac_key);
+        h.final(&k);
+
+        return k;
+    }
+
+    pub fn getKeys(self: *const @This(), password: []const u8, allocator: std.mem.Allocator) !Keys {
+        const ms = if (self.header.getField(.main_seed)) |ms| blk: {
+            break :blk ms.getMainSeed();
+        } else return error.MainSeedMissing;
+        const k = try self.deriveKey(password, allocator);
+
+        var encryption_key: [32]u8 = .{0} ** 32;
+        var mac_key: [64]u8 = .{0} ** 64;
+
+        var h = std.crypto.hash.sha2.Sha256.init(.{});
+        h.update(&ms);
+        h.update(&k);
+        h.final(&encryption_key);
+
+        var h2 = std.crypto.hash.sha2.Sha512.init(.{});
+        h2.update(&ms);
+        h2.update(&k);
+        h2.update("\x01");
+        h2.final(&mac_key);
+
+        return .{
+            .encryption_key = encryption_key,
+            .mac_key = mac_key,
+        };
+    }
+
+    pub fn deriveKey(self: *const @This(), password: []const u8, allocator: std.mem.Allocator) ![32]u8 {
+        var k: [32]u8 = .{0} ** 32;
+        const ck = getCompositeKey(password);
+
+        const kdf = if (self.header.getField(.kdf_parameters)) |kdf| kdf else return error.KdfFieldMissing;
+        var kdf_params = try kdf.getKdfParameters();
+        const uuid = if (kdf_params.getUuid()) |uuid| uuid else return error.KdfUuidMissing;
+
+        switch (uuid) {
+            .aes_kdf => return error.AesKdfNotSupported,
+            .argon2d, .argon2id => {
+                const salt = if (kdf_params.getS()) |salt| salt else return error.KdfSaltMissing;
+                const P = if (kdf_params.getP()) |P| P else return error.KdfParallelismMissing;
+                const M = if (kdf_params.getM()) |M| M else return error.KdfMemoryCostMissing;
+                const I = if (kdf_params.getI()) |I| I else return error.KdfIterationsMissing;
+                const K = kdf_params.getK();
+                const A = kdf_params.getA();
+
+                try std.crypto.pwhash.argon2.kdf(
+                    allocator,
+                    &k,
+                    &ck,
+                    salt,
+                    .{
+                        .t = @intCast(I),
+                        .m = @intCast(M / 1024), // has to be provided in KiB
+                        .p = @intCast(P),
+                        .secret = K,
+                        .ad = A,
+                    },
+                    if (uuid == .argon2d) .argon2d else .argon2id,
+                );
+            },
+        }
+
+        return k;
+    }
+
+    pub fn getCompositeKey(password: []const u8) CompositeKey {
+        var hash1: [32]u8 = .{0} ** 32;
+        var hash2: [32]u8 = .{0} ** 32;
+        std.crypto.hash.sha2.Sha256.hash(password, &hash1, .{});
+        std.crypto.hash.sha2.Sha256.hash(&hash1, &hash2, .{});
+        return hash2;
+    }
+};
+
+// +--------------------------------------------------+
 // |Header: Unencrypted                               |
 // +--------------------------------------------------+
 
@@ -12,6 +296,7 @@ pub const Header = struct {
     version: HVersion,
     fields: []const u8,
     indices: [13]?[2]usize,
+    len: usize,
 
     pub fn new(raw: []const u8) !@This() {
         // First validate version fields...
@@ -40,6 +325,7 @@ pub const Header = struct {
             .version = version,
             .fields = raw[12..i],
             .indices = indices,
+            .len = i,
         };
     }
 
@@ -48,6 +334,15 @@ pub const Header = struct {
             const s, const e = i;
             return Field{ .raw = self.fields[s..e] };
         } else return null;
+    }
+
+    pub fn getLen(self: *const @This()) usize {
+        return self.len;
+    }
+
+    pub fn getCompression(self: *const @This()) Field.Compression {
+        const comp = if (self.getField(.compression)) |comp| comp else return .none;
+        return comp.getCompression();
     }
 };
 
@@ -402,6 +697,41 @@ pub const VariantMap = struct {
 };
 
 // +--------------------------------------------------+
+// |Body                                              |
+// +--------------------------------------------------+
+
+pub const Body = struct {
+    body: []const u8,
+
+    pub fn deinit(self: *const @This(), allocator: std.mem.Allocator) void {
+        allocator.free(self.body);
+    }
+
+    fn decompress(
+        self: *@This(),
+        compression: Field.Compression,
+        allocator: std.mem.Allocator,
+    ) !void {
+        switch (compression) {
+            .gzip => {
+                var in_stream = std.io.fixedBufferStream(self.body);
+                var arr = std.ArrayList(u8).init(allocator);
+                errdefer arr.deinit();
+
+                try std.compress.gzip.decompress(
+                    in_stream.reader(),
+                    arr.writer(),
+                );
+
+                allocator.free(self.body);
+                self.body = try arr.toOwnedSlice();
+            },
+            .none => {},
+        }
+    }
+};
+
+// +--------------------------------------------------+
 // |Misc                                              |
 // +--------------------------------------------------+
 
@@ -486,4 +816,16 @@ test "decode outer header" {
     try std.testing.expectEqual(@as(u32, 8), kdf_params.getP().?);
 
     try std.testing.expectEqual(@as(u32, 0x13), kdf_params.getV().?);
+}
+
+test "parse kdbx4 file" {
+    const db = @embedFile("static/testdb.kdbx");
+
+    const kdbx = try Kdbx4.new(db);
+    const keys = try kdbx.getKeys("supersecret", std.testing.allocator);
+    var body = try kdbx.decryptBody(keys, std.testing.allocator);
+    defer body.deinit(std.testing.allocator);
+    try body.decompress(kdbx.header.getCompression(), std.testing.allocator);
+
+    std.log.err("{s}", .{body.body});
 }
