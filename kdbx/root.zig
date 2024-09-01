@@ -3,6 +3,7 @@
 //! Note: All numbers are stored using the little-endian format.
 
 const std = @import("std");
+const xml = @import("xml.zig");
 
 // +--------------------------------------------------+
 // |KDBX4                                             |
