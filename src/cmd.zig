@@ -17,6 +17,11 @@ const help =
     \\  -i, --index <int>                           Index of an entry.
     \\  -e, --export [JSON, CBOR]                   Export an entry using the specified file format.
     \\  -c, --change                                Change password.
+    \\  -n, --new                Create a new entry.
+    \\  --name <str>             Specify the name for an entry.
+    \\  --notes <str>            Specify the notes for an entry.
+    \\  --secret                 Specify the secret for an entry over stdin.
+    \\  --url <str>              Specify the URL for an entry.
     \\
     \\ Security considerations:
     \\  The password file should only be readable by the user. Please do not enter your password
@@ -45,6 +50,11 @@ pub fn main() !void {
         \\-i, --index <usize>      Index of an entry.
         \\-e, --export <str>       Export an entry using the specified file format.
         \\-c, --change             Change password.
+        \\-n, --new                Create a new entry.
+        \\--name <str>             Specify the name for an entry.
+        \\--notes <str>            Specify the notes for an entry.
+        \\--secret                 Specify the secret for an entry over stdin.
+        \\--url <str>              Specify the URL for an entry.
         \\
     );
 
@@ -85,6 +95,9 @@ pub fn main() !void {
         if (res.args.list != 0) {
             for (database.body.entries.items, 0..) |entry, i| {
                 try std.fmt.format(stdout.writer(), "[{d}] {s}\n", .{ i, entry.uuid });
+                if (entry.name) |name| {
+                    try std.fmt.format(stdout.writer(), "  name: {s}\n", .{name});
+                }
                 if (entry.url) |url| {
                     try std.fmt.format(stdout.writer(), "  url: {s}\n", .{url});
                 }
@@ -131,11 +144,48 @@ pub fn main() !void {
             try database.setKey(new_password.?);
 
             try writeDb(allocator, file, &database);
+        } else if (res.args.new != 0) {
+            var e = database.body.newEntry() catch {
+                try std.fmt.format(stderr.writer(), "unable to create new entry\n", .{});
+                return;
+            };
+
+            if (res.args.name) |v| {
+                try e.setName(v);
+            }
+
+            if (res.args.notes) |v| {
+                try e.setNotes(v);
+            }
+
+            if (res.args.secret != 0) {
+                try std.fmt.format(stdout.writer(), "secret: ", .{});
+                const s = try stdin.reader().readUntilDelimiterOrEofAlloc(allocator, '\n', 256);
+                defer if (s) |s_| allocator.free(s_);
+                try e.setSecret(s.?);
+            }
+
+            if (res.args.url) |v| {
+                try e.setUrl(v);
+            }
+
+            try writeDb(allocator, file, &database);
         }
 
         return;
     }
 }
+
+const Entry = struct {
+    name: ?[]const u8 = null,
+    notes: ?[]const u8 = null,
+    secret: ?[]const u8 = null,
+    key: ?cbor.cose.Key = null,
+    url: ?[]const u8 = null,
+    user: ?ccdb.User = null,
+    tags: ?[]const []const u8 = null,
+    attach: ?[]const ccdb.Attachment = null,
+};
 
 fn serializeEntryToJson(entry: *const ccdb.Entry, stdout: anytype) !void {
     try stdout.writer().writeAll("{\n");
