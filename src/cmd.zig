@@ -17,11 +17,11 @@ const help =
     \\  -i, --index <int>                           Index of an entry.
     \\  -e, --export [JSON, CBOR]                   Export an entry using the specified file format.
     \\  -c, --change                                Change password.
-    \\  -n, --new                Create a new entry.
-    \\  --name <str>             Specify the name for an entry.
-    \\  --notes <str>            Specify the notes for an entry.
-    \\  --secret                 Specify the secret for an entry over stdin.
-    \\  --url <str>              Specify the URL for an entry.
+    \\  -n, --new                                   Create a new entry.
+    \\  --name <str>                                Specify the name for an entry.
+    \\  --notes <str>                               Specify the notes for an entry.
+    \\  --secret                                    Specify the secret for an entry over stdin.
+    \\  --url <str>                                 Specify the URL for an entry.
     \\
     \\ Security considerations:
     \\  The password file should only be readable by the user. Please do not enter your password
