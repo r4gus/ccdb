@@ -36,6 +36,7 @@ pub fn main() !void {
     const stdin = std.io.getStdIn();
     const stdout = std.io.getStdOut();
     const stderr = std.io.getStdErr();
+
     // ---------------------------------------------------
     // Command Line Argument Parsing
     // ---------------------------------------------------
@@ -48,6 +49,7 @@ pub fn main() !void {
         \\-o, --open <str>         Open database file.
         \\-p, --password <str>     A password. This should be entered using command line substituation!
         \\-i, --index <usize>      Index of an entry.
+        \\--uuid <str>             Specify a uuid of an entry.
         \\-e, --export <str>       Export an entry using the specified file format.
         \\-c, --change             Change password.
         \\-n, --new                Create a new entry.
@@ -55,6 +57,7 @@ pub fn main() !void {
         \\--notes <str>            Specify the notes for an entry.
         \\--secret                 Specify the secret for an entry over stdin.
         \\--url <str>              Specify the URL for an entry.
+        \\--get-secret             Return the secret of an entry.
         \\
     );
 
@@ -110,27 +113,18 @@ pub fn main() !void {
                 }
             }
         } else if (res.args.@"export") |e| {
-            if (res.args.index) |i| {
-                if (database.body.entries.items.len <= i) {
-                    try std.fmt.format(stderr.writer(), "index out of bounds\n", .{});
-                    return;
-                }
-                const entry = database.body.entries.items[i];
+            const entry = try getEntry(res, &database, stderr);
 
-                if (std.mem.eql(u8, "JSON", e) or std.mem.eql(u8, "json", e)) {
-                    try serializeEntryToJson(&entry, stdout);
-                } else if (std.mem.eql(u8, "CBOR", e) or std.mem.eql(u8, "cbor", e)) {
-                    var arr = std.ArrayList(u8).init(allocator);
-                    defer arr.deinit();
+            if (std.mem.eql(u8, "JSON", e) or std.mem.eql(u8, "json", e)) {
+                try serializeEntryToJson(entry, stdout);
+            } else if (std.mem.eql(u8, "CBOR", e) or std.mem.eql(u8, "cbor", e)) {
+                var arr = std.ArrayList(u8).init(allocator);
+                defer arr.deinit();
 
-                    try cbor.stringify(entry, .{}, arr.writer());
-                    try std.fmt.format(stdout.writer(), "{s}\n", .{std.fmt.fmtSliceHexLower(arr.items)});
-                } else {
-                    try std.fmt.format(stderr.writer(), "unsupported file format '{s}'\n", .{e});
-                    return;
-                }
+                try cbor.stringify(entry, .{}, arr.writer());
+                try std.fmt.format(stdout.writer(), "{s}\n", .{std.fmt.fmtSliceHexLower(arr.items)});
             } else {
-                try std.fmt.format(stderr.writer(), "operation requires index or uuid\n", .{});
+                try std.fmt.format(stderr.writer(), "unsupported file format '{s}'\n", .{e});
                 return;
             }
         } else if (res.args.change != 0) {
@@ -170,10 +164,39 @@ pub fn main() !void {
             }
 
             try writeDb(allocator, file, &database);
+        } else if (res.args.@"get-secret" != 0) {
+            const entry = try getEntry(res, &database, stderr);
+
+            if (entry.secret) |secret| {
+                try std.fmt.format(stdout.writer(), "{s}\n", .{secret});
+            } else {
+                try std.fmt.format(stdout.writer(), "", .{});
+            }
         }
 
         return;
     }
+}
+
+fn getEntry(res: anytype, database: *ccdb.Db, stderr: std.fs.File) !*ccdb.Entry {
+    return if (res.args.index) |i| blk: {
+        if (database.body.entries.items.len <= i) {
+            try std.fmt.format(stderr.writer(), "index out of bounds\n", .{});
+            return error.NoEntry;
+        }
+        break :blk &database.body.entries.items[i];
+    } else if (res.args.uuid) |uuid| blk: {
+        const entry = database.body.getEntryById(uuid);
+        if (entry == null) {
+            try std.fmt.format(stderr.writer(), "no entry with uuid {s}\n", .{uuid});
+            return error.NoEntry;
+        }
+
+        break :blk entry.?;
+    } else {
+        try std.fmt.format(stderr.writer(), "operation requires index or uuid\n", .{});
+        return error.NoEntry;
+    };
 }
 
 const Entry = struct {
