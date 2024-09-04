@@ -57,13 +57,6 @@ pub fn build(b: *std.Build) !void {
     ccdb_module.addImport("uuid", uuid_module);
     try b.modules.put(b.dupe("ccdb"), ccdb_module);
 
-    const kdbx_module = b.addModule("kdbx", .{
-        .root_source_file = b.path("kdbx/root.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    try b.modules.put(b.dupe("kdbx"), kdbx_module);
-
     //const exe = b.addExecutable(.{
     //    .name = "ccdb",
     //    .root_source_file = b.path("src/main.zig"),
@@ -127,7 +120,7 @@ pub fn build(b: *std.Build) !void {
     test_step.dependOn(&run_exe_unit_tests.step);
 
     const cmd_exe = b.addExecutable(.{
-        .name = "ccdbcmd",
+        .name = "ccdb",
         .root_source_file = b.path("src/cmd.zig"),
         .target = target,
         .optimize = optimize,

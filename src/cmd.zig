@@ -2,33 +2,52 @@ const std = @import("std");
 const clap = @import("clap");
 const ccdb = @import("ccdb");
 const cbor = @import("zbor");
+const builtin = @import("builtin");
+
+const VERSION = "0.1.0";
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
 
 const help =
-    \\usage: ccdbcmd <option(s)>
-    \\ Display and modify the content of a CCDB credential database.
-    \\ Options are:
-    \\  -h, --help                                  Display this help and exit.
-    \\  -l, --list                                  List all credentials.
-    \\  -o, --open <str>                            Open database file.
-    \\  -p, --password <str>                        A password. This should be entered using command line substituation!
-    \\  -i, --index <int>                           Index of an entry.
-    \\  -e, --export [JSON, CBOR]                   Export an entry using the specified file format.
-    \\  -c, --change                                Change password.
-    \\  -n, --new                                   Create a new entry.
-    \\  --name <str>                                Specify the name for an entry.
-    \\  --notes <str>                               Specify the notes for an entry.
-    \\  --secret                                    Specify the secret for an entry over stdin.
-    \\  --url <str>                                 Specify the URL for an entry.
+    \\ccdb {s}
+    \\Copyright (C) 2024 David P. Sugar (r4gus)
+    \\License MIT <https://opensource.org/license/MIT>
+    \\This is free software: you are free to change and redistribute it.
+    \\There is NO WARRANTY, to the extent permitted by law.
     \\
-    \\ Security considerations:
+    \\Supported cipher suites:
+    \\ CCDB_XCHACHA20_POLY1305_ARGON2ID
+    \\
+    \\Syntax: ccdb [options]
+    \\ Display and modify the content of a CCDB credential database.
+    \\
+    \\Commands:
+    \\ -h, --help                                  Display this help and exit.
+    \\ -l, --list                                  List all credentials.
+    \\ -e, --export [JSON, CBOR]                   Export an entry using the specified file format.
+    \\ -c, --change                                Change password.
+    \\ -n, --new                                   Create a new entry.
+    \\ --get-secret                                Return the secret of an entry.
+    \\
+    \\Options controlling the input:
+    \\ -o, --open <str>                            Open database file.
+    \\ -p, --password <str>                        A password. This should be entered using command line substituation!
+    \\ --name <str>                                Specify the name for an entry.
+    \\ --notes <str>                               Specify the notes for an entry.
+    \\ --secret                                    Specify the secret for an entry over stdin.
+    \\ --url <str>                                 Specify the URL for an entry.
+    \\
+    \\Options controlling the credential selection:
+    \\ -i, --index <int>                           Index of an entry.
+    \\ --uuid <str>                                Specify a uuid of an entry.
+    \\
+    \\Security considerations:
     \\  The password file should only be readable by the user. Please do not enter your password
     \\  on the command line as other users might be able to read it.
     \\
-    \\ Examples:
-    \\  `ccdbcmd -o ~/.passkeez/db.ccdb -p $(cat pw.txt) -i 0 -e CBOR`        Export the given entry as CBOR
+    \\Examples:
+    \\ -o ~/.passkeez/db.ccdb -p $(cat pw.txt) -i 0 -e CBOR     Export the given entry as CBOR
     \\
 ;
 
@@ -58,6 +77,7 @@ pub fn main() !void {
         \\--secret                 Specify the secret for an entry over stdin.
         \\--url <str>              Specify the URL for an entry.
         \\--get-secret             Return the secret of an entry.
+        \\-d, --delete             Delete database entry.
         \\
     );
 
@@ -73,7 +93,7 @@ pub fn main() !void {
     defer res.deinit();
 
     if (res.args.help != 0) {
-        try std.fmt.format(stdout.writer(), help, .{});
+        try std.fmt.format(stdout.writer(), help, .{VERSION});
         return;
     }
     if (res.args.password) |p| {
@@ -172,6 +192,8 @@ pub fn main() !void {
             } else {
                 try std.fmt.format(stdout.writer(), "", .{});
             }
+        } else if (res.args.delete != 0) {
+            try std.fmt.format(stderr.writer(), "Deletion not yet implemented\n", .{});
         }
 
         return;
