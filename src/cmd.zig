@@ -29,6 +29,7 @@ const help =
     \\ -c, --change                                Change password.
     \\ -n, --new                                   Create a new entry.
     \\ --get-secret                                Return the secret of an entry.
+    \\ -d, --delete                                Delete database entry.
     \\
     \\Options controlling the input:
     \\ -o, --open <str>                            Open database file.
@@ -47,7 +48,10 @@ const help =
     \\  on the command line as other users might be able to read it.
     \\
     \\Examples:
-    \\ -o ~/.passkeez/db.ccdb -p $(cat pw.txt) -i 0 -e CBOR     Export the given entry as CBOR
+    \\ Export the first entry as CBOR
+    \\  -o ~/.passkeez/db.ccdb -p $(cat pw.txt) -i 0 -e CBOR     
+    \\ Create a new entry for Github
+    \\  -o ~/Documents/db.ccdb -n --name "Github" --notes "My dev account" --secret --url "https://github.com"   
     \\
 ;
 
@@ -193,7 +197,14 @@ pub fn main() !void {
                 try std.fmt.format(stdout.writer(), "", .{});
             }
         } else if (res.args.delete != 0) {
-            try std.fmt.format(stderr.writer(), "Deletion not yet implemented\n", .{});
+            const entry = try getEntry(res, &database, stderr);
+            // Do NOT touch entry after this!!! `entry` is a dangling pointer!
+            database.body.deleteEntryById(entry.uuid) catch |e| {
+                try std.fmt.format(stderr.writer(), "unable to delete entry ({any})\n", .{e});
+                return;
+            };
+
+            try writeDb(allocator, file, &database);
         }
 
         return;
