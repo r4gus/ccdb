@@ -60,11 +60,26 @@ pub fn main() !void {
     const stdout = std.io.getStdOut();
     const stderr = std.io.getStdErr();
 
+    //if (builtin.target.isGnuLibC()) {
+    //    std.log.info("locking memory...", .{});
+    //    const mman = @cImport({
+    //        @cInclude("sys/mman.h");
+    //    });
+
+    //    if (mman.mlockall(mman.MCL_CURRENT | mman.MCL_FUTURE) != 0) {
+    //        try std.fmt.format(stderr.writer(), "unable to lock pages\n", .{});
+    //        return;
+    //    }
+    //}
+
     // ---------------------------------------------------
     // Command Line Argument Parsing
     // ---------------------------------------------------
-    var password: ?[]const u8 = null;
-    defer if (password) |pw| allocator.free(pw);
+    var password: ?[]u8 = null;
+    defer if (password) |pw| {
+        @memset(pw, 0);
+        allocator.free(pw);
+    };
 
     const params = comptime clap.parseParamsComptime(
         \\-h, --help               Display this help and exit.
@@ -179,7 +194,10 @@ pub fn main() !void {
             if (res.args.secret != 0) {
                 try std.fmt.format(stdout.writer(), "secret: ", .{});
                 const s = try stdin.reader().readUntilDelimiterOrEofAlloc(allocator, '\n', 256);
-                defer if (s) |s_| allocator.free(s_);
+                defer if (s) |s_| {
+                    @memset(s_, 0);
+                    allocator.free(s_);
+                };
                 try e.setSecret(s.?);
             }
 
