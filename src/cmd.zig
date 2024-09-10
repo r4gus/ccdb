@@ -25,11 +25,12 @@ const help =
     \\Commands:
     \\ -h, --help                                  Display this help and exit.
     \\ -l, --list                                  List all credentials.
-    \\ -e, --export [JSON, CBOR]                   Export an entry using the specified file format.
+    \\ --export [JSON, CBOR]                       Export an entry using the specified file format.
     \\ -c, --change                                Change password.
     \\ -n, --new                                   Create a new entry.
     \\ --get-secret                                Return the secret of an entry.
     \\ -d, --delete                                Delete database entry.
+    \\ --edit                                      Edit a database entry.
     \\
     \\Options controlling the input:
     \\ -o, --open <str>                            Open database file.
@@ -88,7 +89,7 @@ pub fn main() !void {
         \\-p, --password <str>     A password. This should be entered using command line substituation!
         \\-i, --index <usize>      Index of an entry.
         \\--uuid <str>             Specify a uuid of an entry.
-        \\-e, --export <str>       Export an entry using the specified file format.
+        \\--export <str>           Export an entry using the specified file format.
         \\-c, --change             Change password.
         \\-n, --new                Create a new entry.
         \\--name <str>             Specify the name for an entry.
@@ -97,6 +98,7 @@ pub fn main() !void {
         \\--url <str>              Specify the URL for an entry.
         \\--get-secret             Return the secret of an entry.
         \\-d, --delete             Delete database entry.
+        \\--edit                   Edit a database entry.
         \\
     );
 
@@ -152,7 +154,9 @@ pub fn main() !void {
                 }
             }
         } else if (res.args.@"export") |e| {
-            const entry = try getEntry(res, &database, stderr);
+            const entry = getEntry(res, &database, stderr) catch {
+                return;
+            };
 
             if (std.mem.eql(u8, "JSON", e) or std.mem.eql(u8, "json", e)) {
                 try serializeEntryToJson(entry, stdout);
@@ -178,36 +182,22 @@ pub fn main() !void {
 
             try writeDb(allocator, file, &database);
         } else if (res.args.new != 0) {
-            var e = database.body.newEntry() catch {
+            const e = database.body.newEntry() catch {
                 try std.fmt.format(stderr.writer(), "unable to create new entry\n", .{});
                 return;
             };
-
-            if (res.args.name) |v| {
-                try e.setName(v);
-            }
-
-            if (res.args.notes) |v| {
-                try e.setNotes(v);
-            }
-
-            if (res.args.secret != 0) {
-                try std.fmt.format(stdout.writer(), "secret: ", .{});
-                const s = try stdin.reader().readUntilDelimiterOrEofAlloc(allocator, '\n', 256);
-                defer if (s) |s_| {
-                    @memset(s_, 0);
-                    allocator.free(s_);
-                };
-                try e.setSecret(s.?);
-            }
-
-            if (res.args.url) |v| {
-                try e.setUrl(v);
-            }
-
+            try editEntry(res, e, stdout, stdin);
+            try writeDb(allocator, file, &database);
+        } else if (res.args.edit != 0) {
+            const e = getEntry(res, &database, stderr) catch {
+                return;
+            };
+            try editEntry(res, e, stdout, stdin);
             try writeDb(allocator, file, &database);
         } else if (res.args.@"get-secret" != 0) {
-            const entry = try getEntry(res, &database, stderr);
+            const entry = getEntry(res, &database, stderr) catch {
+                return;
+            };
 
             if (entry.secret) |secret| {
                 try std.fmt.format(stdout.writer(), "{s}\n", .{secret});
@@ -226,6 +216,30 @@ pub fn main() !void {
         }
 
         return;
+    }
+}
+
+fn editEntry(res: anytype, e: *ccdb.Entry, stdout: std.fs.File, stdin: std.fs.File) !void {
+    if (res.args.name) |v| {
+        try e.setName(v);
+    }
+
+    if (res.args.notes) |v| {
+        try e.setNotes(v);
+    }
+
+    if (res.args.secret != 0) {
+        try std.fmt.format(stdout.writer(), "secret: ", .{});
+        const s = try stdin.reader().readUntilDelimiterOrEofAlloc(allocator, '\n', 256);
+        defer if (s) |s_| {
+            @memset(s_, 0);
+            allocator.free(s_);
+        };
+        try e.setSecret(s.?);
+    }
+
+    if (res.args.url) |v| {
+        try e.setUrl(v);
     }
 }
 
