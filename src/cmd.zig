@@ -4,7 +4,7 @@ const ccdb = @import("ccdb");
 const cbor = @import("zbor");
 const builtin = @import("builtin");
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
