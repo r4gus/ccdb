@@ -447,6 +447,51 @@ pub const Body = struct {
         return &self.entries.items[self.entries.items.len - 1];
     }
 
+    pub fn deleteEntryById(self: *@This(), id: uuid.urn.Urn) !void {
+        var i: ?usize = null;
+
+        for (self.entries.items, 0..) |entry, j| {
+            if (std.mem.eql(u8, &id, &entry.uuid)) {
+                i = j;
+                break;
+            }
+        }
+
+        var e = if (i) |i_| self.entries.swapRemove(i_) else return error.NoSuchEntry;
+        defer e.deinit();
+
+        if (e.group) |group_| outer_blk: { // check if entry belongs to group
+            if (e.parent) |parent_| {
+                const parent: *Body = @ptrFromInt(parent_); // get pointer to Db.Body
+
+                if (parent.groups) |groups| { // iterate over groups
+                    var j: usize = 0;
+                    while (j < groups.items.len) : (j += 1) {
+                        if (std.mem.eql(u8, group_[0..], groups.items[j].uuid[0..])) { // if group matches the group of the entry
+                            if (groups.items[j].entries) |*entries| { // iterate over entries if they exist
+                                var arr = std.ArrayList(uuid.urn.Urn).fromOwnedSlice(groups.items[j].allocator, entries.*);
+                                var k: usize = 0;
+                                while (k < arr.items.len) : (k += 1) {
+                                    if (std.mem.eql(u8, arr.items[k][0..], e.uuid[0..])) { // remove entry if found in group
+                                        _ = arr.swapRemove(k);
+                                        if (arr.items.len == 0) {
+                                            arr.deinit();
+                                            groups.items[j].entries = null;
+                                        } else {
+                                            entries.* = try arr.toOwnedSlice();
+                                        }
+
+                                        break :outer_blk;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Create a new group and add it to the list of existing groups.
     ///
     /// This function will return a pointer to the created group, which can
