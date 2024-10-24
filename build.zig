@@ -130,4 +130,12 @@ pub fn build(b: *std.Build) !void {
     cmd_exe.root_module.addImport("clap", clap_dep.module("clap"));
     cmd_exe.linkLibC();
     b.installArtifact(cmd_exe);
+
+    const kdbx_unit_tests = b.addTest(.{
+        .root_source_file = b.path("kdbx/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const run_kdbx_unit_tests = b.addRunArtifact(kdbx_unit_tests);
+    test_step.dependOn(&run_kdbx_unit_tests.step);
 }
