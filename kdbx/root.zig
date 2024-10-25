@@ -6,6 +6,7 @@ const Allocator = std.mem.Allocator;
 // |Header: Unencrypted                               |
 // +--------------------------------------------------+
 
+/// A KDBX4 Header.
 pub const Header = struct {
     version: HVersion,
     fields: [6]?Field,
@@ -80,6 +81,26 @@ pub const Header = struct {
             if (field) |f| f.deinit();
         }
     }
+
+    pub fn getCipherId(self: *const @This()) Field.Cipher {
+        return self.fields[0].?.cipher_id;
+    }
+
+    pub fn getCompression(self: *const @This()) Field.Compression {
+        return self.fields[1].?.compression;
+    }
+
+    pub fn getMainSeed(self: *const @This()) Field.MainSeed {
+        return self.fields[2].?.main_seed;
+    }
+
+    pub fn getEncryptionIv(self: *const @This()) Field.Iv {
+        return self.fields[3].?.encryption_iv;
+    }
+
+    pub fn getKdfParameters(self: *const @This()) Field.KdfParameters {
+        return self.fields[4].?.kdf_parameters;
+    }
 };
 
 // # Version
@@ -149,6 +170,10 @@ pub const HVersion = struct {
 // # Fields
 // ####################################################
 
+/// Tags for the Field union.
+///
+/// Except for `public_custom_data` all field types are expected to be present in a KDBX4
+/// (outer) header exactly once.
 pub const FieldTag = enum(u8) {
     end_of_header = 0,
     cipher_id = 2,
@@ -163,13 +188,93 @@ pub const FieldTag = enum(u8) {
     }
 };
 
+/// The fields of a KDBX4 header.
 pub const Field = union(FieldTag) {
     end_of_header: struct {},
     cipher_id: Cipher,
     compression: Compression,
     main_seed: MainSeed,
-    encryption_iv: [16]u8,
-    kdf_parameters: union(KdfTag) {
+    encryption_iv: Iv,
+    kdf_parameters: KdfParameters,
+    public_custom_data: struct {
+        fields: []const VField,
+        allocator: Allocator,
+
+        pub fn deinit(self: *const @This()) void {
+            for (self.fields) |field| {
+                field.deinit(self.allocator);
+            }
+            self.allocator.free(self.fields);
+        }
+    },
+
+    /// KDBX4 supports four different ciphers:
+    ///
+    /// - AES128-CBC
+    /// - AES256-CBC
+    /// - TWOFISH-CBC
+    /// - ChaCha20
+    ///
+    /// Please note that it is ChaCha20 and NOT XChaCha20 (the nonce
+    /// extended version), i.e., don't generate the IV at random!
+    pub const Cipher = enum(u128) {
+        aes128_cbc = 0x35DDF83D563A748DC3416494A105AB61,
+        aes256_cbc = 0xFF5AFC6A210558BE504371BFE6F2C131,
+        twofish_cbc = 0x6C3465F97AD46AA3B94B6F579FF268AD,
+        chacha20 = 0x9AB5DB319A3324A5B54C6F8B2B8A03D6,
+
+        pub fn fromSlice(s: []const u8) !@This() {
+            if (s.len != 16) return error.InvalidSize;
+            const v = decode(u128, s);
+            return switch (v) {
+                0x35DDF83D563A748DC3416494A105AB61 => .aes128_cbc,
+                0xFF5AFC6A210558BE504371BFE6F2C131 => .aes256_cbc,
+                0x6C3465F97AD46AA3B94B6F579FF268AD => .twofish_cbc,
+                0x9AB5DB319A3324A5B54C6F8B2B8A03D6 => .chacha20,
+                else => error.UnsupportedCipher,
+            };
+        }
+    };
+
+    /// The supported compression modes.
+    ///
+    /// Compression is done before encryption. The only supported
+    /// compression algorithm is Gzip.
+    pub const Compression = enum(u32) {
+        none = 0,
+        gzip = 1,
+
+        pub fn fromSlice(s: []const u8) !@This() {
+            if (s.len != 4) return error.InvalidSize;
+            const v = decode(u32, s);
+            return switch (v) {
+                0 => .none,
+                1 => .gzip,
+                else => error.UnsupportedCompression,
+            };
+        }
+    };
+
+    pub const MainSeed = [32]u8;
+
+    pub const KdfTag = enum {
+        aes,
+        argon2,
+    };
+
+    /// KDBX4 supports two types KDFs:
+    ///
+    /// - AES-KDF
+    /// - Argon2d/id
+    ///
+    /// Please ignore AES-KDF and just use Argon2id for new databases!
+    pub const Kdf = enum(u128) {
+        aes_kdf = 0xea4f8ac1080d74bf60448a629af3d9c9,
+        argon2d = 0x0c0ae303a4a9f7914b44298cdf6d63ef,
+        argon2id = 0xe6a1f0c63efc3db27347db56198b299e,
+    };
+
+    pub const KdfParameters = union(KdfTag) {
         aes: struct {
             /// Number of rounds
             r: u64,
@@ -202,66 +307,11 @@ pub const Field = union(FieldTag) {
                 }
             }
         },
-    },
-    public_custom_data: struct {
-        fields: []const VField,
-        allocator: Allocator,
-
-        pub fn deinit(self: *const @This()) void {
-            for (self.fields) |field| {
-                field.deinit(self.allocator);
-            }
-            self.allocator.free(self.fields);
-        }
-    },
-
-    pub const Cipher = enum(u128) {
-        aes128_cbc = 0x35DDF83D563A748DC3416494A105AB61,
-        aes256_cbc = 0xFF5AFC6A210558BE504371BFE6F2C131,
-        twofish_cbc = 0x6C3465F97AD46AA3B94B6F579FF268AD,
-        chacha20 = 0x9AB5DB319A3324A5B54C6F8B2B8A03D6,
-
-        pub fn fromSlice(s: []const u8) !@This() {
-            if (s.len != 16) return error.InvalidSize;
-            const v = decode(u128, s);
-            return switch (v) {
-                0x35DDF83D563A748DC3416494A105AB61 => .aes128_cbc,
-                0xFF5AFC6A210558BE504371BFE6F2C131 => .aes256_cbc,
-                0x6C3465F97AD46AA3B94B6F579FF268AD => .twofish_cbc,
-                0x9AB5DB319A3324A5B54C6F8B2B8A03D6 => .chacha20,
-                else => error.UnsupportedCipher,
-            };
-        }
     };
 
-    pub const Compression = enum(u32) {
-        none = 0,
-        gzip = 1,
+    pub const Iv = [16]u8;
 
-        pub fn fromSlice(s: []const u8) !@This() {
-            if (s.len != 4) return error.InvalidSize;
-            const v = decode(u32, s);
-            return switch (v) {
-                0 => .none,
-                1 => .gzip,
-                else => error.UnsupportedCompression,
-            };
-        }
-    };
-
-    pub const MainSeed = [32]u8;
-
-    pub const KdfTag = enum {
-        aes,
-        argon2,
-    };
-
-    pub const Kdf = enum(u128) {
-        aes_kdf = 0xea4f8ac1080d74bf60448a629af3d9c9,
-        argon2d = 0x0c0ae303a4a9f7914b44298cdf6d63ef,
-        argon2id = 0xe6a1f0c63efc3db27347db56198b299e,
-    };
-
+    /// Index function for the header. The indices are in no particular order.
     pub fn getIndex(self: *const @This()) ?usize {
         return switch (self.*) {
             .cipher_id => 0,
@@ -274,6 +324,7 @@ pub const Field = union(FieldTag) {
         };
     }
 
+    /// Read a Field from a `Reader`.
     pub fn readAlloc(reader: anytype, allocator: Allocator, j: *usize) !@This() {
         const t = try reader.readByte();
         j.* += 1;
@@ -569,5 +620,24 @@ test "decode outer header" {
     var fbs = std.io.fixedBufferStream(s);
 
     const header = try Header.readAlloc(fbs.reader(), std.testing.allocator);
-    header.deinit();
+    defer header.deinit();
+
+    const cid = header.getCipherId();
+    try std.testing.expectEqual(Field.Cipher.aes256_cbc, cid);
+
+    const comp = header.getCompression();
+    try std.testing.expectEqual(Field.Compression.gzip, comp);
+
+    const seed = header.getMainSeed();
+    try std.testing.expectEqualSlices(u8, "\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78", &seed);
+
+    const iv = header.getEncryptionIv();
+    try std.testing.expectEqualSlices(u8, "\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78", &iv);
+
+    const kdf = header.getKdfParameters();
+    try std.testing.expectEqualSlices(u8, "\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78\x12\x34\x56\x78", &kdf.argon2.s);
+    try std.testing.expectEqual(@as(u64, 2), kdf.argon2.i);
+    try std.testing.expectEqual(@as(u64, 0x40000000), kdf.argon2.m);
+    try std.testing.expectEqual(@as(u32, 8), kdf.argon2.p);
+    try std.testing.expectEqual(@as(u32, 0x13), kdf.argon2.v);
 }
