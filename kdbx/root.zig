@@ -180,7 +180,7 @@ pub const Header = struct {
                         .secret = kdf.k,
                         .ad = kdf.a,
                     },
-                    if (kdf.v == 0x10) .argon2d else .argon2id,
+                    kdf.mode,
                 );
             },
         }
@@ -209,6 +209,14 @@ pub const Header = struct {
             .mkey = mac_key,
         };
     }
+
+    pub fn checkMac(self: *const @This(), keys: *const Keys) !void {
+        try keys.checkMac(
+            &self.mac,
+            &.{self.raw_header},
+            0xffffffffffffffff,
+        );
+    }
 };
 
 pub const Keys = struct {
@@ -221,15 +229,50 @@ pub const Keys = struct {
     }
 
     pub fn getBlockKey(self: *const @This(), index: u64) [64]u8 {
-        const block_index = encode(8, index);
-        const k: [64]u8 = .{0} ** 64;
+        var block_index: [8]u8 = .{0} ** 8;
+        std.mem.writeInt(u64, &block_index, index, .little);
+        var k: [64]u8 = .{0} ** 64;
 
         var h = std.crypto.hash.sha2.Sha512.init(.{});
         h.update(&block_index);
-        h.update(&self.mac_key);
+        h.update(&self.mkey);
         h.final(&k);
 
         return k;
+    }
+
+    pub fn checkMac(
+        self: *const @This(),
+        expected: []const u8,
+        data: []const []const u8,
+        index: u64,
+    ) !void {
+        var k = self.getBlockKey(index);
+        defer std.crypto.utils.secureZero(u8, &k);
+
+        const HmacSha256 = std.crypto.auth.hmac.sha2.HmacSha256;
+        var mac: [HmacSha256.mac_length]u8 = undefined;
+        defer std.crypto.utils.secureZero(u8, &mac);
+        var ctx = HmacSha256.init(&k);
+        for (data) |d| {
+            ctx.update(d);
+        }
+        ctx.final(&mac);
+
+        if (!std.mem.eql(u8, &mac, expected)) return error.Authenticity;
+    }
+};
+
+// # Body
+// ####################################################
+
+pub const Body = struct {
+    body: []const u8,
+    allocator: Allocator,
+
+    pub fn readAlloc(reader: anytype, allocator: Allocator) !@This() {
+        _ = reader;
+        _ = allocator;
     }
 };
 
@@ -426,6 +469,7 @@ pub const Field = union(FieldTag) {
             k: ?[]const u8 = null,
             /// Optional associated data
             a: ?[]const u8 = null,
+            mode: std.crypto.pwhash.argon2.Mode,
             allocator: Allocator,
 
             pub fn deinit(self: *const @This()) void {
@@ -584,6 +628,10 @@ pub const Field = union(FieldTag) {
                                 .m = m_.?,
                                 .i = i_.?,
                                 .v = v_.?,
+                                .mode = switch (kdf_.?) {
+                                    .argon2d => .argon2d,
+                                    else => .argon2id,
+                                },
                                 .allocator = allocator,
                             } },
                         };
@@ -772,9 +820,9 @@ test "decode outer header" {
     try std.testing.expectEqual(@as(u32, 0x13), kdf.argon2.v);
 }
 
-test "parse kdbx4 file #1" {
-    const db = @embedFile("static/testdb.kdbx");
+const db = @embedFile("static/testdb.kdbx");
 
+test "verify kdbx4 header mac (positive test)" {
     var fbs = std.io.fixedBufferStream(db);
 
     const header = try Header.readAlloc(fbs.reader(), std.testing.allocator);
@@ -782,4 +830,18 @@ test "parse kdbx4 file #1" {
 
     var keys = try header.deriveKeys("supersecret", null, null);
     defer keys.deinit();
+
+    try header.checkMac(&keys);
+}
+
+test "verify kdbx4 header mac (negative test)" {
+    var fbs = std.io.fixedBufferStream(db);
+
+    const header = try Header.readAlloc(fbs.reader(), std.testing.allocator);
+    defer header.deinit();
+
+    var keys = try header.deriveKeys("Supersecret", null, null);
+    defer keys.deinit();
+
+    try std.testing.expectError(error.Authenticity, header.checkMac(&keys));
 }

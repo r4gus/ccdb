@@ -915,10 +915,14 @@ test "parse kdbx4 file" {
 
     const kdbx = try Kdbx4.new(db);
     const keys = try kdbx.getKeys("supersecret", std.testing.allocator);
+
+    std.debug.print("ekey: {s}\n", .{std.fmt.fmtSliceHexLower(&keys.encryption_key)});
+    std.debug.print("mkey: {s}\n", .{std.fmt.fmtSliceHexLower(&keys.mac_key)});
+
     var body = try kdbx.decryptBody(keys, std.testing.allocator);
     defer body.deinit(std.testing.allocator);
     const uncompressed_body = try body.decompress(kdbx.header.getCompression(), std.testing.allocator);
     defer uncompressed_body.deinit(std.testing.allocator);
 
-    std.log.err("{s}", .{uncompressed_body.uncompressed.body});
+    //std.log.err("{s}", .{uncompressed_body.uncompressed.body});
 }
