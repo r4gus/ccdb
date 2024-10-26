@@ -102,21 +102,14 @@ pub const Header = struct {
         if (fields_[4] == null) return error.KdfParametersMissing;
         // Public custom data might be missing... this is allowed
 
-        var header: @This() = undefined;
-        header.version = version;
-        header.allocator = allocator;
-        header.fields[0] = fields_[0];
-        header.fields[1] = fields_[1];
-        header.fields[2] = fields_[2];
-        header.fields[3] = fields_[3];
-        header.fields[4] = fields_[4];
-        header.fields[5] = fields_[5];
-
-        header.raw_header = try raw_header.toOwnedSlice();
-        header.hash = hash;
-        header.mac = mac;
-
-        return header;
+        return @This(){
+            .version = version,
+            .fields = fields_,
+            .allocator = allocator,
+            .raw_header = try raw_header.toOwnedSlice(),
+            .hash = hash,
+            .mac = mac,
+        };
     }
 
     pub fn deinit(self: *const @This()) void {
@@ -144,6 +137,99 @@ pub const Header = struct {
 
     pub fn getKdfParameters(self: *const @This()) Field.KdfParameters {
         return self.fields[4].?.kdf_parameters;
+    }
+
+    /// Derive the encryption and mac key.
+    pub fn deriveKeys(
+        self: *const @This(),
+        pw: ?[]const u8,
+        keyfile: ?[]const u8,
+        keyprovider: ?[]const u8,
+    ) !Keys {
+        // Create composite key
+        var composite_key: [32]u8 = .{0} ** 32;
+        defer std.crypto.utils.secureZero(u8, &composite_key);
+        var h = std.crypto.hash.sha2.Sha256.init(.{});
+        if (pw) |password| {
+            var pwhash: [32]u8 = .{0} ** 32;
+            defer std.crypto.utils.secureZero(u8, &pwhash);
+            std.crypto.hash.sha2.Sha256.hash(password, &pwhash, .{});
+            h.update(&pwhash);
+        }
+        if (keyfile) |kf| h.update(kf);
+        if (keyprovider) |kp| h.update(kp);
+        h.final(&composite_key);
+
+        // Generate pre-key
+        var pre_key: [32]u8 = .{0} ** 32;
+        defer std.crypto.utils.secureZero(u8, &pre_key);
+        switch (self.getKdfParameters()) {
+            .aes => {
+                return error.AesKdfNotImplemented;
+            },
+            .argon2 => |kdf| {
+                try std.crypto.pwhash.argon2.kdf(
+                    self.allocator,
+                    &pre_key,
+                    &composite_key,
+                    &kdf.s,
+                    .{
+                        .t = @intCast(kdf.i),
+                        .m = @intCast(kdf.m / 1024), // has to be provided in KiB
+                        .p = @intCast(kdf.p),
+                        .secret = kdf.k,
+                        .ad = kdf.a,
+                    },
+                    if (kdf.v == 0x10) .argon2d else .argon2id,
+                );
+            },
+        }
+
+        const main_seed = self.getMainSeed();
+
+        // Derive encryption key
+        var encryption_key: [32]u8 = .{0} ** 32;
+        defer std.crypto.utils.secureZero(u8, &encryption_key);
+        h = std.crypto.hash.sha2.Sha256.init(.{});
+        h.update(&main_seed);
+        h.update(&pre_key);
+        h.final(&encryption_key);
+
+        // Derive master-mac key
+        var mac_key: [64]u8 = .{0} ** 64;
+        defer std.crypto.utils.secureZero(u8, &mac_key);
+        var h2 = std.crypto.hash.sha2.Sha512.init(.{});
+        h2.update(&main_seed);
+        h2.update(&pre_key);
+        h2.update("\x01");
+        h2.final(&mac_key);
+
+        return Keys{
+            .ekey = encryption_key,
+            .mkey = mac_key,
+        };
+    }
+};
+
+pub const Keys = struct {
+    ekey: [32]u8 = .{0} ** 32,
+    mkey: [64]u8 = .{0} ** 64,
+
+    pub fn deinit(self: *@This()) void {
+        std.crypto.utils.secureZero(u8, &self.ekey);
+        std.crypto.utils.secureZero(u8, &self.mkey);
+    }
+
+    pub fn getBlockKey(self: *const @This(), index: u64) [64]u8 {
+        const block_index = encode(8, index);
+        const k: [64]u8 = .{0} ** 64;
+
+        var h = std.crypto.hash.sha2.Sha512.init(.{});
+        h.update(&block_index);
+        h.update(&self.mac_key);
+        h.final(&k);
+
+        return k;
     }
 };
 
@@ -684,4 +770,16 @@ test "decode outer header" {
     try std.testing.expectEqual(@as(u64, 0x40000000), kdf.argon2.m);
     try std.testing.expectEqual(@as(u32, 8), kdf.argon2.p);
     try std.testing.expectEqual(@as(u32, 0x13), kdf.argon2.v);
+}
+
+test "parse kdbx4 file #1" {
+    const db = @embedFile("static/testdb.kdbx");
+
+    var fbs = std.io.fixedBufferStream(db);
+
+    const header = try Header.readAlloc(fbs.reader(), std.testing.allocator);
+    defer header.deinit();
+
+    var keys = try header.deriveKeys("supersecret", null, null);
+    defer keys.deinit();
 }
