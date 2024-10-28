@@ -267,7 +267,8 @@ pub const Keys = struct {
 // ####################################################
 
 pub const Body = struct {
-    body: []u8,
+    inner_header: InnerHeader,
+    xml: []u8,
     allocator: Allocator,
 
     pub fn readAlloc(
@@ -277,7 +278,7 @@ pub const Body = struct {
         allocator: Allocator,
     ) !@This() {
         var inner = std.ArrayList(u8).init(allocator);
-        errdefer inner.deinit();
+        defer inner.deinit();
 
         var i: u64 = 0;
         while (true) : (i += 1) {
@@ -364,15 +365,25 @@ pub const Body = struct {
             },
         }
 
+        var k: usize = 0;
+        const inner_header = try InnerHeader.readAlloc(
+            inner.items,
+            allocator,
+            &k,
+        );
+
         return @This(){
-            .body = try inner.toOwnedSlice(),
+            .inner_header = inner_header,
+            .xml = try allocator.dupe(u8, inner.items[k..]),
             .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *@This()) void {
-        std.crypto.utils.secureZero(u8, self.body);
-        self.allocator.free(self.body);
+        std.crypto.utils.secureZero(u8, self.xml);
+        self.allocator.free(self.xml);
+
+        self.inner_header.deinit();
     }
 };
 
@@ -845,6 +856,114 @@ pub const VField = struct {
     }
 };
 
+// # Inner Header
+// ####################################################
+
+pub const InnerFieldTag = enum(u8) {
+    end_of_header = 0,
+    stream_cipher = 1,
+    stream_key = 2,
+    binary = 3,
+
+    pub fn fromByte(b: u8) !@This() {
+        return switch (b) {
+            0 => .end_of_header,
+            1 => .stream_cipher,
+            2 => .stream_key,
+            3 => .binary,
+            else => error.UndefinedHeaderField,
+        };
+    }
+};
+
+pub const InnerHeader = struct {
+    stream_cipher: StreamCipher,
+    stream_key: []u8,
+    binary: std.ArrayList([]u8),
+    allocator: Allocator,
+
+    pub const StreamCipher = enum(u32) {
+        ArcFourVariant = 1,
+        Salsa20 = 2,
+        ChaCha20 = 3,
+
+        pub fn fromSlice(s: []const u8) !@This() {
+            if (s.len != 4) return error.InvalidSize;
+            const v = decode(u32, s);
+            return switch (v) {
+                1 => .ArcFourVariant,
+                2 => .Salsa20,
+                3 => .ChaCha20,
+                else => error.UnsupportedStreamCipher,
+            };
+        }
+    };
+
+    pub fn readAlloc(s: []const u8, allocator: Allocator, i: *usize) !@This() {
+        var stream_cipher: ?StreamCipher = null;
+        var stream_key: ?[]u8 = null;
+        errdefer if (stream_key) |sk| {
+            std.crypto.utils.secureZero(u8, sk);
+            allocator.free(sk);
+        };
+        var binary = std.ArrayList([]u8).init(allocator);
+        for (binary.items) |e| {
+            std.crypto.utils.secureZero(u8, e);
+            allocator.free(e);
+        }
+        errdefer binary.deinit();
+
+        while (i.* < s.len) {
+            if (i.* + 5 >= s.len) break;
+
+            const t = s[i.*];
+            i.* += 1;
+            var s_: [4]u8 = undefined;
+            @memcpy(&s_, s[i.* .. i.* + 4]);
+            const size = std.mem.readInt(u32, &s_, .little);
+            i.* += 4;
+
+            if (i.* + size >= s.len) break;
+            const m = s[i.* .. i.* + size];
+            i.* += size;
+
+            switch (t) {
+                0 => break, // EOF
+                1 => stream_cipher = try StreamCipher.fromSlice(m),
+                2 => stream_key = try allocator.dupe(u8, m),
+                3 => try binary.append(try allocator.dupe(u8, m)),
+                else => {},
+            }
+        }
+
+        if (stream_cipher == null) return error.StreamCipherMissing;
+        if (stream_key == null) return error.StreamKeyMissing;
+
+        switch (stream_cipher.?) {
+            .ChaCha20 => if (stream_key.?.len != 64) return error.UnexpectedStreamKeyLength,
+            else => return error.UnsupportedStreamCipher,
+        }
+
+        return @This(){
+            .stream_cipher = stream_cipher.?,
+            .stream_key = stream_key.?,
+            .binary = binary,
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *const @This()) void {
+        std.crypto.utils.secureZero(u8, self.stream_key);
+        self.allocator.free(self.stream_key);
+
+        for (self.binary.items) |e| {
+            std.crypto.utils.secureZero(u8, e);
+            self.allocator.free(e);
+        }
+        self.binary.deinit();
+    }
+};
+
 // +--------------------------------------------------+
 // |Misc                                              |
 // +--------------------------------------------------+
@@ -960,5 +1079,7 @@ test "the decryption of a kdbx4 file" {
     var body = try Body.readAlloc(reader, &header, &keys, std.testing.allocator);
     defer body.deinit();
 
-    std.debug.print("{s}\n", .{body.body});
+    try std.testing.expectEqual(InnerHeader.StreamCipher.ChaCha20, body.inner_header.stream_cipher);
+
+    //std.debug.print("{s}\n", .{body.xml});
 }
