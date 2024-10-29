@@ -57,6 +57,11 @@
             .hash = "122062d301a203d003547b414237229b09a7980095061697349f8bef41be9c30266b",
             //.path = "../ccdb",
         },
+        .dishwasher = .{
+            .url = "https://github.com/edqx/dishwasher/archive/refs/tags/1.0.6.tar.gz",
+            .hash = "12205b393762918a90452d6cc58f457a9d9136a9dd1fc63ba353753b9b19fdd9cd70",
+            //.path = "../superhtml",
+        },
     },
 
     // Specifies the set of files and directories that are included in this package.

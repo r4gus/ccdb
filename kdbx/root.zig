@@ -1,6 +1,11 @@
 const std = @import("std");
-const xml = @import("xml.zig");
+const dishwasher = @import("dishwasher");
+const Uuid = @import("uuid");
+
 const Allocator = std.mem.Allocator;
+
+// Why not just use fucking EPOCH
+const TIME_DIFF_KDBX_EPOCH_IN_SEC = 62135600008;
 
 // +--------------------------------------------------+
 // |Header: Unencrypted                               |
@@ -384,6 +389,314 @@ pub const Body = struct {
         self.allocator.free(self.xml);
 
         self.inner_header.deinit();
+    }
+
+    pub fn getXml(self: *const @This(), allocator: Allocator) !XML {
+        const tree = try dishwasher.parseXmlFull(allocator, self.xml);
+        defer tree.deinit();
+
+        const file = tree.doc.root.elementByTagName("KeePassFile");
+        if (file == null) return error.KeePassFileTagMissing;
+
+        const meta = file.?.elementByTagName("Meta");
+        if (meta == null) return error.MetaTagMissing;
+
+        const meta_ = try parseMeta(meta.?, allocator);
+        errdefer meta_.deinit();
+
+        return .{ .meta = meta_ };
+    }
+
+    fn parseMeta(elem: dishwasher.Document.Node.Element, allocator: Allocator) !Meta {
+        const generator = try fetchTagValue(elem, "Generator", allocator);
+        errdefer {
+            std.crypto.utils.secureZero(u8, generator);
+            allocator.free(generator);
+        }
+
+        const database_name = try fetchTagValue(elem, "DatabaseName", allocator);
+        errdefer {
+            std.crypto.utils.secureZero(u8, database_name);
+            allocator.free(database_name);
+        }
+
+        var database_name_changed = try fetchTimeTag(elem, "DatabaseNameChanged", allocator);
+        errdefer database_name_changed = 0;
+
+        const database_description = try fetchTagValueNull(elem, "DatabaseDescription", allocator);
+        errdefer if (database_description) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            allocator.free(v);
+        };
+
+        var database_description_changed = try fetchTimeTag(elem, "DatabaseDescriptionChanged", allocator);
+        errdefer database_description_changed = 0;
+
+        const default_user_name = try fetchTagValueNull(elem, "DefaultUserName", allocator);
+        errdefer if (default_user_name) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            allocator.free(v);
+        };
+
+        var default_user_name_changed = try fetchTimeTag(elem, "DefaultUserNameChanged", allocator);
+        errdefer default_user_name_changed = 0;
+
+        var maintenance_history_days = try fetchNumTag(elem, "MaintenanceHistoryDays", allocator);
+        errdefer maintenance_history_days = 0;
+
+        const color = try fetchTagValueNull(elem, "Color", allocator);
+        errdefer if (color) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            allocator.free(v);
+        };
+
+        var master_key_changed = try fetchTimeTag(elem, "MasterKeyChanged", allocator);
+        errdefer master_key_changed = 0;
+
+        var master_key_change_rec = try fetchNumTag(elem, "MasterKeyChangeRec", allocator);
+        errdefer master_key_change_rec = 0;
+
+        var master_key_change_force = try fetchNumTag(elem, "MasterKeyChangeForce", allocator);
+        errdefer master_key_change_force = 0;
+
+        const protection = elem.elementByTagName("MemoryProtection");
+        if (protection == null) return error.TagMissing;
+        const protect_title = try fetchBool(protection.?, "ProtectTitle", allocator);
+        const protect_user_name = try fetchBool(protection.?, "ProtectUserName", allocator);
+        const protect_password = try fetchBool(protection.?, "ProtectPassword", allocator);
+        const protect_url = try fetchBool(protection.?, "ProtectURL", allocator);
+        const protect_notes = try fetchBool(protection.?, "ProtectNotes", allocator);
+
+        const custom_icons = try fetchTagValueNull(elem, "CustomIcons", allocator);
+        errdefer if (custom_icons) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            allocator.free(v);
+        };
+
+        const recycle_bin_enabled = try fetchBool(elem, "RecycleBinEnabled", allocator);
+
+        const recycle_bin_uuid = try fetchUuid(elem, "RecycleBinUUID", allocator);
+
+        var recycle_bin_changed = try fetchTimeTag(elem, "RecycleBinChanged", allocator);
+        errdefer recycle_bin_changed = 0;
+
+        const entry_templates_group = try fetchUuid(elem, "EntryTemplatesGroup", allocator);
+
+        var entry_templates_group_changed = try fetchTimeTag(elem, "EntryTemplatesGroupChanged", allocator);
+        errdefer entry_templates_group_changed = 0;
+
+        const last_selected_group = try fetchUuid(elem, "LastSelectedGroup", allocator);
+
+        const last_top_visible_group = try fetchUuid(elem, "LastTopVisibleGroup", allocator);
+
+        var history_max_items = try fetchNumTag(elem, "HistoryMaxItems", allocator);
+        errdefer history_max_items = 0;
+
+        var history_max_size = try fetchNumTag(elem, "HistoryMaxSize", allocator);
+        errdefer history_max_size = 0;
+
+        var settings_changed = try fetchTimeTag(elem, "SettingsChanged", allocator);
+        errdefer settings_changed = 0;
+
+        var custom_data = std.ArrayList(KeyValue).init(allocator);
+        errdefer {
+            for (custom_data.items) |item| item.deinit(allocator);
+            custom_data.deinit();
+        }
+
+        const custom_data_ = elem.elementByTagName("CustomData");
+        if (custom_data_) |cd| outer: {
+            const pairs = cd.elementsByTagNameAlloc(allocator, "Item") catch break :outer;
+            defer allocator.free(pairs);
+
+            for (pairs) |kv| {
+                const key = try fetchTagValue(kv, "Key", allocator);
+                errdefer allocator.free(key);
+                const value = try fetchTagValue(kv, "Value", allocator);
+                errdefer allocator.free(value);
+
+                try custom_data.append(KeyValue{ .key = key, .value = value });
+            }
+        }
+
+        return Meta{
+            .generator = generator,
+            .database_name = database_name,
+            .database_name_changed = database_name_changed,
+            .database_description = database_description,
+            .database_description_changed = database_description_changed,
+            .default_user_name = default_user_name,
+            .default_user_name_changed = default_user_name_changed,
+            .maintenance_history_days = maintenance_history_days,
+            .color = color,
+            .master_key_changed = master_key_changed,
+            .master_key_change_rec = master_key_change_rec,
+            .master_key_change_force = master_key_change_force,
+            .memory_protection = .{
+                .protect_title = protect_title,
+                .protect_user_name = protect_user_name,
+                .protect_password = protect_password,
+                .protect_url = protect_url,
+                .protect_notes = protect_notes,
+            },
+            .custom_icons = custom_icons,
+            .recycle_bin_enabled = recycle_bin_enabled,
+            .recycle_bin_uuid = recycle_bin_uuid,
+            .recycle_bin_changed = recycle_bin_changed,
+            .entry_template_group = entry_templates_group,
+            .entry_template_group_changed = entry_templates_group_changed,
+            .last_selected_group = last_selected_group,
+            .last_top_visible_group = last_top_visible_group,
+            .history_max_items = history_max_items,
+            .history_max_size = history_max_size,
+            .settings_changed = settings_changed,
+            .custom_data = custom_data,
+            .allocator = allocator,
+        };
+    }
+};
+
+fn fetchTagValue(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) ![]u8 {
+    const v = if (elem.elementByTagName(name)) |v| v else {
+        std.log.err("{s} tag missing", .{name});
+        return error.TagMissing;
+    };
+    return @constCast(try v.textAlloc(allocator));
+}
+
+fn fetchTagValueNull(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) !?[]u8 {
+    const v = if (elem.elementByTagName(name)) |v| v else return null;
+    return @constCast(try v.textAlloc(allocator));
+}
+
+/// Fetch time in seconds
+fn fetchTimeTag(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) !i64 {
+    const time = try fetchTagValue(elem, name, allocator);
+    defer allocator.free(time);
+    const l = try std.base64.standard.Decoder.calcSizeForSlice(time);
+    const dnc = try allocator.alloc(u8, l);
+    defer allocator.free(dnc);
+    try std.base64.standard.Decoder.decode(dnc, time);
+    const t = std.mem.readInt(u64, dnc[0..8], .little);
+    // We have to switch from 0001-01-01 00:00 UTC to EPOCH
+    //t -= TIME_DIFF_KDBX_EPOCH_IN_SEC;
+    return @intCast(t);
+}
+
+fn fetchNumTag(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) !i64 {
+    const value = try fetchTagValue(elem, name, allocator);
+    defer allocator.free(value);
+    return try std.fmt.parseInt(i64, value, 10);
+}
+
+fn fetchBool(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) !bool {
+    const value = try fetchTagValue(elem, name, allocator);
+    defer allocator.free(value);
+    return if (std.mem.eql(u8, "False", value))
+        false
+    else if (std.mem.eql(u8, "True", value))
+        true
+    else
+        error.NotABool;
+}
+
+fn fetchUuid(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) !Uuid.Uuid {
+    const time = try fetchTagValue(elem, name, allocator);
+    defer allocator.free(time);
+    const l = try std.base64.standard.Decoder.calcSizeForSlice(time);
+    if (l != 16) return error.UnexpectedUuidLength;
+    const dnc = try allocator.alloc(u8, l);
+    defer allocator.free(dnc);
+    try std.base64.standard.Decoder.decode(dnc, time);
+    return std.mem.readInt(Uuid.Uuid, dnc[0..16], .little);
+}
+
+// # XML
+// ####################################################
+
+pub const XML = struct {
+    meta: Meta,
+
+    pub fn deinit(self: *const @This()) void {
+        self.meta.deinit();
+    }
+};
+
+pub const Meta = struct {
+    generator: []u8,
+    database_name: []u8,
+    database_name_changed: i64,
+    database_description: ?[]u8 = null,
+    database_description_changed: i64,
+    default_user_name: ?[]u8 = null,
+    default_user_name_changed: i64,
+    maintenance_history_days: i64,
+    color: ?[]u8 = null,
+    master_key_changed: i64,
+    master_key_change_rec: i64,
+    master_key_change_force: i64,
+    memory_protection: struct {
+        protect_title: bool,
+        protect_user_name: bool,
+        protect_password: bool,
+        protect_url: bool,
+        protect_notes: bool,
+    },
+    custom_icons: ?[]u8 = null,
+    recycle_bin_enabled: bool,
+    recycle_bin_uuid: Uuid.Uuid,
+    recycle_bin_changed: i64,
+    entry_template_group: Uuid.Uuid,
+    entry_template_group_changed: i64,
+    last_selected_group: Uuid.Uuid,
+    last_top_visible_group: Uuid.Uuid,
+    history_max_items: i64,
+    history_max_size: i64,
+    settings_changed: i64,
+    custom_data: std.ArrayList(KeyValue),
+    allocator: Allocator,
+
+    pub fn deinit(self: *const @This()) void {
+        std.crypto.utils.secureZero(u8, self.generator);
+        self.allocator.free(self.generator);
+
+        std.crypto.utils.secureZero(u8, self.database_name);
+        self.allocator.free(self.database_name);
+
+        if (self.database_description) |desc| {
+            std.crypto.utils.secureZero(u8, desc);
+            self.allocator.free(desc);
+        }
+
+        if (self.default_user_name) |desc| {
+            std.crypto.utils.secureZero(u8, desc);
+            self.allocator.free(desc);
+        }
+
+        if (self.color) |desc| {
+            std.crypto.utils.secureZero(u8, desc);
+            self.allocator.free(desc);
+        }
+
+        if (self.custom_icons) |desc| {
+            std.crypto.utils.secureZero(u8, desc);
+            self.allocator.free(desc);
+        }
+
+        for (self.custom_data.items) |data| data.deinit(self.allocator);
+        self.custom_data.deinit();
+    }
+};
+
+pub const KeyValue = struct {
+    key: []u8,
+    value: []u8,
+
+    pub fn deinit(self: *const @This(), allocator: Allocator) void {
+        std.crypto.utils.secureZero(u8, self.key);
+        std.crypto.utils.secureZero(u8, self.value);
+        allocator.free(self.key);
+        allocator.free(self.value);
     }
 };
 
@@ -1065,7 +1378,7 @@ test "verify kdbx4 header mac (negative test)" {
     try std.testing.expectError(error.Authenticity, header.checkMac(&keys));
 }
 
-test "the decryption of a kdbx4 file" {
+test "the decryption of a kdbx4 file #1" {
     var fbs = std.io.fixedBufferStream(db);
     const reader = fbs.reader();
 
@@ -1082,4 +1395,36 @@ test "the decryption of a kdbx4 file" {
     try std.testing.expectEqual(InnerHeader.StreamCipher.ChaCha20, body.inner_header.stream_cipher);
 
     //std.debug.print("{s}\n", .{body.xml});
+
+    const body_xml = try body.getXml(std.testing.allocator);
+    defer body_xml.deinit();
+
+    try std.testing.expectEqualSlices(u8, "KeePassXC", body_xml.meta.generator);
+    try std.testing.expectEqualSlices(u8, "Test Database", body_xml.meta.database_name);
+    try std.testing.expectEqual(@as(i64, 63860739034), body_xml.meta.database_name_changed);
+    try std.testing.expectEqualSlices(u8, "This is a test database", body_xml.meta.database_description.?);
+    try std.testing.expectEqual(@as(i64, 365), body_xml.meta.maintenance_history_days);
+    try std.testing.expectEqual(@as(i64, -1), body_xml.meta.master_key_change_rec);
+    try std.testing.expectEqual(@as(i64, -1), body_xml.meta.master_key_change_force);
+    try std.testing.expectEqual(false, body_xml.meta.memory_protection.protect_title);
+    try std.testing.expectEqual(false, body_xml.meta.memory_protection.protect_user_name);
+    try std.testing.expectEqual(true, body_xml.meta.memory_protection.protect_password);
+    try std.testing.expectEqual(false, body_xml.meta.memory_protection.protect_url);
+    try std.testing.expectEqual(false, body_xml.meta.memory_protection.protect_notes);
+    try std.testing.expectEqual(true, body_xml.meta.recycle_bin_enabled);
+    try std.testing.expectEqual(@as(Uuid.Uuid, 0), body_xml.meta.recycle_bin_uuid);
+    try std.testing.expectEqual(@as(Uuid.Uuid, 0), body_xml.meta.entry_template_group);
+    try std.testing.expectEqual(@as(Uuid.Uuid, 0), body_xml.meta.last_selected_group);
+    try std.testing.expectEqual(@as(Uuid.Uuid, 0), body_xml.meta.last_top_visible_group);
+    try std.testing.expectEqual(@as(i64, 10), body_xml.meta.history_max_items);
+    try std.testing.expectEqual(@as(i64, 6291456), body_xml.meta.history_max_size);
+
+    try std.testing.expectEqualSlices(u8, "KPXC_DECRYPTION_TIME_PREFERENCE", body_xml.meta.custom_data.items[0].key);
+    try std.testing.expectEqualSlices(u8, "100", body_xml.meta.custom_data.items[0].value);
+
+    try std.testing.expectEqualSlices(u8, "KPXC_RANDOM_SLUG", body_xml.meta.custom_data.items[1].key);
+    try std.testing.expectEqualSlices(u8, "998be628c7527f3496dd5ec88960ea9f0542cb3196d83200f257d38f24ed234e93550d2db8f784084dc387601ad233416875951170c4cedf969be95ef0654b69e8893133e1a2982c76c16aabca5dd756b1d3549f5efe96f236611239e28c75e5277a7791a1aa557a9413201a76266fdd6edfba5ec4ad5c80af", body_xml.meta.custom_data.items[1].value);
+
+    try std.testing.expectEqualSlices(u8, "_LAST_MODIFIED", body_xml.meta.custom_data.items[2].key);
+    try std.testing.expectEqualSlices(u8, "Sat Aug 31 22:13:03 2024 GMT", body_xml.meta.custom_data.items[2].value);
 }
