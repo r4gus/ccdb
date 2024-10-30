@@ -404,7 +404,266 @@ pub const Body = struct {
         const meta_ = try parseMeta(meta.?, allocator);
         errdefer meta_.deinit();
 
-        return .{ .meta = meta_ };
+        const root = file.?.elementByTagName("Root");
+        if (root == null) return error.RootTagMissing;
+
+        const root_ = try parseRoot(root.?, allocator);
+        errdefer root_.deinit();
+
+        return .{ .meta = meta_, .root = root_ };
+    }
+
+    fn parseRoot(elem: dishwasher.Document.Node.Element, allocator: Allocator) !Group {
+        const curr_group = elem.elementByTagName("Group");
+        if (curr_group == null) return error.RootGroupMissing;
+
+        return try parseGroup(curr_group.?, allocator);
+    }
+
+    fn parseGroup(elem: dishwasher.Document.Node.Element, allocator: Allocator) !Group {
+        var uuid = try fetchUuid(elem, "UUID", allocator);
+        errdefer uuid = 0;
+
+        const name = try fetchTagValue(elem, "Name", allocator);
+        errdefer {
+            std.crypto.utils.secureZero(u8, name);
+            allocator.free(name);
+        }
+
+        const notes = try fetchTagValueNull(elem, "Notes", allocator);
+        errdefer if (notes) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            allocator.free(v);
+        };
+
+        var icon_id = try fetchNumTag(elem, "IconID", allocator);
+        errdefer icon_id = 0;
+
+        const times = elem.elementByTagName("Times");
+        if (times == null) return error.TimesMissing;
+
+        var last_modification_time = try fetchTimeTag(times.?, "LastModificationTime", allocator);
+        errdefer last_modification_time = 0;
+
+        var last_access_time = try fetchTimeTag(times.?, "LastAccessTime", allocator);
+        errdefer last_access_time = 0;
+
+        var creation_time = try fetchTimeTag(times.?, "CreationTime", allocator);
+        errdefer creation_time = 0;
+
+        var expiry_time = try fetchTimeTag(times.?, "ExpiryTime", allocator);
+        errdefer expiry_time = 0;
+
+        const expires = try fetchBool(times.?, "Expires", allocator);
+
+        var usage_count = try fetchNumTag(times.?, "UsageCount", allocator);
+        errdefer usage_count = 0;
+
+        var location_changed = try fetchTimeTag(times.?, "LocationChanged", allocator);
+        errdefer location_changed = 0;
+
+        const is_expanded = try fetchBool(elem, "IsExpanded", allocator);
+
+        const default_auto_type_sequence = try fetchTagValueNull(elem, "DefaultAutoTypeSequence", allocator);
+        errdefer if (default_auto_type_sequence) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            allocator.free(v);
+        };
+
+        const enable_auto_type = fetchBool(elem, "EnableAutoType", allocator) catch null;
+
+        const enable_searching = fetchBool(elem, "EnableSearching", allocator) catch null;
+
+        var last_top_visible_entry = try fetchUuid(elem, "LastTopVisibleEntry", allocator);
+        errdefer last_top_visible_entry = 0;
+
+        const previous_parent_group = fetchUuid(elem, "PreviousParentGroup", allocator) catch null;
+
+        // Parse all entries
+
+        const entries = try elem.elementsByTagNameAlloc(allocator, "Entry");
+        defer allocator.free(entries);
+
+        var entries_array = std.ArrayList(Entry).init(allocator);
+        errdefer {
+            for (entries_array.items) |item| item.deinit();
+            entries_array.deinit();
+        }
+
+        for (entries) |entry| {
+            try entries_array.append(try parseEntry(entry, allocator));
+        }
+
+        // Parse all groups
+
+        const groups = try elem.elementsByTagNameAlloc(allocator, "Group");
+        defer allocator.free(groups);
+
+        var groups_array = std.ArrayList(Group).init(allocator);
+        errdefer {
+            for (groups_array.items) |item| item.deinit();
+            groups_array.deinit();
+        }
+
+        for (groups) |group| {
+            try groups_array.append(try parseGroup(group, allocator));
+        }
+
+        return .{
+            .uuid = uuid,
+            .name = name,
+            .notes = notes,
+            .icon_id = icon_id,
+            .times = .{
+                .last_modification_time = last_modification_time,
+                .creation_time = creation_time,
+                .last_access_time = last_access_time,
+                .expiry_time = expiry_time,
+                .expires = expires,
+                .usage_count = usage_count,
+                .location_changed = location_changed,
+            },
+            .is_expanded = is_expanded,
+            .default_auto_type_sequence = default_auto_type_sequence,
+            .enable_auto_type = enable_auto_type,
+            .enable_searching = enable_searching,
+            .last_top_visible_entry = last_top_visible_entry,
+            .previous_parent_group = previous_parent_group,
+            .entries = entries_array,
+            .groups = groups_array,
+            .allocator = allocator,
+        };
+    }
+
+    fn parseEntry(elem: dishwasher.Document.Node.Element, allocator: Allocator) !Entry {
+        var uuid = try fetchUuid(elem, "UUID", allocator);
+        errdefer uuid = 0;
+
+        var icon_id = try fetchNumTag(elem, "IconID", allocator);
+        errdefer icon_id = 0;
+
+        const foreground_color = try fetchTagValueNull(elem, "ForegroundColor", allocator);
+        errdefer if (foreground_color) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            allocator.free(v);
+        };
+
+        const background_color = try fetchTagValueNull(elem, "BackgroundColor", allocator);
+        errdefer if (background_color) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            allocator.free(v);
+        };
+
+        const override_url = try fetchTagValueNull(elem, "OverrideURL", allocator);
+        errdefer if (override_url) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            allocator.free(v);
+        };
+
+        const tags = try fetchTagValueNull(elem, "Tags", allocator);
+        errdefer if (tags) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            allocator.free(v);
+        };
+
+        const times = elem.elementByTagName("Times");
+        if (times == null) return error.TimesMissing;
+
+        var last_modification_time = try fetchTimeTag(times.?, "LastModificationTime", allocator);
+        errdefer last_modification_time = 0;
+
+        var last_access_time = try fetchTimeTag(times.?, "LastAccessTime", allocator);
+        errdefer last_access_time = 0;
+
+        var creation_time = try fetchTimeTag(times.?, "CreationTime", allocator);
+        errdefer creation_time = 0;
+
+        var expiry_time = try fetchTimeTag(times.?, "ExpiryTime", allocator);
+        errdefer expiry_time = 0;
+
+        const expires = try fetchBool(times.?, "Expires", allocator);
+
+        var usage_count = try fetchNumTag(times.?, "UsageCount", allocator);
+        errdefer usage_count = 0;
+
+        var location_changed = try fetchTimeTag(times.?, "LocationChanged", allocator);
+        errdefer location_changed = 0;
+
+        var strings = std.ArrayList(KeyValue).init(allocator);
+        errdefer {
+            for (strings.items) |item| item.deinit(allocator);
+            strings.deinit();
+        }
+
+        const strings_ = try elem.elementsByTagNameAlloc(allocator, "String");
+        defer allocator.free(strings_);
+
+        for (strings_) |kv| {
+            const key = try fetchTagValue(kv, "Key", allocator);
+            errdefer allocator.free(key);
+            const value = try fetchTagValue(kv, "Value", allocator);
+            errdefer allocator.free(value);
+
+            try strings.append(KeyValue{ .key = key, .value = value });
+        }
+
+        const auto_type = elem.elementByTagName("AutoType");
+        var auto_type_: ?AutoType = null;
+        errdefer if (auto_type_ != null and auto_type_.?.default_sequence != null)
+            allocator.free(auto_type_.?.default_sequence.?);
+        if (auto_type) |at| {
+            const enabled = try fetchBool(at, "Enabled", allocator);
+            const data_transfer_obfuscation = try fetchNumTag(at, "DataTransferObfuscation", allocator);
+
+            const default_sequence = try fetchTagValueNull(at, "DefaultSequence", allocator);
+            auto_type_ = .{
+                .enabled = enabled,
+                .data_transfer_obfuscation = data_transfer_obfuscation,
+                .default_sequence = default_sequence,
+            };
+        }
+
+        var history: ?std.ArrayList(Entry) = null;
+        errdefer if (history) |h| {
+            for (h.items) |item| item.deinit();
+            h.deinit();
+        };
+
+        const hist = elem.elementByTagName("History");
+        if (hist) |h| outer: {
+            const entries = try h.elementsByTagNameAlloc(allocator, "Entry");
+            defer allocator.free(entries);
+
+            if (entries.len == 0) break :outer; // nothing to-do
+
+            history = std.ArrayList(Entry).init(allocator);
+
+            for (entries) |entry| {
+                try history.?.append(try parseEntry(entry, allocator));
+            }
+        }
+
+        return .{
+            .uuid = uuid,
+            .icon_id = icon_id,
+            .foreground_color = foreground_color,
+            .background_color = background_color,
+            .override_url = override_url,
+            .tags = tags,
+            .times = .{
+                .last_modification_time = last_modification_time,
+                .creation_time = creation_time,
+                .last_access_time = last_access_time,
+                .expiry_time = expiry_time,
+                .expires = expires,
+                .usage_count = usage_count,
+                .location_changed = location_changed,
+            },
+            .strings = strings,
+            .auto_type = auto_type_,
+            .history = history,
+            .allocator = allocator,
+        };
     }
 
     fn parseMeta(elem: dishwasher.Document.Node.Element, allocator: Allocator) !Meta {
@@ -558,7 +817,7 @@ pub const Body = struct {
 
 fn fetchTagValue(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) ![]u8 {
     const v = if (elem.elementByTagName(name)) |v| v else {
-        std.log.err("{s} tag missing", .{name});
+        //std.log.err("{s} tag missing", .{name});
         return error.TagMissing;
     };
     return @constCast(try v.textAlloc(allocator));
@@ -616,9 +875,11 @@ fn fetchUuid(elem: dishwasher.Document.Node.Element, name: []const u8, allocator
 
 pub const XML = struct {
     meta: Meta,
+    root: Group,
 
     pub fn deinit(self: *const @This()) void {
         self.meta.deinit();
+        self.root.deinit();
     }
 };
 
@@ -697,6 +958,120 @@ pub const KeyValue = struct {
         std.crypto.utils.secureZero(u8, self.value);
         allocator.free(self.key);
         allocator.free(self.value);
+    }
+};
+
+pub const Group = struct {
+    uuid: Uuid.Uuid,
+    name: []u8,
+    notes: ?[]u8 = null,
+    icon_id: i64,
+    times: Times,
+    is_expanded: bool = false,
+    default_auto_type_sequence: ?[]u8 = null,
+    enable_auto_type: ?bool = null,
+    enable_searching: ?bool = null,
+    last_top_visible_entry: Uuid.Uuid,
+    previous_parent_group: ?Uuid.Uuid = null,
+    entries: std.ArrayList(Entry),
+    groups: std.ArrayList(Group),
+    allocator: Allocator,
+
+    pub fn deinit(self: *const @This()) void {
+        std.crypto.utils.secureZero(u8, self.name);
+        self.allocator.free(self.name);
+
+        if (self.notes) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            self.allocator.free(v);
+        }
+
+        if (self.default_auto_type_sequence) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            self.allocator.free(v);
+        }
+
+        for (self.entries.items) |e| {
+            e.deinit();
+        }
+        self.entries.deinit();
+
+        for (self.groups.items) |g| {
+            g.deinit();
+        }
+        self.groups.deinit();
+    }
+};
+
+pub const Entry = struct {
+    uuid: Uuid.Uuid,
+    icon_id: i64,
+    foreground_color: ?[]u8 = null,
+    background_color: ?[]u8 = null,
+    override_url: ?[]u8 = null,
+    tags: ?[]u8 = null,
+    times: Times,
+    strings: std.ArrayList(KeyValue),
+    auto_type: ?AutoType = null,
+    history: ?std.ArrayList(Entry) = null,
+    allocator: Allocator,
+
+    pub fn get(self: *const @This(), key: []const u8) ?[]u8 {
+        for (self.strings.items) |kv| {
+            if (std.mem.eql(u8, key, kv.key)) return kv.value;
+        }
+        return null;
+    }
+
+    pub fn deinit(self: *const @This()) void {
+        if (self.foreground_color) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            self.allocator.free(v);
+        }
+        if (self.background_color) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            self.allocator.free(v);
+        }
+        if (self.override_url) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            self.allocator.free(v);
+        }
+        if (self.tags) |v| {
+            std.crypto.utils.secureZero(u8, v);
+            self.allocator.free(v);
+        }
+        for (self.strings.items) |kv| {
+            kv.deinit(self.allocator);
+        }
+        self.strings.deinit();
+        if (self.auto_type) |v| v.deinit(self.allocator);
+
+        if (self.history) |h| {
+            for (h.items) |kv| {
+                kv.deinit();
+            }
+            h.deinit();
+        }
+    }
+};
+
+pub const Times = struct {
+    last_modification_time: i64,
+    creation_time: i64,
+    last_access_time: i64,
+    expiry_time: i64,
+    expires: bool,
+    usage_count: i64,
+    location_changed: i64,
+};
+
+pub const AutoType = struct {
+    enabled: bool = false,
+    data_transfer_obfuscation: i64 = 0,
+    default_sequence: ?[]u8 = null,
+
+    pub fn deinit(self: *const @This(), allocator: Allocator) void {
+        if (self.default_sequence) |s| allocator.free(s);
     }
 };
 
@@ -1399,6 +1774,7 @@ test "the decryption of a kdbx4 file #1" {
     const body_xml = try body.getXml(std.testing.allocator);
     defer body_xml.deinit();
 
+    // Meta
     try std.testing.expectEqualSlices(u8, "KeePassXC", body_xml.meta.generator);
     try std.testing.expectEqualSlices(u8, "Test Database", body_xml.meta.database_name);
     try std.testing.expectEqual(@as(i64, 63860739034), body_xml.meta.database_name_changed);
@@ -1427,4 +1803,18 @@ test "the decryption of a kdbx4 file #1" {
 
     try std.testing.expectEqualSlices(u8, "_LAST_MODIFIED", body_xml.meta.custom_data.items[2].key);
     try std.testing.expectEqualSlices(u8, "Sat Aug 31 22:13:03 2024 GMT", body_xml.meta.custom_data.items[2].value);
+
+    // Root Group
+    try std.testing.expectEqualSlices(u8, "4c366769-07e8-4bc9-8091-3e5caefe9710", &Uuid.urn.serialize(body_xml.root.uuid));
+    try std.testing.expectEqualSlices(u8, "Root", body_xml.root.name);
+    try std.testing.expectEqual(@as(i64, 48), body_xml.root.icon_id);
+    try std.testing.expectEqual(true, body_xml.root.is_expanded);
+    try std.testing.expectEqual(@as(Uuid.Uuid, 0), body_xml.root.last_top_visible_entry);
+
+    // Entry 0
+    try std.testing.expectEqualSlices(u8, "0ff2cbb1-69d5-4fda-bb68-da67291dcb07", &Uuid.urn.serialize(body_xml.root.entries.items[0].uuid));
+    try std.testing.expectEqual(@as(i64, 0), body_xml.root.entries.items[0].icon_id);
+    try std.testing.expectEqualSlices(u8, "programming", body_xml.root.entries.items[0].tags.?);
+    try std.testing.expectEqualSlices(u8, "", body_xml.root.entries.items[0].get("Notes").?);
+    try std.testing.expectEqualSlices(u8, "123456", body_xml.root.entries.items[0].get("Password").?);
 }
