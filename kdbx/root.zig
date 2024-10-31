@@ -545,6 +545,14 @@ pub const Body = struct {
         };
     }
 
+    fn parseIcon(elem: dishwasher.Document.Node.Element, allocator: Allocator) !Icon {
+        return .{
+            .uuid = try fetchUuid(elem, "UUID", allocator),
+            .last_modification_time = try fetchTimeTag(elem, "LastModificationTime", allocator),
+            .data = try fetchTagValue(elem, "Data", allocator),
+        };
+    }
+
     fn parseEntry(elem: dishwasher.Document.Node.Element, allocator: Allocator, cipher: *ChaCha20) !Entry {
         var uuid = try fetchUuid(elem, "UUID", allocator);
         errdefer uuid = 0;
@@ -749,11 +757,25 @@ pub const Body = struct {
         const protect_url = try fetchBool(protection.?, "ProtectURL", allocator);
         const protect_notes = try fetchBool(protection.?, "ProtectNotes", allocator);
 
-        const custom_icons = try fetchTagValueNull(elem, "CustomIcons", allocator);
-        errdefer if (custom_icons) |v| {
-            std.crypto.utils.secureZero(u8, v);
-            allocator.free(v);
-        };
+        var custom_icons: ?std.ArrayList(Icon) = null;
+        errdefer {
+            if (custom_icons) |icos| {
+                for (icos.items) |ico| ico.deinit(allocator);
+                icos.deinit();
+            }
+        }
+
+        const custom_icons_ = elem.elementByTagName("CustomIcons");
+        if (custom_icons_) |icos| outer: {
+            const icons = try icos.elementsByTagNameAlloc(allocator, "Icon");
+            defer allocator.free(icons);
+
+            if (icons.len == 0) break :outer;
+
+            custom_icons = std.ArrayList(Icon).init(allocator);
+
+            for (icons) |icon| try custom_icons.?.append(try parseIcon(icon, allocator));
+        }
 
         const recycle_bin_enabled = try fetchBool(elem, "RecycleBinEnabled", allocator);
 
@@ -926,7 +948,7 @@ pub const Meta = struct {
         protect_url: bool,
         protect_notes: bool,
     },
-    custom_icons: ?[]u8 = null,
+    custom_icons: ?std.ArrayList(Icon) = null,
     recycle_bin_enabled: bool,
     recycle_bin_uuid: Uuid.Uuid,
     recycle_bin_changed: i64,
@@ -962,13 +984,24 @@ pub const Meta = struct {
             self.allocator.free(desc);
         }
 
-        if (self.custom_icons) |desc| {
-            std.crypto.utils.secureZero(u8, desc);
-            self.allocator.free(desc);
+        if (self.custom_icons) |icon| {
+            for (icon.items) |data| data.deinit(self.allocator);
+            icon.deinit();
         }
 
         for (self.custom_data.items) |data| data.deinit(self.allocator);
         self.custom_data.deinit();
+    }
+};
+
+pub const Icon = struct {
+    uuid: Uuid.Uuid,
+    last_modification_time: i64,
+    data: []u8,
+
+    pub fn deinit(self: *const @This(), allocator: Allocator) void {
+        std.crypto.utils.secureZero(u8, self.data);
+        allocator.free(self.data);
     }
 };
 
@@ -1751,6 +1784,7 @@ test "decode outer header" {
 }
 
 const db = @embedFile("static/testdb.kdbx");
+const db2 = @embedFile("static/TestDb2.kdbx");
 
 test "verify kdbx4 header mac (positive test)" {
     var fbs = std.io.fixedBufferStream(db);
@@ -1853,4 +1887,95 @@ test "the decryption of a kdbx4 file #1" {
     try std.testing.expectEqualSlices(u8, "https://codeberg.org", body_xml.root.entries.items[1].get("URL").?);
     try std.testing.expectEqualSlices(u8, "Codeberg", body_xml.root.entries.items[1].get("Title").?);
     try std.testing.expectEqualSlices(u8, "max", body_xml.root.entries.items[1].get("UserName").?);
+}
+
+test "the decryption of a kdbx4 file #2" {
+    var fbs = std.io.fixedBufferStream(db2);
+    const reader = fbs.reader();
+
+    const header = try Header.readAlloc(reader, std.testing.allocator);
+    defer header.deinit();
+
+    var keys = try header.deriveKeys("foobar", null, null);
+    defer keys.deinit();
+    try header.checkMac(&keys);
+
+    var body = try Body.readAlloc(reader, &header, &keys, std.testing.allocator);
+    defer body.deinit();
+
+    try std.testing.expectEqual(InnerHeader.StreamCipher.ChaCha20, body.inner_header.stream_cipher);
+
+    //std.debug.print("{s}\n", .{body.xml});
+
+    const body_xml = try body.getXml(std.testing.allocator);
+    defer body_xml.deinit();
+
+    // Meta
+    try std.testing.expectEqualSlices(u8, "KeePassXC", body_xml.meta.generator);
+    try std.testing.expectEqualSlices(u8, "Zig Database Impl", body_xml.meta.database_name);
+    try std.testing.expectEqualSlices(u8, "This is another test database for the KDBX4 Zig impl", body_xml.meta.database_description.?);
+    try std.testing.expectEqual(@as(i64, 365), body_xml.meta.maintenance_history_days);
+    try std.testing.expectEqual(@as(i64, -1), body_xml.meta.master_key_change_rec);
+    try std.testing.expectEqual(@as(i64, -1), body_xml.meta.master_key_change_force);
+    try std.testing.expectEqual(false, body_xml.meta.memory_protection.protect_title);
+    try std.testing.expectEqual(false, body_xml.meta.memory_protection.protect_user_name);
+    try std.testing.expectEqual(true, body_xml.meta.memory_protection.protect_password);
+    try std.testing.expectEqual(false, body_xml.meta.memory_protection.protect_url);
+    try std.testing.expectEqual(false, body_xml.meta.memory_protection.protect_notes);
+    try std.testing.expectEqual(true, body_xml.meta.recycle_bin_enabled);
+    try std.testing.expectEqual(@as(Uuid.Uuid, 0), body_xml.meta.recycle_bin_uuid);
+    try std.testing.expectEqual(@as(Uuid.Uuid, 0), body_xml.meta.entry_template_group);
+    try std.testing.expectEqual(@as(Uuid.Uuid, 0), body_xml.meta.last_selected_group);
+    try std.testing.expectEqual(@as(Uuid.Uuid, 0), body_xml.meta.last_top_visible_group);
+    try std.testing.expectEqual(@as(i64, 10), body_xml.meta.history_max_items);
+    try std.testing.expectEqual(@as(i64, 6291456), body_xml.meta.history_max_size);
+
+    // Custom icon
+    try std.testing.expectEqual(@as(usize, 1), body_xml.meta.custom_icons.?.items.len);
+    try std.testing.expectEqualSlices(u8, "ba5c5602-21dc-464e-ab87-014d487a74c1", &Uuid.urn.serialize(body_xml.meta.custom_icons.?.items[0].uuid));
+    try std.testing.expectEqualSlices(u8, "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAEnRFWHRfcV9pY29PcmlnRGVwdGgAMzLV4rjsAAAEl0lEQVRYha1XUWhbVRj+vnPTNNvaSNnuTZpkJY4ryJ1uD3UrIjL3Ioo6fRLZ08CHKjIRHfowWJbpFHzQiUN9EB8F6YNlKMM5GRsozjnRDqpgkNgmze1Nts60KW2a5PdhyXaX3LTZmu8p5//P/3/fOffk/88hOoRlWf65QmGvAPsgYgGICBkBAIrMAJgBOUng1MCWLecmJyfLneTlWhPiuh5eIhMish9AsEO9RZJfBkSS6XzevisBpmn2LhSLhwG8LiKbOiS+PTlZAvBBXzB4PJVKLXcsoL7qcREZuRtiDyEXAyLPee1Gi4CYYeyoiHwrQKwb5C6ijI98KuM4E20FxHU9vARc6ja5W0QA2OXeCdX4YZpm7xI57iYn8CeBr0hevQu+6wTGCPzWMAgQWyLHTdPsbRGwUCwebv7mJE/Y+fwL91tWGEq9CNKuOxZAXiFwgcB5kBMA/qvHXCNwcLOuh+x8/nmSx905RWSkfrgbi7x56FLNp52attu27UuNsaXrfdc0bWh0dPSvZDJZa0rMWCx2n6Zp+ampqbmGPRQK3Yta7Z+mhZUCImY6n7cJAGHD+FREXmreQ+XzPZTL5S577W+nGBwcHKpVKv8220l+ZjvOy8qyLH+9yLSiWrXWQw4AIrK9jX2/ZVl+NVco7IVHhSNZgqZdWK8ATdN+IVnwcAXnCoW9SoB9bWKP5XK5lq27U2Sz2asQedPLJ8A+VW8sLfD5/V+vl7yBwKZN3rlELAUg0mwnWZqenk51S0A6nb5OcsrDFVGNltoEh6R0SwAAQGS2xURGFF3F6NZc2dJVcgAgW3ISUAqA1wntD4VCRre44/F4AB6fGkBeAfC8MCiRx7slYHlxcY+I9Hq4bEWRn72CRORVEVnzxtQJBHjNy06Riwrk+TZBuwZDoTfWSx7W9QMi8oSnkzyvggMD3wOY9xQh8n7YMI4NDw/33ClxIpFQYcM4JMDnbabMD4icaTSjkyLySl3Vhxr5a1XkLYjsAAAC0yC/UMCPyu+/nMlkrnll3LZt2z2lUmlYAQ/XRA5AxGwnkEqdtGdnDyoA8ImcIFkGAN4IzG8WeQTk7wAgwFYRSVRFzqyUy6cSiUTLXxcAFufnx1Gr/VCr1d5ZlZxc7hE5UV/cDYQNIykiR+rDos/v305yQ6Vc/sldFzSlnp2ZnT3llTgcDj8m1eq5dsQuAUnbcY4CriLUFwy+W7/ZAECwWi4nM5nM3wGRB0keAvCRIkc39vd/1y6xz+ebaOdzsU/0BYPv3Ry6fZFIZGt1ZeUigEEAVWraM7Ztn14zqQshXV8B4Gvjzmk9PSMzMzPTngIAIGoYOysip2+KIM8COEtgXoDQo3v2HB8bG6uuIqACQPMi95FPZh3nD7fRs9BEo9FYZWXlG4jsbPZt1vXe1d59IV2vorm/kFeUpj2dy+VaOqLnac5ms5n+YHCEZJLkbU+qxcVFzxg33S1elkm+vWHjxt1e5G0FAEAqlVq2HedoD7CdSn0MoAhyIR6PV1ZlJ+dALpD8xOf3P2A7zpF0Or20hui1Yel639DQ0MBa86LRaMw0zU5f0fgfUk/VbnmdnBIAAAAASUVORK5CYII=", body_xml.meta.custom_icons.?.items[0].data);
+
+    // Entry 0
+    try std.testing.expectEqualSlices(u8, "5dd56835-af4c-49a3-aa67-f458f18397ef", &Uuid.urn.serialize(body_xml.root.entries.items[0].uuid));
+    try std.testing.expectEqual(@as(i64, 0), body_xml.root.entries.items[0].icon_id);
+    try std.testing.expectEqualSlices(u8, "dev,programming", body_xml.root.entries.items[0].tags.?);
+    try std.testing.expectEqualSlices(u8, "Recovery keys:\n\n123-456-789\n123-456-789", body_xml.root.entries.items[0].get("Notes").?);
+    try std.testing.expectEqualSlices(u8, "4~+aSX=&=~u;7a$XrjML", body_xml.root.entries.items[0].get("Password").?);
+    try std.testing.expectEqualSlices(u8, "https://github.com", body_xml.root.entries.items[0].get("URL").?);
+    try std.testing.expectEqualSlices(u8, "Github", body_xml.root.entries.items[0].get("Title").?);
+    try std.testing.expectEqualSlices(u8, "max123", body_xml.root.entries.items[0].get("UserName").?);
+
+    // Entry 1
+    try std.testing.expectEqualSlices(u8, "66a6757f-76e2-47a6-b828-5cb907cc99f7", &Uuid.urn.serialize(body_xml.root.entries.items[1].uuid));
+    try std.testing.expectEqual(@as(i64, 0), body_xml.root.entries.items[1].icon_id);
+    try std.testing.expectEqualSlices(u8, "coding,programming", body_xml.root.entries.items[1].tags.?);
+    try std.testing.expectEqualSlices(u8, "", body_xml.root.entries.items[1].get("Notes").?);
+    try std.testing.expectEqualSlices(u8, "L&%)o[d3~)L8`BJ>1t\\h", body_xml.root.entries.items[1].get("Password").?);
+    try std.testing.expectEqualSlices(u8, "https://codeberg.de", body_xml.root.entries.items[1].get("URL").?);
+    try std.testing.expectEqualSlices(u8, "Codeberg", body_xml.root.entries.items[1].get("Title").?);
+    try std.testing.expectEqualSlices(u8, "max@web.de", body_xml.root.entries.items[1].get("UserName").?);
+
+    // Root / Work
+    try std.testing.expectEqualSlices(u8, "Work", body_xml.root.groups.items[0].name);
+
+    // Root / Work . Entry 0
+    try std.testing.expectEqualSlices(u8, "ZzIE!7ml-HT3c$i;48ZY", body_xml.root.groups.items[0].entries.items[0].get("Password").?);
+
+    // Root / Work . Entry 1
+    try std.testing.expectEqualSlices(u8, "7532", body_xml.root.groups.items[0].entries.items[1].get("Password").?);
+
+    // Root / Work / Project One
+    try std.testing.expectEqualSlices(u8, "Project One", body_xml.root.groups.items[0].groups.items[0].name);
+
+    // Root / Work / Project One
+    try std.testing.expectEqualSlices(u8, "21c0be125544bd4f1e8c3503294ef4fb40bf212d04a7ab4ecfe2d46442585febd115385eb48d45ca34e7726a5762b0ea2fe2271130dce00f83ad5c8620689b0c1ca2fa9a174dced7a9a68a0b3caec10d", body_xml.root.groups.items[0].groups.items[0].entries.items[0].get("Key").?);
+
+    // Root / Shopping
+    try std.testing.expectEqualSlices(u8, "Shopping", body_xml.root.groups.items[1].name);
+
+    // Root / Shopping . Entry 0
+    try std.testing.expectEqualSlices(u8, "4[PXs~cVy^*YD;Y}MI5~", body_xml.root.groups.items[1].entries.items[0].get("Password").?);
+
+    // Root / Shopping . Entry 1
+    try std.testing.expectEqualSlices(u8, "s]{)iQd#6[pyU8:.hpel", body_xml.root.groups.items[1].entries.items[1].get("Password").?);
 }
