@@ -1,6 +1,7 @@
 const std = @import("std");
 const dishwasher = @import("dishwasher");
 const Uuid = @import("uuid");
+const ChaCha20 = @import("chacha.zig").ChaCha20;
 
 const Allocator = std.mem.Allocator;
 
@@ -407,20 +408,29 @@ pub const Body = struct {
         const root = file.?.elementByTagName("Root");
         if (root == null) return error.RootTagMissing;
 
-        const root_ = try parseRoot(root.?, allocator);
+        var digest: [64]u8 = .{0} ** 64;
+        std.crypto.hash.sha2.Sha512.hash(self.inner_header.stream_key, &digest, .{});
+
+        var chacha20 = ChaCha20.init(
+            0,
+            digest[0..32].*,
+            digest[32..44].*,
+        );
+
+        const root_ = try parseRoot(root.?, allocator, &chacha20);
         errdefer root_.deinit();
 
         return .{ .meta = meta_, .root = root_ };
     }
 
-    fn parseRoot(elem: dishwasher.Document.Node.Element, allocator: Allocator) !Group {
+    fn parseRoot(elem: dishwasher.Document.Node.Element, allocator: Allocator, cipher: *ChaCha20) !Group {
         const curr_group = elem.elementByTagName("Group");
         if (curr_group == null) return error.RootGroupMissing;
 
-        return try parseGroup(curr_group.?, allocator);
+        return try parseGroup(curr_group.?, allocator, cipher);
     }
 
-    fn parseGroup(elem: dishwasher.Document.Node.Element, allocator: Allocator) !Group {
+    fn parseGroup(elem: dishwasher.Document.Node.Element, allocator: Allocator, cipher: *ChaCha20) !Group {
         var uuid = try fetchUuid(elem, "UUID", allocator);
         errdefer uuid = 0;
 
@@ -491,7 +501,7 @@ pub const Body = struct {
         }
 
         for (entries) |entry| {
-            try entries_array.append(try parseEntry(entry, allocator));
+            try entries_array.append(try parseEntry(entry, allocator, cipher));
         }
 
         // Parse all groups
@@ -506,7 +516,7 @@ pub const Body = struct {
         }
 
         for (groups) |group| {
-            try groups_array.append(try parseGroup(group, allocator));
+            try groups_array.append(try parseGroup(group, allocator, cipher));
         }
 
         return .{
@@ -535,7 +545,7 @@ pub const Body = struct {
         };
     }
 
-    fn parseEntry(elem: dishwasher.Document.Node.Element, allocator: Allocator) !Entry {
+    fn parseEntry(elem: dishwasher.Document.Node.Element, allocator: Allocator, cipher: *ChaCha20) !Entry {
         var uuid = try fetchUuid(elem, "UUID", allocator);
         errdefer uuid = 0;
 
@@ -601,8 +611,21 @@ pub const Body = struct {
         for (strings_) |kv| {
             const key = try fetchTagValue(kv, "Key", allocator);
             errdefer allocator.free(key);
-            const value = try fetchTagValue(kv, "Value", allocator);
+            var value = try fetchTagValue(kv, "Value", allocator);
             errdefer allocator.free(value);
+
+            // TODO take all other cases into account!
+            // TODO some might disable / enable obfuscation for other fields
+            if (std.mem.eql(u8, "Password", key)) {
+                const l = try std.base64.standard.Decoder.calcSizeForSlice(value);
+                const value_ = try allocator.alloc(u8, l);
+                errdefer allocator.free(value_);
+                try std.base64.standard.Decoder.decode(value_, value);
+
+                cipher.xor(value_);
+                allocator.free(value);
+                value = value_;
+            }
 
             try strings.append(KeyValue{ .key = key, .value = value });
         }
@@ -639,7 +662,7 @@ pub const Body = struct {
             history = std.ArrayList(Entry).init(allocator);
 
             for (entries) |entry| {
-                try history.?.append(try parseEntry(entry, allocator));
+                try history.?.append(try parseEntry(entry, allocator, cipher));
             }
         }
 
@@ -1817,4 +1840,17 @@ test "the decryption of a kdbx4 file #1" {
     try std.testing.expectEqualSlices(u8, "programming", body_xml.root.entries.items[0].tags.?);
     try std.testing.expectEqualSlices(u8, "", body_xml.root.entries.items[0].get("Notes").?);
     try std.testing.expectEqualSlices(u8, "123456", body_xml.root.entries.items[0].get("Password").?);
+    try std.testing.expectEqualSlices(u8, "https://github.com", body_xml.root.entries.items[0].get("URL").?);
+    try std.testing.expectEqualSlices(u8, "Github", body_xml.root.entries.items[0].get("Title").?);
+    try std.testing.expectEqualSlices(u8, "max", body_xml.root.entries.items[0].get("UserName").?);
+
+    // Entry 1
+    try std.testing.expectEqualSlices(u8, "164b7b20-7220-4471-aebf-3023a704b2f4", &Uuid.urn.serialize(body_xml.root.entries.items[1].uuid));
+    try std.testing.expectEqual(@as(i64, 0), body_xml.root.entries.items[1].icon_id);
+    try std.testing.expectEqualSlices(u8, "", body_xml.root.entries.items[1].tags.?);
+    try std.testing.expectEqualSlices(u8, "", body_xml.root.entries.items[1].get("Notes").?);
+    try std.testing.expectEqualSlices(u8, "654321", body_xml.root.entries.items[1].get("Password").?);
+    try std.testing.expectEqualSlices(u8, "https://codeberg.org", body_xml.root.entries.items[1].get("URL").?);
+    try std.testing.expectEqualSlices(u8, "Codeberg", body_xml.root.entries.items[1].get("Title").?);
+    try std.testing.expectEqualSlices(u8, "max", body_xml.root.entries.items[1].get("UserName").?);
 }
