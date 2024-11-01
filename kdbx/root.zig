@@ -1463,4 +1463,12 @@ test "the decryption of a kdbx4 file #2" {
 
     // Root / Shopping . Entry 1
     try std.testing.expectEqualSlices(u8, "s]{)iQd#6[pyU8:.hpel", body_xml.root.groups.items[1].entries.items[1].get("Password").?);
+
+    // Root / KeePassXC-Browser Passwords
+    try std.testing.expectEqualSlices(u8, "KeePassXC-Browser Passwords", body_xml.root.groups.items[2].name);
+    try std.testing.expectEqualSlices(u8, "OfRg2GQ4WiRHNtnrOWhalG-5iw-gXKq_JVaUnWqpeRc", body_xml.root.groups.items[2].entries.items[0].get("KPEX_PASSKEY_CREDENTIAL_ID").?);
+    try std.testing.expectEqualSlices(u8, "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgfVXUrA29p2LnqC3T\nB/qindmNV+y+6+Cn5AwH/j3Iz0+hRANCAAQRKLuox37xlTHnumSyvTMlHh1VML2e\nSxtYwceA/pq1gSM3XORnXwnscNBaEJG81HJp6+T5MiimPts7VwUj9G0s\n-----END PRIVATE KEY-----\n", body_xml.root.groups.items[2].entries.items[0].get("KPEX_PASSKEY_PRIVATE_KEY_PEM").?);
+    try std.testing.expectEqualSlices(u8, "passkey.org", body_xml.root.groups.items[2].entries.items[0].get("KPEX_PASSKEY_RELYING_PARTY").?);
+    try std.testing.expectEqualSlices(u8, "peter", body_xml.root.groups.items[2].entries.items[0].get("KPEX_PASSKEY_USERNAME").?);
+    try std.testing.expectEqualSlices(u8, "DEMO__9fX19ERU1P", body_xml.root.groups.items[2].entries.items[0].get("KPEX_PASSKEY_USER_HANDLE").?);
 }

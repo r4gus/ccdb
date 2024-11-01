@@ -246,9 +246,9 @@ fn parseEntry(elem: dishwasher.Document.Node.Element, allocator: Allocator, ciph
         var value = try fetchTagValue(kv, "Value", allocator);
         errdefer allocator.free(value);
 
-        // TODO take all other cases into account!
-        // TODO some might disable / enable obfuscation for other fields
-        if (std.mem.eql(u8, "Password", key)) {
+        // Deobfuscate value if "Protected = True"
+        // Value is present because otherwise the try above would already have thrown an error.
+        if (if (kv.elementByTagName("Value").?.attributeValueByName("Protected")) |bool_value| std.mem.eql(u8, "True", bool_value) else false) {
             const l = try std.base64.standard.Decoder.calcSizeForSlice(value);
             const value_ = try allocator.alloc(u8, l);
             errdefer allocator.free(value_);
