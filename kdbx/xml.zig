@@ -1,425 +1,540 @@
-//! XML tokenizer. Takes the entire input buffer as the input; provides a
-//! streaming, non-allocating API to pull tokens one at a time.
-//!
-//! author: Andre Kelly
-//! original url: https://github.com/andrewrk/xml/blob/main/Xml.zig
-
-bytes: []const u8,
-index: usize = 0,
-line: usize = 0,
-column: usize = 0,
-state: State = .start,
-/// This field is populated when `next` returns a `Token` with `Token.Tag.invalid`.
-error_note: ErrorNote = undefined,
-
-pub const Token = struct {
-    tag: Tag,
-    bytes: []const u8,
-
-    pub const Tag = enum {
-        /// Error tokenizing the XML. Details can be found at the line, column,
-        /// and error_note field.
-        invalid,
-        /// Example: "xml".
-        /// Possible next tags:
-        /// * `attr_key`
-        /// * `attr_value`
-        /// * `tag_open`
-        doctype,
-        /// Example: "<head>"
-        /// Possible next tags:
-        /// * `attr_key`
-        /// * `tag_open`
-        /// * `tag_close`
-        /// * `content`
-        tag_open,
-        /// Example: "</head>"
-        /// Possible next tags:
-        /// * `tag_open`
-        /// * `tag_close`
-        /// * `content`
-        tag_close,
-        /// Emitted for empty nodes such as "<head/>".
-        /// `bytes` will contain the "/".
-        /// Possible next tags:
-        /// * `tag_open`
-        /// * `tag_close`
-        /// * `content`
-        tag_close_empty,
-        /// Only the name of the key, does not include the '=' or the value.
-        /// Possible next tags:
-        /// * `attr_value`
-        attr_key,
-        /// Exactly the bytes of the string, including the quotes. Does no decoding.
-        /// Possible next tags:
-        /// * `attr_key`
-        /// * `tag_open`
-        /// * `tag_close`
-        /// * `content`
-        attr_value,
-        /// The data between tags. Exactly the bytes, does no decoding.
-        /// Possible next tags:
-        /// * `tag_open`
-        /// * `tag_close`
-        content,
-        /// End of file was reached.
-        eof,
-    };
-};
-
-pub const ErrorNote = enum {
-    invalid_byte,
-};
-
-pub fn next(xml: *Xml) Token {
-    var tok_start: usize = undefined;
-    while (xml.index < xml.bytes.len) {
-        const byte = xml.bytes[xml.index];
-        switch (xml.state) {
-            .start => switch (byte) {
-                ' ', '\t', '\r', '\n' => {},
-                '<' => xml.state = .doctype_q,
-                else => return xml.fail(.invalid_byte),
-            },
-            .doctype_q => switch (byte) {
-                ' ', '\t', '\r', '\n' => {},
-                '?' => xml.state = .doctype_name_start,
-                else => return xml.fail(.invalid_byte),
-            },
-            .doctype_name_start => switch (byte) {
-                ' ', '\t', '\r', '\n' => {},
-                '>', '<' => return xml.fail(.invalid_byte),
-                else => {
-                    tok_start = xml.index;
-                    xml.state = .doctype_name;
-                },
-            },
-            .doctype_name => switch (byte) {
-                ' ', '\t', '\r', '\n' => return xml.emit(.doctype, .{
-                    .tag = .doctype,
-                    .bytes = xml.bytes[tok_start..xml.index],
-                }),
-                '?' => return xml.emit(.doctype_end, .{
-                    .tag = .doctype,
-                    .bytes = xml.bytes[tok_start..xml.index],
-                }),
-                '>', '<' => return xml.fail(.invalid_byte),
-                else => {},
-            },
-            .doctype => switch (byte) {
-                ' ', '\t', '\r', '\n' => {},
-                '?' => xml.state = .doctype_end,
-                '<', '>' => return xml.fail(.invalid_byte),
-                else => {
-                    tok_start = xml.index;
-                    xml.state = .doctype_attr_key;
-                },
-            },
-            .doctype_attr_key => switch (byte) {
-                '=' => return xml.emit(.doctype_attr_value_q, .{
-                    .tag = .attr_key,
-                    .bytes = xml.bytes[tok_start..xml.index],
-                }),
-                '?', '<', '>' => return xml.fail(.invalid_byte),
-                else => {},
-            },
-            .doctype_attr_value_q => switch (byte) {
-                '"' => {
-                    xml.state = .doctype_attr_value;
-                    tok_start = xml.index;
-                },
-                else => return xml.fail(.invalid_byte),
-            },
-            .doctype_attr_value => switch (byte) {
-                '"' => return xml.emit(.doctype, .{
-                    .tag = .attr_value,
-                    .bytes = xml.bytes[tok_start .. xml.index + 1],
-                }),
-                '\n' => return xml.fail(.invalid_byte),
-                else => {},
-            },
-            .doctype_end => switch (byte) {
-                '>' => xml.state = .body,
-                else => return xml.fail(.invalid_byte),
-            },
-            .body => switch (byte) {
-                ' ', '\t', '\r', '\n' => {},
-                '<' => xml.state = .tag_name_start,
-                else => {
-                    xml.state = .content;
-                    tok_start = xml.index;
-                },
-            },
-            .content => switch (byte) {
-                '<' => return xml.emit(.tag_name_start, .{
-                    .tag = .content,
-                    .bytes = xml.bytes[tok_start..xml.index],
-                }),
-                else => {},
-            },
-            .tag_name_start => switch (byte) {
-                ' ', '\t', '\r', '\n' => {},
-                '!' => xml.state = .comment_start,
-                '>', '<' => return xml.fail(.invalid_byte),
-                '/' => xml.state = .tag_close_start,
-                else => {
-                    tok_start = xml.index;
-                    xml.state = .tag_name;
-                },
-            },
-            .tag_close_start => switch (byte) {
-                ' ', '\t', '\r', '\n' => {},
-                '>', '<' => return xml.fail(.invalid_byte),
-                else => {
-                    tok_start = xml.index;
-                    xml.state = .tag_close_name;
-                },
-            },
-            .tag_close_name => switch (byte) {
-                ' ', '\t', '\r', '\n' => return xml.emit(.tag_close_b, .{
-                    .tag = .tag_open,
-                    .bytes = xml.bytes[tok_start..xml.index],
-                }),
-                '>' => return xml.emit(.body, .{
-                    .tag = .tag_close,
-                    .bytes = xml.bytes[tok_start..xml.index],
-                }),
-                '<' => return xml.fail(.invalid_byte),
-                else => {},
-            },
-            .tag_close_b => switch (byte) {
-                ' ', '\t', '\r', '\n' => {},
-                '>' => xml.state = .body,
-                else => return xml.fail(.invalid_byte),
-            },
-            .tag_name => switch (byte) {
-                ' ', '\t', '\r', '\n' => return xml.emit(.tag, .{
-                    .tag = .tag_open,
-                    .bytes = xml.bytes[tok_start..xml.index],
-                }),
-                '>' => return xml.emit(.body, .{
-                    .tag = .tag_open,
-                    .bytes = xml.bytes[tok_start..xml.index],
-                }),
-                '<' => return xml.fail(.invalid_byte),
-                else => {},
-            },
-            .tag => switch (byte) {
-                ' ', '\t', '\r', '\n' => {},
-                '<' => return xml.fail(.invalid_byte),
-                '>' => xml.state = .body,
-                '/' => {
-                    tok_start = xml.index;
-                    xml.state = .tag_end_empty;
-                },
-                else => {
-                    tok_start = xml.index;
-                    xml.state = .tag_attr_key;
-                },
-            },
-            .tag_end_empty => switch (byte) {
-                '>' => return xml.emit(.body, .{
-                    .tag = .tag_close_empty,
-                    .bytes = xml.bytes[tok_start..xml.index],
-                }),
-                else => return xml.fail(.invalid_byte),
-            },
-            .tag_attr_key => switch (byte) {
-                '=' => return xml.emit(.tag_attr_value_q, .{
-                    .tag = .attr_key,
-                    .bytes = xml.bytes[tok_start..xml.index],
-                }),
-                '<', '>' => return xml.fail(.invalid_byte),
-                else => {},
-            },
-            .tag_attr_value_q => switch (byte) {
-                '"' => {
-                    xml.state = .tag_attr_value;
-                    tok_start = xml.index;
-                },
-                else => return xml.fail(.invalid_byte),
-            },
-            .tag_attr_value => switch (byte) {
-                '"' => return xml.emit(.tag, .{
-                    .tag = .attr_value,
-                    .bytes = xml.bytes[tok_start .. xml.index + 1],
-                }),
-                '\n' => return xml.fail(.invalid_byte),
-                else => {},
-            },
-            .comment_start => switch (byte) {
-                '-' => xml.state = .comment_body,
-                else => return xml.fail(.invalid_byte),
-            },
-            .comment_body => switch (byte) {
-                '-' => xml.state = .comment_end_maybe,
-                else => {},
-            },
-            .comment_end_maybe => switch (byte) {
-                '-' => {},
-                '>' => xml.state = .body,
-                else => xml.state = .comment_body,
-            },
-        }
-        xml.advanceCursor();
-    }
-    return .{
-        .tag = .eof,
-        .bytes = xml.bytes[xml.bytes.len..],
-    };
-}
-
-const Xml = @This();
 const std = @import("std");
-const assert = std.debug.assert;
-const testing = std.testing;
+const dishwasher = @import("dishwasher");
+const Uuid = @import("uuid");
+const ChaCha20 = @import("chacha.zig").ChaCha20;
+const root = @import("root.zig");
 
-const State = enum {
-    start,
-    doctype_q,
-    doctype_name,
-    doctype_name_start,
-    doctype,
-    doctype_attr_key,
-    doctype_attr_value_q,
-    doctype_attr_value,
-    doctype_end,
-    body,
-    content,
-    tag_name_start,
-    tag_name,
-    tag,
-    tag_attr_key,
-    tag_attr_value_q,
-    tag_attr_value,
-    tag_close_start,
-    tag_close_name,
-    tag_close_b,
-    tag_end_empty,
-    comment_start,
-    comment_body,
-    comment_end_maybe,
-};
+const Allocator = std.mem.Allocator;
+const Group = root.Group;
+const Entry = root.Entry;
+const Meta = root.Meta;
+const Icon = root.Icon;
+const KeyValue = root.KeyValue;
+const AutoType = root.AutoType;
+const Body = root.Body;
+const XML = root.XML;
 
-fn fail(xml: *Xml, note: ErrorNote) Token {
-    xml.error_note = note;
-    return .{ .tag = .invalid, .bytes = xml.bytes[xml.index..][0..0] };
+pub fn parseXml(self: *const Body, allocator: Allocator) !XML {
+    const tree = try dishwasher.parseXmlFull(allocator, self.xml);
+    defer tree.deinit();
+
+    const file = tree.doc.root.elementByTagName("KeePassFile");
+    if (file == null) return error.KeePassFileTagMissing;
+
+    const meta = file.?.elementByTagName("Meta");
+    if (meta == null) return error.MetaTagMissing;
+
+    const meta_ = try parseMeta(meta.?, allocator);
+    errdefer meta_.deinit();
+
+    const root_ = file.?.elementByTagName("Root");
+    if (root_ == null) return error.RootTagMissing;
+
+    var digest: [64]u8 = .{0} ** 64;
+    std.crypto.hash.sha2.Sha512.hash(self.inner_header.stream_key, &digest, .{});
+
+    var chacha20 = ChaCha20.init(
+        0,
+        digest[0..32].*,
+        digest[32..44].*,
+    );
+
+    const root__ = try parseRoot(root_.?, allocator, &chacha20);
+    errdefer root__.deinit();
+
+    return .{ .meta = meta_, .root = root__ };
 }
 
-fn emit(xml: *Xml, next_state: State, token: Token) Token {
-    xml.state = next_state;
-    xml.advanceCursor();
-    return token;
+fn parseRoot(elem: dishwasher.Document.Node.Element, allocator: Allocator, cipher: *ChaCha20) !Group {
+    const curr_group = elem.elementByTagName("Group");
+    if (curr_group == null) return error.RootGroupMissing;
+
+    return try parseGroup(curr_group.?, allocator, cipher);
 }
 
-fn advanceCursor(xml: *Xml) void {
-    const byte = xml.bytes[xml.index];
-    xml.index += 1;
+fn parseGroup(elem: dishwasher.Document.Node.Element, allocator: Allocator, cipher: *ChaCha20) !Group {
+    var uuid = try fetchUuid(elem, "UUID", allocator);
+    errdefer uuid = 0;
 
-    if (byte == '\n') {
-        xml.line += 1;
-        xml.column = 0;
-    } else {
-        xml.column += 1;
+    const name = try fetchTagValue(elem, "Name", allocator);
+    errdefer {
+        std.crypto.utils.secureZero(u8, name);
+        allocator.free(name);
     }
+
+    const notes = try fetchTagValueNull(elem, "Notes", allocator);
+    errdefer if (notes) |v| {
+        std.crypto.utils.secureZero(u8, v);
+        allocator.free(v);
+    };
+
+    var icon_id = try fetchNumTag(elem, "IconID", allocator);
+    errdefer icon_id = 0;
+
+    const times = elem.elementByTagName("Times");
+    if (times == null) return error.TimesMissing;
+
+    var last_modification_time = try fetchTimeTag(times.?, "LastModificationTime", allocator);
+    errdefer last_modification_time = 0;
+
+    var last_access_time = try fetchTimeTag(times.?, "LastAccessTime", allocator);
+    errdefer last_access_time = 0;
+
+    var creation_time = try fetchTimeTag(times.?, "CreationTime", allocator);
+    errdefer creation_time = 0;
+
+    var expiry_time = try fetchTimeTag(times.?, "ExpiryTime", allocator);
+    errdefer expiry_time = 0;
+
+    const expires = try fetchBool(times.?, "Expires", allocator);
+
+    var usage_count = try fetchNumTag(times.?, "UsageCount", allocator);
+    errdefer usage_count = 0;
+
+    var location_changed = try fetchTimeTag(times.?, "LocationChanged", allocator);
+    errdefer location_changed = 0;
+
+    const is_expanded = try fetchBool(elem, "IsExpanded", allocator);
+
+    const default_auto_type_sequence = try fetchTagValueNull(elem, "DefaultAutoTypeSequence", allocator);
+    errdefer if (default_auto_type_sequence) |v| {
+        std.crypto.utils.secureZero(u8, v);
+        allocator.free(v);
+    };
+
+    const enable_auto_type = fetchBool(elem, "EnableAutoType", allocator) catch null;
+
+    const enable_searching = fetchBool(elem, "EnableSearching", allocator) catch null;
+
+    var last_top_visible_entry = try fetchUuid(elem, "LastTopVisibleEntry", allocator);
+    errdefer last_top_visible_entry = 0;
+
+    const previous_parent_group = fetchUuid(elem, "PreviousParentGroup", allocator) catch null;
+
+    // Parse all entries
+
+    const entries = try elem.elementsByTagNameAlloc(allocator, "Entry");
+    defer allocator.free(entries);
+
+    var entries_array = std.ArrayList(Entry).init(allocator);
+    errdefer {
+        for (entries_array.items) |item| item.deinit();
+        entries_array.deinit();
+    }
+
+    for (entries) |entry| {
+        try entries_array.append(try parseEntry(entry, allocator, cipher));
+    }
+
+    // Parse all groups
+
+    const groups = try elem.elementsByTagNameAlloc(allocator, "Group");
+    defer allocator.free(groups);
+
+    var groups_array = std.ArrayList(Group).init(allocator);
+    errdefer {
+        for (groups_array.items) |item| item.deinit();
+        groups_array.deinit();
+    }
+
+    for (groups) |group| {
+        try groups_array.append(try parseGroup(group, allocator, cipher));
+    }
+
+    return .{
+        .uuid = uuid,
+        .name = name,
+        .notes = notes,
+        .icon_id = icon_id,
+        .times = .{
+            .last_modification_time = last_modification_time,
+            .creation_time = creation_time,
+            .last_access_time = last_access_time,
+            .expiry_time = expiry_time,
+            .expires = expires,
+            .usage_count = usage_count,
+            .location_changed = location_changed,
+        },
+        .is_expanded = is_expanded,
+        .default_auto_type_sequence = default_auto_type_sequence,
+        .enable_auto_type = enable_auto_type,
+        .enable_searching = enable_searching,
+        .last_top_visible_entry = last_top_visible_entry,
+        .previous_parent_group = previous_parent_group,
+        .entries = entries_array,
+        .groups = groups_array,
+        .allocator = allocator,
+    };
 }
 
-test "hello world xml" {
-    const bytes =
-        \\<?xml version="1.0" encoding="UTF-8"?>
-        \\<map></map>
-    ;
-    var xml: Xml = .{ .bytes = bytes };
-    try testExpect(&xml, .doctype, "xml");
-    try testExpect(&xml, .attr_key, "version");
-    try testExpect(&xml, .attr_value, "\"1.0\"");
-    try testExpect(&xml, .attr_key, "encoding");
-    try testExpect(&xml, .attr_value, "\"UTF-8\"");
-    try testExpect(&xml, .tag_open, "map");
-    try testExpect(&xml, .tag_close, "map");
-    try testExpect(&xml, .eof, "");
-    try testExpect(&xml, .eof, "");
+fn parseIcon(elem: dishwasher.Document.Node.Element, allocator: Allocator) !Icon {
+    return .{
+        .uuid = try fetchUuid(elem, "UUID", allocator),
+        .last_modification_time = try fetchTimeTag(elem, "LastModificationTime", allocator),
+        .data = try fetchTagValue(elem, "Data", allocator),
+    };
 }
 
-test "some props" {
-    const bytes =
-        \\<?xml?>
-        \\<map>
-        \\ <properties>
-        \\  <property name="gravity" type="float" value="12.34"/>
-        \\  <property name="never gonna give you up" type="bool" value="true"/>
-        \\  <property name="never gonna let you down" type="bool" value="true"/>
-        \\ </properties>
-        \\</map>
-    ;
-    var xml: Xml = .{ .bytes = bytes };
-    try testExpect(&xml, .doctype, "xml");
-    try testExpect(&xml, .tag_open, "map");
-    try testExpect(&xml, .tag_open, "properties");
+fn parseEntry(elem: dishwasher.Document.Node.Element, allocator: Allocator, cipher: *ChaCha20) !Entry {
+    var uuid = try fetchUuid(elem, "UUID", allocator);
+    errdefer uuid = 0;
 
-    try testExpect(&xml, .tag_open, "property");
-    try testExpect(&xml, .attr_key, "name");
-    try testExpect(&xml, .attr_value, "\"gravity\"");
-    try testExpect(&xml, .attr_key, "type");
-    try testExpect(&xml, .attr_value, "\"float\"");
-    try testExpect(&xml, .attr_key, "value");
-    try testExpect(&xml, .attr_value, "\"12.34\"");
-    try testExpect(&xml, .tag_close_empty, "/");
+    var icon_id = try fetchNumTag(elem, "IconID", allocator);
+    errdefer icon_id = 0;
 
-    try testExpect(&xml, .tag_open, "property");
-    try testExpect(&xml, .attr_key, "name");
-    try testExpect(&xml, .attr_value, "\"never gonna give you up\"");
-    try testExpect(&xml, .attr_key, "type");
-    try testExpect(&xml, .attr_value, "\"bool\"");
-    try testExpect(&xml, .attr_key, "value");
-    try testExpect(&xml, .attr_value, "\"true\"");
-    try testExpect(&xml, .tag_close_empty, "/");
+    const custom_icon_uuid = fetchUuid(elem, "CustomIconUUID", allocator) catch null;
 
-    try testExpect(&xml, .tag_open, "property");
-    try testExpect(&xml, .attr_key, "name");
-    try testExpect(&xml, .attr_value, "\"never gonna let you down\"");
-    try testExpect(&xml, .attr_key, "type");
-    try testExpect(&xml, .attr_value, "\"bool\"");
-    try testExpect(&xml, .attr_key, "value");
-    try testExpect(&xml, .attr_value, "\"true\"");
-    try testExpect(&xml, .tag_close_empty, "/");
+    const foreground_color = try fetchTagValueNull(elem, "ForegroundColor", allocator);
+    errdefer if (foreground_color) |v| {
+        std.crypto.utils.secureZero(u8, v);
+        allocator.free(v);
+    };
 
-    try testExpect(&xml, .tag_close, "properties");
-    try testExpect(&xml, .tag_close, "map");
-    try testExpect(&xml, .eof, "");
+    const background_color = try fetchTagValueNull(elem, "BackgroundColor", allocator);
+    errdefer if (background_color) |v| {
+        std.crypto.utils.secureZero(u8, v);
+        allocator.free(v);
+    };
+
+    const override_url = try fetchTagValueNull(elem, "OverrideURL", allocator);
+    errdefer if (override_url) |v| {
+        std.crypto.utils.secureZero(u8, v);
+        allocator.free(v);
+    };
+
+    const tags = try fetchTagValueNull(elem, "Tags", allocator);
+    errdefer if (tags) |v| {
+        std.crypto.utils.secureZero(u8, v);
+        allocator.free(v);
+    };
+
+    const times = elem.elementByTagName("Times");
+    if (times == null) return error.TimesMissing;
+
+    var last_modification_time = try fetchTimeTag(times.?, "LastModificationTime", allocator);
+    errdefer last_modification_time = 0;
+
+    var last_access_time = try fetchTimeTag(times.?, "LastAccessTime", allocator);
+    errdefer last_access_time = 0;
+
+    var creation_time = try fetchTimeTag(times.?, "CreationTime", allocator);
+    errdefer creation_time = 0;
+
+    var expiry_time = try fetchTimeTag(times.?, "ExpiryTime", allocator);
+    errdefer expiry_time = 0;
+
+    const expires = try fetchBool(times.?, "Expires", allocator);
+
+    var usage_count = try fetchNumTag(times.?, "UsageCount", allocator);
+    errdefer usage_count = 0;
+
+    var location_changed = try fetchTimeTag(times.?, "LocationChanged", allocator);
+    errdefer location_changed = 0;
+
+    var strings = std.ArrayList(KeyValue).init(allocator);
+    errdefer {
+        for (strings.items) |item| item.deinit(allocator);
+        strings.deinit();
+    }
+
+    const strings_ = try elem.elementsByTagNameAlloc(allocator, "String");
+    defer allocator.free(strings_);
+
+    for (strings_) |kv| {
+        const key = try fetchTagValue(kv, "Key", allocator);
+        errdefer allocator.free(key);
+        var value = try fetchTagValue(kv, "Value", allocator);
+        errdefer allocator.free(value);
+
+        // TODO take all other cases into account!
+        // TODO some might disable / enable obfuscation for other fields
+        if (std.mem.eql(u8, "Password", key)) {
+            const l = try std.base64.standard.Decoder.calcSizeForSlice(value);
+            const value_ = try allocator.alloc(u8, l);
+            errdefer allocator.free(value_);
+            try std.base64.standard.Decoder.decode(value_, value);
+
+            cipher.xor(value_);
+            allocator.free(value);
+            value = value_;
+        }
+
+        try strings.append(KeyValue{ .key = key, .value = value });
+    }
+
+    const auto_type = elem.elementByTagName("AutoType");
+    var auto_type_: ?AutoType = null;
+    errdefer if (auto_type_ != null and auto_type_.?.default_sequence != null)
+        allocator.free(auto_type_.?.default_sequence.?);
+    if (auto_type) |at| {
+        const enabled = try fetchBool(at, "Enabled", allocator);
+        const data_transfer_obfuscation = try fetchNumTag(at, "DataTransferObfuscation", allocator);
+
+        const default_sequence = try fetchTagValueNull(at, "DefaultSequence", allocator);
+        auto_type_ = .{
+            .enabled = enabled,
+            .data_transfer_obfuscation = data_transfer_obfuscation,
+            .default_sequence = default_sequence,
+        };
+    }
+
+    var history: ?std.ArrayList(Entry) = null;
+    errdefer if (history) |h| {
+        for (h.items) |item| item.deinit();
+        h.deinit();
+    };
+
+    const hist = elem.elementByTagName("History");
+    if (hist) |h| outer: {
+        const entries = try h.elementsByTagNameAlloc(allocator, "Entry");
+        defer allocator.free(entries);
+
+        if (entries.len == 0) break :outer; // nothing to-do
+
+        history = std.ArrayList(Entry).init(allocator);
+
+        for (entries) |entry| {
+            try history.?.append(try parseEntry(entry, allocator, cipher));
+        }
+    }
+
+    return .{
+        .uuid = uuid,
+        .icon_id = icon_id,
+        .custom_icon_uuid = custom_icon_uuid,
+        .foreground_color = foreground_color,
+        .background_color = background_color,
+        .override_url = override_url,
+        .tags = tags,
+        .times = .{
+            .last_modification_time = last_modification_time,
+            .creation_time = creation_time,
+            .last_access_time = last_access_time,
+            .expiry_time = expiry_time,
+            .expires = expires,
+            .usage_count = usage_count,
+            .location_changed = location_changed,
+        },
+        .strings = strings,
+        .auto_type = auto_type_,
+        .history = history,
+        .allocator = allocator,
+    };
 }
 
-test "comments" {
-    const bytes =
-        \\<?xml?>
-        \\ <!-- This is a multi-
-        \\       line comment, Rick -->
-        \\ <property name="rolled" type="bool" value="true"/>
-    ;
-    var xml: Xml = .{ .bytes = bytes };
-    try testExpect(&xml, .doctype, "xml");
-    try testExpect(&xml, .tag_open, "property");
-    try testExpect(&xml, .attr_key, "name");
-    try testExpect(&xml, .attr_value, "\"rolled\"");
-    try testExpect(&xml, .attr_key, "type");
-    try testExpect(&xml, .attr_value, "\"bool\"");
-    try testExpect(&xml, .attr_key, "value");
-    try testExpect(&xml, .attr_value, "\"true\"");
-    try testExpect(&xml, .tag_close_empty, "/");
+fn parseMeta(elem: dishwasher.Document.Node.Element, allocator: Allocator) !Meta {
+    const generator = try fetchTagValue(elem, "Generator", allocator);
+    errdefer {
+        std.crypto.utils.secureZero(u8, generator);
+        allocator.free(generator);
+    }
+
+    const database_name = try fetchTagValue(elem, "DatabaseName", allocator);
+    errdefer {
+        std.crypto.utils.secureZero(u8, database_name);
+        allocator.free(database_name);
+    }
+
+    var database_name_changed = try fetchTimeTag(elem, "DatabaseNameChanged", allocator);
+    errdefer database_name_changed = 0;
+
+    const database_description = try fetchTagValueNull(elem, "DatabaseDescription", allocator);
+    errdefer if (database_description) |v| {
+        std.crypto.utils.secureZero(u8, v);
+        allocator.free(v);
+    };
+
+    var database_description_changed = try fetchTimeTag(elem, "DatabaseDescriptionChanged", allocator);
+    errdefer database_description_changed = 0;
+
+    const default_user_name = try fetchTagValueNull(elem, "DefaultUserName", allocator);
+    errdefer if (default_user_name) |v| {
+        std.crypto.utils.secureZero(u8, v);
+        allocator.free(v);
+    };
+
+    var default_user_name_changed = try fetchTimeTag(elem, "DefaultUserNameChanged", allocator);
+    errdefer default_user_name_changed = 0;
+
+    var maintenance_history_days = try fetchNumTag(elem, "MaintenanceHistoryDays", allocator);
+    errdefer maintenance_history_days = 0;
+
+    const color = try fetchTagValueNull(elem, "Color", allocator);
+    errdefer if (color) |v| {
+        std.crypto.utils.secureZero(u8, v);
+        allocator.free(v);
+    };
+
+    var master_key_changed = try fetchTimeTag(elem, "MasterKeyChanged", allocator);
+    errdefer master_key_changed = 0;
+
+    var master_key_change_rec = try fetchNumTag(elem, "MasterKeyChangeRec", allocator);
+    errdefer master_key_change_rec = 0;
+
+    var master_key_change_force = try fetchNumTag(elem, "MasterKeyChangeForce", allocator);
+    errdefer master_key_change_force = 0;
+
+    const protection = elem.elementByTagName("MemoryProtection");
+    if (protection == null) return error.TagMissing;
+    const protect_title = try fetchBool(protection.?, "ProtectTitle", allocator);
+    const protect_user_name = try fetchBool(protection.?, "ProtectUserName", allocator);
+    const protect_password = try fetchBool(protection.?, "ProtectPassword", allocator);
+    const protect_url = try fetchBool(protection.?, "ProtectURL", allocator);
+    const protect_notes = try fetchBool(protection.?, "ProtectNotes", allocator);
+
+    var custom_icons: ?std.ArrayList(Icon) = null;
+    errdefer {
+        if (custom_icons) |icos| {
+            for (icos.items) |ico| ico.deinit(allocator);
+            icos.deinit();
+        }
+    }
+
+    const custom_icons_ = elem.elementByTagName("CustomIcons");
+    if (custom_icons_) |icos| outer: {
+        const icons = try icos.elementsByTagNameAlloc(allocator, "Icon");
+        defer allocator.free(icons);
+
+        if (icons.len == 0) break :outer;
+
+        custom_icons = std.ArrayList(Icon).init(allocator);
+
+        for (icons) |icon| try custom_icons.?.append(try parseIcon(icon, allocator));
+    }
+
+    const recycle_bin_enabled = try fetchBool(elem, "RecycleBinEnabled", allocator);
+
+    const recycle_bin_uuid = try fetchUuid(elem, "RecycleBinUUID", allocator);
+
+    var recycle_bin_changed = try fetchTimeTag(elem, "RecycleBinChanged", allocator);
+    errdefer recycle_bin_changed = 0;
+
+    const entry_templates_group = try fetchUuid(elem, "EntryTemplatesGroup", allocator);
+
+    var entry_templates_group_changed = try fetchTimeTag(elem, "EntryTemplatesGroupChanged", allocator);
+    errdefer entry_templates_group_changed = 0;
+
+    const last_selected_group = try fetchUuid(elem, "LastSelectedGroup", allocator);
+
+    const last_top_visible_group = try fetchUuid(elem, "LastTopVisibleGroup", allocator);
+
+    var history_max_items = try fetchNumTag(elem, "HistoryMaxItems", allocator);
+    errdefer history_max_items = 0;
+
+    var history_max_size = try fetchNumTag(elem, "HistoryMaxSize", allocator);
+    errdefer history_max_size = 0;
+
+    var settings_changed = try fetchTimeTag(elem, "SettingsChanged", allocator);
+    errdefer settings_changed = 0;
+
+    var custom_data = std.ArrayList(KeyValue).init(allocator);
+    errdefer {
+        for (custom_data.items) |item| item.deinit(allocator);
+        custom_data.deinit();
+    }
+
+    const custom_data_ = elem.elementByTagName("CustomData");
+    if (custom_data_) |cd| outer: {
+        const pairs = cd.elementsByTagNameAlloc(allocator, "Item") catch break :outer;
+        defer allocator.free(pairs);
+
+        for (pairs) |kv| {
+            const key = try fetchTagValue(kv, "Key", allocator);
+            errdefer allocator.free(key);
+            const value = try fetchTagValue(kv, "Value", allocator);
+            errdefer allocator.free(value);
+
+            try custom_data.append(KeyValue{ .key = key, .value = value });
+        }
+    }
+
+    return Meta{
+        .generator = generator,
+        .database_name = database_name,
+        .database_name_changed = database_name_changed,
+        .database_description = database_description,
+        .database_description_changed = database_description_changed,
+        .default_user_name = default_user_name,
+        .default_user_name_changed = default_user_name_changed,
+        .maintenance_history_days = maintenance_history_days,
+        .color = color,
+        .master_key_changed = master_key_changed,
+        .master_key_change_rec = master_key_change_rec,
+        .master_key_change_force = master_key_change_force,
+        .memory_protection = .{
+            .protect_title = protect_title,
+            .protect_user_name = protect_user_name,
+            .protect_password = protect_password,
+            .protect_url = protect_url,
+            .protect_notes = protect_notes,
+        },
+        .custom_icons = custom_icons,
+        .recycle_bin_enabled = recycle_bin_enabled,
+        .recycle_bin_uuid = recycle_bin_uuid,
+        .recycle_bin_changed = recycle_bin_changed,
+        .entry_template_group = entry_templates_group,
+        .entry_template_group_changed = entry_templates_group_changed,
+        .last_selected_group = last_selected_group,
+        .last_top_visible_group = last_top_visible_group,
+        .history_max_items = history_max_items,
+        .history_max_size = history_max_size,
+        .settings_changed = settings_changed,
+        .custom_data = custom_data,
+        .allocator = allocator,
+    };
 }
 
-test "eof mid-comment" {
-    const bytes =
-        \\<?xml?>
-        \\ <!
-    ;
-    var xml: Xml = .{ .bytes = bytes };
-    try testExpect(&xml, .doctype, "xml");
-    try testExpect(&xml, .eof, "");
+fn fetchTagValue(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) ![]u8 {
+    const v = if (elem.elementByTagName(name)) |v| v else {
+        //std.log.err("{s} tag missing", .{name});
+        return error.TagMissing;
+    };
+    return @constCast(try v.textAlloc(allocator));
 }
 
-fn testExpect(xml: *Xml, tag: Token.Tag, bytes: []const u8) !void {
-    const tok = xml.next();
-    try testing.expectEqual(tag, tok.tag);
-    try testing.expectEqualStrings(bytes, tok.bytes);
+fn fetchTagValueNull(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) !?[]u8 {
+    const v = if (elem.elementByTagName(name)) |v| v else return null;
+    return @constCast(try v.textAlloc(allocator));
+}
+
+/// Fetch time in seconds
+fn fetchTimeTag(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) !i64 {
+    const time = try fetchTagValue(elem, name, allocator);
+    defer allocator.free(time);
+    const l = try std.base64.standard.Decoder.calcSizeForSlice(time);
+    const dnc = try allocator.alloc(u8, l);
+    defer allocator.free(dnc);
+    try std.base64.standard.Decoder.decode(dnc, time);
+    const t = std.mem.readInt(u64, dnc[0..8], .little);
+    // We have to switch from 0001-01-01 00:00 UTC to EPOCH
+    //t -= TIME_DIFF_KDBX_EPOCH_IN_SEC;
+    return @intCast(t);
+}
+
+fn fetchNumTag(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) !i64 {
+    const value = try fetchTagValue(elem, name, allocator);
+    defer allocator.free(value);
+    return try std.fmt.parseInt(i64, value, 10);
+}
+
+fn fetchBool(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) !bool {
+    const value = try fetchTagValue(elem, name, allocator);
+    defer allocator.free(value);
+    return if (std.mem.eql(u8, "False", value))
+        false
+    else if (std.mem.eql(u8, "True", value))
+        true
+    else
+        error.NotABool;
+}
+
+fn fetchUuid(elem: dishwasher.Document.Node.Element, name: []const u8, allocator: Allocator) !Uuid.Uuid {
+    const time = try fetchTagValue(elem, name, allocator);
+    defer allocator.free(time);
+    const l = try std.base64.standard.Decoder.calcSizeForSlice(time);
+    if (l != 16) return error.UnexpectedUuidLength;
+    const dnc = try allocator.alloc(u8, l);
+    defer allocator.free(dnc);
+    try std.base64.standard.Decoder.decode(dnc, time);
+    return std.mem.readInt(Uuid.Uuid, dnc[0..16], .little);
 }
