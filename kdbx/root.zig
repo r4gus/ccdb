@@ -560,6 +560,8 @@ pub const Body = struct {
         var icon_id = try fetchNumTag(elem, "IconID", allocator);
         errdefer icon_id = 0;
 
+        const custom_icon_uuid = fetchUuid(elem, "CustomIconUUID", allocator) catch null;
+
         const foreground_color = try fetchTagValueNull(elem, "ForegroundColor", allocator);
         errdefer if (foreground_color) |v| {
             std.crypto.utils.secureZero(u8, v);
@@ -677,6 +679,7 @@ pub const Body = struct {
         return .{
             .uuid = uuid,
             .icon_id = icon_id,
+            .custom_icon_uuid = custom_icon_uuid,
             .foreground_color = foreground_color,
             .background_color = background_color,
             .override_url = override_url,
@@ -1062,6 +1065,7 @@ pub const Group = struct {
 pub const Entry = struct {
     uuid: Uuid.Uuid,
     icon_id: i64,
+    custom_icon_uuid: ?Uuid.Uuid = null,
     foreground_color: ?[]u8 = null,
     background_color: ?[]u8 = null,
     override_url: ?[]u8 = null,
@@ -1937,6 +1941,7 @@ test "the decryption of a kdbx4 file #2" {
 
     // Entry 0
     try std.testing.expectEqualSlices(u8, "5dd56835-af4c-49a3-aa67-f458f18397ef", &Uuid.urn.serialize(body_xml.root.entries.items[0].uuid));
+    try std.testing.expectEqualSlices(u8, "ba5c5602-21dc-464e-ab87-014d487a74c1", &Uuid.urn.serialize(body_xml.root.entries.items[0].custom_icon_uuid.?));
     try std.testing.expectEqual(@as(i64, 0), body_xml.root.entries.items[0].icon_id);
     try std.testing.expectEqualSlices(u8, "dev,programming", body_xml.root.entries.items[0].tags.?);
     try std.testing.expectEqualSlices(u8, "Recovery keys:\n\n123-456-789\n123-456-789", body_xml.root.entries.items[0].get("Notes").?);
@@ -1947,6 +1952,7 @@ test "the decryption of a kdbx4 file #2" {
 
     // Entry 1
     try std.testing.expectEqualSlices(u8, "66a6757f-76e2-47a6-b828-5cb907cc99f7", &Uuid.urn.serialize(body_xml.root.entries.items[1].uuid));
+    try std.testing.expect(body_xml.root.entries.items[1].custom_icon_uuid == null);
     try std.testing.expectEqual(@as(i64, 0), body_xml.root.entries.items[1].icon_id);
     try std.testing.expectEqualSlices(u8, "coding,programming", body_xml.root.entries.items[1].tags.?);
     try std.testing.expectEqualSlices(u8, "", body_xml.root.entries.items[1].get("Notes").?);
