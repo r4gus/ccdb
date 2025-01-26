@@ -6,7 +6,12 @@ This document describes a format to store secrets at rest based on the CBOR data
 
 ### Installation
 
-> Requires Zig version 0.13.0
+Versions:
+
+| Zig version | ccdb version |
+|:-----------:|:------------:|
+| 0.13.0      | 0.1.0, 0.2.0 |
+| 0.14.0      | 0.3.0 |
 
 #### Module
 
@@ -22,6 +27,13 @@ The `ccdb` module can be added to your projects by adding `ccdb` to your list of
     },
 },
 ```
+
+Alternatively you can use the following command, which will automatically add `ccdb` as an dependency to your `build.zig.zon` file:
+
+```bash
+# Replace <VERSION TAG> with the version you want to use
+zig fetch --save https://github.com/r4gus/ccdb/archive/refs/tags/<VERSION TAG>.tar.gz
+``` 
 
 You can then import the module within your `build.zig`.
 
