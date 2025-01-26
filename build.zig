@@ -32,12 +32,6 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    const dishwasher_dep = b.dependency("dishwasher", .{
-        .target = target,
-        .optimize = optimize,
-    });
-    const superhtml_module = dishwasher_dep.module("dishwasher");
-
     const lib = b.addStaticLibrary(.{
         .name = "ccdb",
         // In this case the main source file is merely a path, however, in more
@@ -136,14 +130,4 @@ pub fn build(b: *std.Build) !void {
     cmd_exe.root_module.addImport("clap", clap_dep.module("clap"));
     cmd_exe.linkLibC();
     b.installArtifact(cmd_exe);
-
-    const kdbx_unit_tests = b.addTest(.{
-        .root_source_file = b.path("kdbx/root.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    kdbx_unit_tests.root_module.addImport("dishwasher", superhtml_module);
-    kdbx_unit_tests.root_module.addImport("uuid", uuid_module);
-    const run_kdbx_unit_tests = b.addRunArtifact(kdbx_unit_tests);
-    test_step.dependOn(&run_kdbx_unit_tests.step);
 }

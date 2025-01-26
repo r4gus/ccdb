@@ -70,7 +70,7 @@ pub const Db = struct {
         self.body.deinit();
         self.allocator.destroy(self.body);
         if (self.key) |key| {
-            @memset(key[0..], 0);
+            std.crypto.secureZero(u8, key[0..]);
             self.allocator.free(key);
         }
     }
@@ -83,7 +83,7 @@ pub const Db = struct {
 
         var raw = std.ArrayList(u8).init(allocator);
         errdefer {
-            @memset(raw.items, 0);
+            std.crypto.secureZero(u8, raw.items);
             raw.deinit();
         }
 
@@ -160,7 +160,8 @@ pub const Db = struct {
 
         return if (std.mem.eql(u8, header.fields.cid, cipher_suites.CCDB_XCHACHA20_POLY1305_ARGON2ID)) blk: {
             var key: [XChaCha20Poly1305.key_length]u8 = undefined;
-            defer @memset(&key, 0);
+            defer std.crypto.secureZero(u8, &key);
+
             try header.deriveKey(&key, key_data, allocator);
             if (header.fields.iv.len < XChaCha20Poly1305.nonce_length)
                 return error.InvalidNonceLength;
@@ -181,7 +182,7 @@ pub const Db = struct {
 
             const k = try allocator.dupe(u8, key[0..]);
             errdefer {
-                @memset(k, 0);
+                std.crypto.secureZero(u8, k);
                 allocator.free(k);
             }
 
@@ -197,7 +198,7 @@ pub const Db = struct {
     pub fn setKey(self: *@This(), key_data: []const u8) !void {
         if (std.mem.eql(u8, self.header.fields.cid, cipher_suites.CCDB_XCHACHA20_POLY1305_ARGON2ID)) {
             var key: [XChaCha20Poly1305.key_length]u8 = undefined;
-            defer @memset(&key, 0);
+            defer std.crypto.secureZero(u8, &key);
             try self.header.deriveKey(&key, key_data, self.allocator);
             const k = try self.allocator.dupe(u8, key[0..]);
             if (self.key) |old_key| self.allocator.free(old_key);
@@ -930,7 +931,7 @@ pub const Entry = struct {
     pub fn setName(self: *@This(), name: ?[]const u8) !void {
         const name_: ?[]u8 = if (name) |n| try self.allocator.dupe(u8, n) else null;
         if (self.name) |n| {
-            @memset(n, 0);
+            std.crypto.secureZero(u8, n);
             self.allocator.free(n);
         }
         self.name = name_;
@@ -945,7 +946,7 @@ pub const Entry = struct {
     pub fn setNotes(self: *@This(), notes: ?[]const u8) !void {
         const notes_: ?[]u8 = if (notes) |n| try self.allocator.dupe(u8, n) else null;
         if (self.notes) |n| {
-            @memset(n, 0);
+            std.crypto.secureZero(u8, n);
             self.allocator.free(n);
         }
         self.notes = notes_;
@@ -967,7 +968,7 @@ pub const Entry = struct {
     pub fn setSecret(self: *@This(), secret: ?[]const u8) !void {
         const secret_: ?[]u8 = if (secret) |s| try self.allocator.dupe(u8, s) else null;
         if (self.secret) |s| {
-            @memset(s, 0);
+            std.crypto.secureZero(u8, s);
             self.allocator.free(s);
         }
         self.secret = secret_;
@@ -989,7 +990,7 @@ pub const Entry = struct {
     pub fn setUrl(self: *@This(), url: ?[]const u8) !void {
         const url_: ?[]u8 = if (url) |u| try self.allocator.dupe(u8, u) else null;
         if (self.url) |u| {
-            @memset(u, 0);
+            std.crypto.secureZero(u8, u);
             self.allocator.free(u);
         }
         self.url = url_;
@@ -1060,30 +1061,30 @@ pub const Entry = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        @memset(self.uuid[0..], 0);
+        std.crypto.secureZero(u8, self.uuid[0..]);
         if (self.name) |name| {
-            @memset(name, 0);
+            std.crypto.secureZero(u8, name);
             self.allocator.free(name);
         }
         if (self.notes) |notes| {
-            @memset(notes, 0);
+            std.crypto.secureZero(u8, notes);
             self.allocator.free(notes);
         }
         if (self.secret) |secret| {
-            @memset(secret, 0);
+            std.crypto.secureZero(u8, secret);
             self.allocator.free(secret);
         }
         if (self.url) |url| {
-            @memset(url, 0);
+            std.crypto.secureZero(u8, url);
             self.allocator.free(url);
         }
         if (self.user) |user| user.deinit();
         if (self.group) |*group| {
-            @memset(group[0..], 0);
+            std.crypto.secureZero(u8, group[0..]);
         }
         if (self.tags) |tags| {
             for (tags) |tag| {
-                @memset(tag, 0);
+                std.crypto.secureZero(u8, tag);
                 self.allocator.free(tag);
             }
             self.allocator.free(tags);
