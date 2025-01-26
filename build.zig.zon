@@ -2,7 +2,7 @@
     .name = "ccdb",
     // This is a [Semantic Version](https://semver.org/).
     // In a future version of Zig it will be used for package deduplication.
-    .version = "0.2.0",
+    .version = "0.3.0",
 
     // This field is optional.
     // This is currently advisory only; Zig does not yet do anything
@@ -44,18 +44,16 @@
         //    .lazy = false,
         //},
         .zbor = .{
-            .url = "https://github.com/r4gus/zbor/archive/refs/tags/0.15.0.tar.gz",
-            .hash = "12209a78f8c31b6d65d2249082dc824da4a191f6f7be6a1c1740fc093b765c5ebeea",
-            //.path = "../../zbor",
+            .url = "https://github.com/r4gus/zbor/archive/refs/tags/0.16.0.tar.gz",
+            .hash = "12204e296dfd96db337f0b59dbde2bfb9c5e5107be64ef1067087398d4985c8ffc3d",
         },
         .uuid = .{
-            .url = "https://github.com/r4gus/uuid-zig/archive/refs/tags/0.2.1.tar.gz",
-            .hash = "1220b4deeb4ec1ec3493ea934905356384561b725dba69d1fbf6a25cb398716dd05b",
+            .url = "https://github.com/r4gus/uuid-zig/archive/refs/tags/0.3.0.tar.gz",
+            .hash = "12207920ff3fce69398afc959b252b8cd72ab55a6dbb251d71fa046a43d9a85bffe6",
         },
         .clap = .{
-            .url = "https://github.com/Hejsil/zig-clap/archive/refs/tags/0.9.1.tar.gz",
-            .hash = "122062d301a203d003547b414237229b09a7980095061697349f8bef41be9c30266b",
-            //.path = "../ccdb",
+            .url = "git+https://github.com/Hejsil/zig-clap#068c38f89814079635692c7d0be9f58508c86173",
+            .hash = "1220ff14a53e9a54311c9b0e665afeda2c82cfd6f57e7e1b90768bf13b85f9f29cd0",
         },
     },
 
