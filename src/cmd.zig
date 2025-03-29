@@ -137,7 +137,7 @@ pub fn main() !void {
         defer database.deinit();
 
         if (res.args.list != 0) {
-            for (database.body.entries.items, 0..) |entry, i| {
+            for (database.body.entries, 0..) |entry, i| {
                 try std.fmt.format(stdout.writer(), "[{d}] {s}\n", .{ i, entry.uuid });
                 if (entry.name) |name| {
                     try std.fmt.format(stdout.writer(), "  name: {s}\n", .{name});
@@ -245,11 +245,11 @@ fn editEntry(res: anytype, e: *ccdb.Entry, stdout: std.fs.File, stdin: std.fs.Fi
 
 fn getEntry(res: anytype, database: *ccdb.Db, stderr: std.fs.File) !*ccdb.Entry {
     return if (res.args.index) |i| blk: {
-        if (database.body.entries.items.len <= i) {
+        if (database.body.entries.len <= i) {
             try std.fmt.format(stderr.writer(), "index out of bounds\n", .{});
             return error.NoEntry;
         }
-        break :blk &database.body.entries.items[i];
+        break :blk &database.body.entries[i];
     } else if (res.args.uuid) |uuid| blk: {
         const entry = database.body.getEntryById(uuid);
         if (entry == null) {

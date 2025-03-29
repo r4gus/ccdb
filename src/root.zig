@@ -244,7 +244,7 @@ pub const Kdf = struct {
 
     pub fn cborStringify(self: *const @This(), _: cbor.Options, out: anytype) !void {
         try cbor.stringify(self, .{
-            .from_callback = true,
+            .ignore_override = true,
             .field_settings = &.{
                 .{ .name = "S", .value_options = .{ .slice_serialization_type = .ByteString } },
             },
@@ -260,7 +260,7 @@ pub const HeaderFields = struct {
 
     pub fn cborStringify(self: *const @This(), _: cbor.Options, out: anytype) !void {
         try cbor.stringify(self, .{
-            .from_callback = true,
+            .ignore_override = true,
             .field_settings = &.{
                 .{ .name = "cid", .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "iv", .value_options = .{ .slice_serialization_type = .ByteString } },
@@ -394,9 +394,9 @@ pub const Header = struct {
 /// MUST NOT be copied manually!
 pub const Body = struct {
     meta: Meta,
-    entries: std.ArrayList(Entry),
-    groups: ?std.ArrayList(Group) = null,
-    bin: ?std.ArrayList(Entry) = null,
+    entries: []Entry,
+    groups: ?[]Group = null,
+    bin: ?[]Entry = null,
     allocator: std.mem.Allocator,
     ms: *const fn () i64,
     rand: std.Random,
@@ -405,7 +405,7 @@ pub const Body = struct {
         const body = try allocator.create(Body);
         body.* = .{
             .meta = try Meta.new(gen, name, allocator, ms),
-            .entries = std.ArrayList(Entry).init(allocator),
+            .entries = try allocator.alloc(Entry, 0),
             .allocator = allocator,
             .ms = ms,
             .rand = rand,
@@ -413,23 +413,29 @@ pub const Body = struct {
         return body;
     }
 
-    pub fn deinit(self: *const @This()) void {
+    pub fn deinit(self: *@This()) void {
         self.meta.deinit();
-        for (self.entries.items) |*entry| {
+
+        for (self.entries) |*entry| {
             entry.deinit();
         }
-        self.entries.deinit();
+        self.allocator.free(self.entries);
+        self.entries = &.{};
+
         if (self.groups) |groups| {
-            for (groups.items) |item| {
+            for (groups) |item| {
                 item.deinit();
             }
-            groups.deinit();
+            self.allocator.free(groups);
+            self.groups = null;
         }
+
         if (self.bin) |bin| {
-            for (bin.items) |*item| {
+            for (bin) |*item| {
                 item.deinit();
             }
-            bin.deinit();
+            self.allocator.free(bin);
+            self.bin = null;
         }
     }
 
@@ -444,21 +450,28 @@ pub const Body = struct {
     pub fn newEntry(self: *@This()) !*Entry {
         var e = Entry.new(self.allocator, self.ms, self.rand);
         e.parent = @intFromPtr(self);
-        try self.entries.append(e);
-        return &self.entries.items[self.entries.items.len - 1];
+
+        self.entries = try self.allocator.realloc(self.entries, self.entries.len + 1);
+        self.entries[self.entries.len - 1] = e;
+        return &self.entries[self.entries.len - 1];
     }
 
     pub fn deleteEntryById(self: *@This(), id: uuid.urn.Urn) !void {
         var i: ?usize = null;
 
-        for (self.entries.items, 0..) |entry, j| {
+        for (self.entries, 0..) |entry, j| {
             if (std.mem.eql(u8, &id, &entry.uuid)) {
                 i = j;
                 break;
             }
         }
 
-        var e = if (i) |i_| self.entries.swapRemove(i_) else return error.NoSuchEntry;
+        var e = if (i) |i_| blk: {
+            const e = self.entries[i_];
+            if (i_ != self.entries.len - 1) self.entries[i_] = self.entries[self.entries.len - 1];
+            self.entries = try self.allocator.realloc(self.entries, self.entries.len - 1);
+            break :blk e;
+        } else return error.NoSuchEntry;
         defer e.deinit();
 
         if (e.group) |group_| outer_blk: { // check if entry belongs to group
@@ -467,17 +480,18 @@ pub const Body = struct {
 
                 if (parent.groups) |groups| { // iterate over groups
                     var j: usize = 0;
-                    while (j < groups.items.len) : (j += 1) {
-                        if (std.mem.eql(u8, group_[0..], groups.items[j].uuid[0..])) { // if group matches the group of the entry
-                            if (groups.items[j].entries) |*entries| { // iterate over entries if they exist
-                                var arr = std.ArrayList(uuid.urn.Urn).fromOwnedSlice(groups.items[j].allocator, entries.*);
+                    while (j < groups.len) : (j += 1) {
+                        if (std.mem.eql(u8, group_[0..], groups[j].uuid[0..])) { // if group matches the group of the entry
+                            if (groups[j].entries.len > 0) { // iterate over entries if they exist
+                                const entries = &groups[j].entries;
+                                var arr = std.ArrayList(uuid.urn.Urn).fromOwnedSlice(groups[j].allocator, entries.*);
                                 var k: usize = 0;
                                 while (k < arr.items.len) : (k += 1) {
                                     if (std.mem.eql(u8, arr.items[k][0..], e.uuid[0..])) { // remove entry if found in group
                                         _ = arr.swapRemove(k);
                                         if (arr.items.len == 0) {
                                             arr.deinit();
-                                            groups.items[j].entries = null;
+                                            groups[j].entries = &.{};
                                         } else {
                                             entries.* = try arr.toOwnedSlice();
                                         }
@@ -504,9 +518,13 @@ pub const Body = struct {
     pub fn newGroup(self: *@This(), name: []const u8) !*Group {
         var g = try Group.new(name, self.allocator, self.ms, self.rand);
         g.parent = @intFromPtr(self);
-        if (self.groups == null) self.groups = std.ArrayList(Group).init(self.allocator);
-        try self.groups.?.append(g);
-        return &self.groups.?.items[self.groups.?.items.len - 1];
+        if (self.groups == null)
+            self.groups = try self.allocator.alloc(Group, 1)
+        else
+            self.groups = try self.allocator.realloc(self.groups.?, self.groups.?.len + 1);
+        self.groups.?[self.groups.?.len - 1] = g;
+        std.debug.print("new group; total groups: {d}\n", .{self.groups.?.len});
+        return &self.groups.?[self.groups.?.len - 1];
     }
 
     /// Get the database entry with the given id.
@@ -519,7 +537,7 @@ pub const Body = struct {
     pub fn getEntryById(self: *const @This(), id: []const u8) ?*Entry {
         if (id.len != 36) return null; // A URN is always 36 bytes long
 
-        for (self.entries.items) |*entry| {
+        for (self.entries) |*entry| {
             if (std.mem.eql(u8, entry.uuid[0..], id[0..])) return entry;
         }
         return null;
@@ -544,14 +562,14 @@ pub const Body = struct {
         try cbor.build.writeInt(writer, 0);
         try cbor.stringify(self.meta, .{}, writer);
         try cbor.build.writeInt(writer, 1);
-        try cbor.stringify(self.entries.items, .{}, writer);
+        try cbor.stringify(self.entries, .{}, writer);
         if (self.groups) |groups| {
             try cbor.build.writeInt(writer, 2);
-            try cbor.stringify(groups.items, .{}, writer);
+            try cbor.stringify(groups, .{}, writer);
         }
         if (self.bin) |bin| {
             try cbor.build.writeInt(writer, 3);
-            try cbor.stringify(bin.items, .{}, writer);
+            try cbor.stringify(bin, .{}, writer);
         }
     }
 
@@ -620,14 +638,14 @@ pub const Body = struct {
         const body = try allocator.create(Body);
         body.* = .{
             .meta = meta_,
-            .entries = std.ArrayList(Entry).fromOwnedSlice(allocator, entries_),
-            .groups = if (groups) |g| std.ArrayList(Group).fromOwnedSlice(allocator, g) else null,
-            .bin = if (bin) |b| std.ArrayList(Entry).fromOwnedSlice(allocator, b) else null,
+            .entries = entries_,
+            .groups = if (groups) |g| g else null,
+            .bin = if (bin) |b| b else null,
             .allocator = allocator,
             .ms = ms,
             .rand = rand,
         };
-        for (body.entries.items) |*entry| {
+        for (body.entries) |*entry| {
             entry.parent = @intFromPtr(body);
         }
 
@@ -639,8 +657,8 @@ pub const Group = struct {
     uuid: uuid.urn.Urn,
     name: []u8,
     times: Times,
-    groups: ?[]uuid.urn.Urn = null,
-    entries: ?[]uuid.urn.Urn = null,
+    groups: []uuid.urn.Urn,
+    entries: []uuid.urn.Urn,
     group: ?uuid.urn.Urn = null,
     allocator: std.mem.Allocator,
     // This is a little hack to satisfy the compiler. If we use a pointer the
@@ -650,6 +668,7 @@ pub const Group = struct {
     parent: ?usize = null,
 
     pub fn new(name: []const u8, allocator: std.mem.Allocator, milliTimestamp: *const fn () i64, random: std.Random) !@This() {
+        std.debug.print("Group::new; groups: {d}\n", .{0});
         const name_ = try allocator.dupe(u8, name);
 
         const id = uuid.v7.new2(random, milliTimestamp);
@@ -661,17 +680,23 @@ pub const Group = struct {
                 .creat = t,
                 .mod = t,
             },
+            .groups = &.{},
+            .entries = &.{},
+            .group = null,
             .allocator = allocator,
+            .parent = null,
         };
     }
 
     pub fn deinit(self: *const @This()) void {
+        std.debug.print("Group::deinit; groups: {d}\n", .{self.groups.len});
         self.allocator.free(self.name);
-        if (self.groups) |groups| self.allocator.free(groups);
-        if (self.entries) |entries| self.allocator.free(entries);
+        self.allocator.free(self.groups);
+        self.allocator.free(self.entries);
     }
 
     pub fn addEntry(self: *@This(), entry: *Entry) !void {
+        std.debug.print("Group::addEntry; groups: {d}\n", .{self.groups.len});
         if (entry.group) |group| outer_blk: {
             if (std.mem.eql(u8, group[0..], self.uuid[0..])) return;
 
@@ -679,17 +704,18 @@ pub const Group = struct {
                 const parent: *Body = @ptrFromInt(parent_);
                 if (parent.groups) |groups| {
                     var i: usize = 0;
-                    while (i < groups.items.len) : (i += 1) {
-                        if (std.mem.eql(u8, group[0..], groups.items[i].uuid[0..])) {
-                            if (groups.items[i].entries) |*entries| {
-                                var e = std.ArrayList(uuid.urn.Urn).fromOwnedSlice(groups.items[i].allocator, entries.*);
+                    while (i < groups.len) : (i += 1) {
+                        if (std.mem.eql(u8, group[0..], groups[i].uuid[0..])) {
+                            if (groups[i].entries.len > 0) {
+                                const entries = &groups[i].entries;
+                                var e = std.ArrayList(uuid.urn.Urn).fromOwnedSlice(groups[i].allocator, entries.*);
                                 var j: usize = 0;
                                 while (j < e.items.len) : (j += 1) {
                                     if (std.mem.eql(u8, e.items[j][0..], entry.uuid[0..])) {
                                         _ = e.swapRemove(j);
                                         if (e.items.len == 0) {
                                             e.deinit();
-                                            groups.items[i].entries = null;
+                                            groups[i].entries = &.{};
                                         } else {
                                             entries.* = try e.toOwnedSlice();
                                         }
@@ -703,13 +729,13 @@ pub const Group = struct {
             }
         }
 
-        var arr = if (self.entries) |entries| std.ArrayList(uuid.urn.Urn).fromOwnedSlice(self.allocator, entries) else std.ArrayList(uuid.urn.Urn).init(self.allocator);
-        try arr.append(entry.uuid);
-        self.entries = try arr.toOwnedSlice();
+        self.entries = try self.allocator.realloc(self.entries, self.entries.len + 1);
+        self.entries[self.entries.len - 1] = entry.uuid;
         entry.group = self.uuid;
     }
 
     pub fn addGroup(self: *@This(), group: *Group) !void {
+        std.debug.print("Group::addGroup; groups: {d}\n", .{self.groups.len});
         if (group.group) |group_parent_id| outer_blk: {
             if (std.mem.eql(u8, group_parent_id[0..], self.uuid[0..])) return;
 
@@ -717,17 +743,18 @@ pub const Group = struct {
                 const parent: *Body = @ptrFromInt(parent_);
                 if (parent.groups) |groups| {
                     var i: usize = 0;
-                    while (i < groups.items.len) : (i += 1) {
-                        if (std.mem.eql(u8, group_parent_id[0..], groups.items[i].uuid[0..])) {
-                            if (groups.items[i].groups) |*groups_of_group| {
-                                var e = std.ArrayList(uuid.urn.Urn).fromOwnedSlice(groups.items[i].allocator, groups_of_group.*);
+                    while (i < groups.len) : (i += 1) {
+                        if (std.mem.eql(u8, group_parent_id[0..], groups[i].uuid[0..])) {
+                            if (groups[i].groups.len > 0) {
+                                const groups_of_group = &groups[i].groups;
+                                var e = std.ArrayList(uuid.urn.Urn).fromOwnedSlice(groups[i].allocator, groups_of_group.*);
                                 var j: usize = 0;
                                 while (j < e.items.len) : (j += 1) {
                                     if (std.mem.eql(u8, e.items[j][0..], group.uuid[0..])) {
                                         _ = e.swapRemove(j);
                                         if (e.items.len == 0) {
                                             e.deinit();
-                                            groups.items[i].groups = null;
+                                            groups[i].groups = &.{};
                                         } else {
                                             groups_of_group.* = try e.toOwnedSlice();
                                         }
@@ -741,15 +768,15 @@ pub const Group = struct {
             }
         }
 
-        var arr = if (self.groups) |groups| std.ArrayList(uuid.urn.Urn).fromOwnedSlice(self.allocator, groups) else std.ArrayList(uuid.urn.Urn).init(self.allocator);
-        try arr.append(group.uuid);
-        self.groups = try arr.toOwnedSlice();
+        std.debug.print("len of groups: {d}\n", .{self.groups.len});
+        self.groups = try self.allocator.realloc(self.groups, self.groups.len + 1);
+        self.groups[self.groups.len - 1] = group.uuid;
         group.group = self.uuid;
     }
 
     pub fn cborStringify(self: *const @This(), o: cbor.Options, out: anytype) !void {
         try cbor.stringify(self, .{
-            .from_callback = true,
+            .ignore_override = true,
             .field_settings = &.{
                 .{ .name = "uuid", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
@@ -766,7 +793,7 @@ pub const Group = struct {
 
     pub fn cborParse(item: cbor.DataItem, o: cbor.Options) !@This() {
         return try cbor.parse(@This(), item, .{
-            .from_callback = true, // prevent infinite loops
+            .ignore_override = true, // prevent infinite loops
             .field_settings = &.{
                 .{ .name = "uuid", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
@@ -790,7 +817,7 @@ pub const Times = struct {
 
     pub fn cborStringify(self: *const @This(), _: cbor.Options, out: anytype) !void {
         try cbor.stringify(self, .{
-            .from_callback = true,
+            .ignore_override = true,
             .field_settings = &.{
                 .{ .name = "creat", .field_options = .{ .alias = "0", .serialization_type = .Integer } },
                 .{ .name = "mod", .field_options = .{ .alias = "1", .serialization_type = .Integer } },
@@ -802,7 +829,7 @@ pub const Times = struct {
 
     pub fn cborParse(item: cbor.DataItem, _: cbor.Options) !@This() {
         return try cbor.parse(@This(), item, .{
-            .from_callback = true, // prevent infinite loops
+            .ignore_override = true, // prevent infinite loops
             .field_settings = &.{
                 .{ .name = "creat", .field_options = .{ .alias = "0", .serialization_type = .Integer } },
                 .{ .name = "mod", .field_options = .{ .alias = "1", .serialization_type = .Integer } },
@@ -847,7 +874,7 @@ pub const Meta = struct {
 
     pub fn cborStringify(self: *const @This(), o: cbor.Options, out: anytype) !void {
         try cbor.stringify(self, .{
-            .from_callback = true,
+            .ignore_override = true,
             .field_settings = &.{
                 .{ .name = "gen", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
@@ -860,7 +887,7 @@ pub const Meta = struct {
 
     pub fn cborParse(item: cbor.DataItem, o: cbor.Options) !@This() {
         return try cbor.parse(@This(), item, .{
-            .from_callback = true, // prevent infinite loops
+            .ignore_override = true, // prevent infinite loops
             .field_settings = &.{
                 .{ .name = "gen", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
@@ -1097,7 +1124,7 @@ pub const Entry = struct {
 
     pub fn cborStringify(self: *const @This(), o: cbor.Options, out: anytype) !void {
         try cbor.stringify(self, .{
-            .from_callback = true,
+            .ignore_override = true,
             .field_settings = &.{
                 .{ .name = "uuid", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
@@ -1119,7 +1146,7 @@ pub const Entry = struct {
 
     pub fn cborParse(item: cbor.DataItem, o: cbor.Options) !@This() {
         return try cbor.parse(@This(), item, .{
-            .from_callback = true, // prevent infinite loops
+            .ignore_override = true, // prevent infinite loops
             .field_settings = &.{
                 .{ .name = "uuid", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
@@ -1163,7 +1190,7 @@ pub const User = struct {
 
     pub fn cborStringify(self: *const @This(), o: cbor.Options, out: anytype) !void {
         try cbor.stringify(self, .{
-            .from_callback = true,
+            .ignore_override = true,
             .field_settings = &.{
                 .{ .name = "id", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .ByteString } },
                 .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
@@ -1176,7 +1203,7 @@ pub const User = struct {
 
     pub fn cborParse(item: cbor.DataItem, o: cbor.Options) !@This() {
         return try cbor.parse(@This(), item, .{
-            .from_callback = true, // prevent infinite loops
+            .ignore_override = true, // prevent infinite loops
             .field_settings = &.{
                 .{ .name = "id", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .ByteString } },
                 .{ .name = "name", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
@@ -1200,7 +1227,7 @@ pub const Attachment = struct {
 
     pub fn cborStringify(self: *const @This(), o: cbor.Options, out: anytype) !void {
         try cbor.stringify(self, .{
-            .from_callback = true,
+            .ignore_override = true,
             .field_settings = &.{
                 .{ .name = "desc", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "att", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .ByteString } },
@@ -1212,7 +1239,7 @@ pub const Attachment = struct {
 
     pub fn cborParse(item: cbor.DataItem, o: cbor.Options) !@This() {
         return try cbor.parse(@This(), item, .{
-            .from_callback = true, // prevent infinite loops
+            .ignore_override = true, // prevent infinite loops
             .field_settings = &.{
                 .{ .name = "desc", .field_options = .{ .alias = "0", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .TextString } },
                 .{ .name = "att", .field_options = .{ .alias = "1", .serialization_type = .Integer }, .value_options = .{ .slice_serialization_type = .ByteString } },
@@ -1477,13 +1504,16 @@ test "serialize body #2" {
     //    |
     //    +- github.com
     //       > ...
-    const g1 = try body.newGroup("passwords");
+    var g1 = try body.newGroup("passwords");
     @memcpy(g1.uuid[0..], "0190886e-c10b-7a92-9d0b-d99386d3075e");
+    std.debug.print("len: {d}\n", .{g1.groups.len});
 
-    const g2 = try body.newGroup("passkeys");
+    var g2 = try body.newGroup("passkeys");
+    std.debug.print("len: {d}\n", .{g1.groups.len});
     @memcpy(g2.uuid[0..], "0190886f-ec91-7f27-87d3-cca7c5d87328");
 
-    const g3 = try body.newGroup("github.com");
+    var g3 = try body.newGroup("github.com");
+    std.debug.print("len: {d}\n", .{g1.groups.len});
     @memcpy(g3.uuid[0..], "0190889b-0636-7a82-92d2-a5ad838fec1d");
 
     try g1.addGroup(g3);
